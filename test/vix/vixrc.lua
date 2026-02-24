@@ -16,12 +16,16 @@ vix.events.subscribe(vix.events.WIN_OPEN, function(win)
 		-- use the corresponding test.lua file
 		name = string.gsub(name, '%.in$', '')
 		run_if_exists(string.format("%s.lua", name))
-		local file = io.open(string.format("%s.keys", name))
-		local keys = file:read('*all')
-		keys = string.gsub(keys, '%s*\n', '')
-		keys = string.gsub(keys, '<Space>', ' ')
-		file:close()
-		vix:feedkeys(keys..'<Escape>')
+		local file = io.open(string.format("%s.keys", name), "r")
+		if file then
+			local keys = file:read('*all')
+			file:close()
+			if keys then
+				keys = string.gsub(keys, '%s*\n', '')
+				keys = string.gsub(keys, '<Space>', ' ')
+				vix:feedkeys(keys..'<Escape>')
+			end
+		end
 		vix:command(string.format("w! '%s.out'", name))
 	end
 end)

@@ -1573,7 +1573,7 @@ local function searchpath(name, path)
 	local tried = {}
 	name = name:gsub('%.', '/')
 	for part in path:gmatch('[^;]+') do
-		local filename = part:gsub('%%?', name)
+		local filename = part:gsub('%?', name)
 		local f = io.open(filename, "r")
 		if f then
 			f:close()
