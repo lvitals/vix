@@ -592,6 +592,7 @@ bool ui_terminal_init(Ui *tui) {
 	tui->styles = styles;
 	tui->doupdate = true;
 	tui->backend_data = NULL;
+	tui->is_tty = isatty(STDIN_FILENO);
 	return true;
 }
 

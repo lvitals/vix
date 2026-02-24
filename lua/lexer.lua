@@ -860,6 +860,7 @@ local M = {}
 -- This comment is needed for LDoc to process the previous field.
 
 if not lpeg then lpeg = require('lpeg') end -- Scintillua's Lua environment defines _G.lpeg
+_G.lpeg = lpeg
 local lpeg = lpeg
 local P, R, S, V, B = lpeg.P, lpeg.R, lpeg.S, lpeg.V, lpeg.B
 local Ct, Cc, Cp, Cmt, C = lpeg.Ct, lpeg.Cc, lpeg.Cp, lpeg.Cmt, lpeg.C
@@ -1570,10 +1571,14 @@ end
 -- @return path to a lexer or `nil` plus an error message
 local function searchpath(name, path)
 	local tried = {}
+	name = name:gsub('%.', '/')
 	for part in path:gmatch('[^;]+') do
-		local filename = part:gsub('%?', name)
-		local ok, errmsg = loadfile(filename)
-		if ok or not errmsg:find('cannot open') then return filename end
+		local filename = part:gsub('%%?', name)
+		local f = io.open(filename, "r")
+		if f then
+			f:close()
+			return filename
+		end
 		tried[#tried + 1] = string.format("no file '%s'", filename)
 	end
 	return nil, table.concat(tried, '\n')
@@ -1606,7 +1611,7 @@ function M.load(name, alt_name)
 	}, {__index = M})
 	local env = {
 		'assert', 'error', 'ipairs', 'math', 'next', 'pairs', 'print', 'select', 'string', 'table',
-		'tonumber', 'tostring', 'type', 'utf8', '_VERSION', lexer = ro_lexer, lpeg = lpeg, --
+		'tonumber', 'tostring', 'type', 'utf8', '_VERSION', lexer = ro_lexer, lpeg = _G.lpeg or lpeg, --
 		require = function() return ro_lexer end -- legacy
 	}
 	for _, name in ipairs(env) do env[name] = _G[name] end

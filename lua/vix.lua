@@ -2,7 +2,28 @@
 -- Vix Lua plugin API standard library
 -- @module vix
 
-io.stderr:write("DEBUG: vix.lua loading...\n")
+if not package.searchpath then
+	package.searchpath = function(name, path)
+		local errmsg = ""
+		name = name:gsub('%.', '/')
+		for part in path:gmatch('[^;]+') do
+			local filename = ""
+			local s, e = part:find('?')
+			if s then
+				filename = part:sub(1, s-1) .. name .. part:sub(e+1)
+			else
+				filename = part
+			end
+			local f = io.open(filename, "r")
+			if f then
+				f:close()
+				return filename
+			end
+			errmsg = errmsg .. string.format("\n\tno file '%s'", filename)
+		end
+		return nil, errmsg
+	end
+end
 
 ---
 -- @type Vix
@@ -192,7 +213,6 @@ local handlers = vix.handlers
 -- 	return true
 -- end)
 events.subscribe = function(event, handler, index)
-	io.stderr:write(string.format("DEBUG: vix.lua: subscribe to '%s'\n", tostring(event)))
 	if not event then error("Invalid event name") end
 	if type(handler) ~= 'function' then error("Invalid event handler") end
 	if not handlers[event] then handlers[event] = {} end
@@ -228,11 +248,7 @@ end
 -- @tparam ... ... the remaining parameters are passed on to the handler
 events.emit = function(event, ...)
 	local h = handlers[event]
-	if not h then
-		io.stderr:write(string.format("DEBUG: vix.lua: emit '%s' (no handlers)\n", tostring(event)))
-		return
-	end
-	io.stderr:write(string.format("DEBUG: vix.lua: emit '%s' (%d handlers)\n", tostring(event), #h))
+	if not h then return end
 	for i = 1, #h do
 		local ret = h[i](...)
 		if type(ret) ~= 'nil' then return ret end
