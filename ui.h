@@ -94,6 +94,7 @@ typedef struct {
 	bool doupdate;            /* Whether to update the screen after refreshing contents */
 	void *ctx;                /* Any additional data needed by the backend */
 	void *backend_data;       /* Any additional persistent data needed by the backend */
+	bool is_tty;              /* Whether the input is a TTY */
 } Ui;
 
 #include "view.h"

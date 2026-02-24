@@ -2,6 +2,8 @@
 -- Vix Lua plugin API standard library
 -- @module vix
 
+io.stderr:write("DEBUG: vix.lua loading...\n")
+
 ---
 -- @type Vix
 
@@ -175,7 +177,8 @@ events.term_csi = function(...) events.emit(events.TERM_CSI, ...) end
 events.process_response = function(...) events.emit(events.PROCESS_RESPONSE, ...) end
 events.ui_draw = function(...) events.emit(events.UI_DRAW, ...) end
 
-local handlers = {}
+vix.handlers = vix.handlers or {}
+local handlers = vix.handlers
 
 --- Subscribe to an event.
 --
@@ -189,6 +192,7 @@ local handlers = {}
 -- 	return true
 -- end)
 events.subscribe = function(event, handler, index)
+	io.stderr:write(string.format("DEBUG: vix.lua: subscribe to '%s'\n", tostring(event)))
 	if not event then error("Invalid event name") end
 	if type(handler) ~= 'function' then error("Invalid event handler") end
 	if not handlers[event] then handlers[event] = {} end
@@ -224,7 +228,11 @@ end
 -- @tparam ... ... the remaining parameters are passed on to the handler
 events.emit = function(event, ...)
 	local h = handlers[event]
-	if not h then return end
+	if not h then
+		io.stderr:write(string.format("DEBUG: vix.lua: emit '%s' (no handlers)\n", tostring(event)))
+		return
+	end
+	io.stderr:write(string.format("DEBUG: vix.lua: emit '%s' (%d handlers)\n", tostring(event), #h))
 	for i = 1, #h do
 		local ret = h[i](...)
 		if type(ret) ~= 'nil' then return ret end

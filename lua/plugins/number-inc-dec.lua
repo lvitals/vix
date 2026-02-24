@@ -17,41 +17,46 @@ local change = function(delta)
 
 	for selection in win:selections_iterator() do
 		local pos = selection.pos
-		if not pos then goto continue end
-		local word = file:text_object_word(pos);
-		if not word then goto continue end
-		local data = file:content(word.start, 1024)
-		if not data then goto continue end
-		local s, e = pattern:match(data)
-		if not s then goto continue end
-		data = string.sub(data, s, e-1)
-		if #data == 0 then goto continue end
-		-- align start and end for fileindex
-		s = word.start + s - 1
-		e = word.start + e - 1
-		local base, format, padding = 10, 'd', 0
-		if lexer.oct_num:match(data) then
-			base = 8
-			format = 'o'
-			padding = #data
-		elseif lexer.hex_num:match(data) then
-			base = 16
-			format = 'x'
-			padding = #data - #"0x"
+		if pos then
+			local word = file:text_object_word(pos);
+			if word then
+				local data = file:content(word.start, 1024)
+				if data then
+					local s, e = pattern:match(data)
+					if s then
+						data = string.sub(data, s, e-1)
+						if #data > 0 then
+							-- align start and end for fileindex
+							s = word.start + s - 1
+							e = word.start + e - 1
+							local base, format, padding = 10, 'd', 0
+							if lexer.oct_num:match(data) then
+								base = 8
+								format = 'o'
+								padding = #data
+							elseif lexer.hex_num:match(data) then
+								base = 16
+								format = 'x'
+								padding = #data - #"0x"
+							end
+							local number = tonumber(data, base == 8 and 8 or nil)
+							if number then
+								number = number + delta * count
+								-- string.format does not support negative hex/oct values
+								if base ~= 10 and number < 0 then number = 0 end
+								number = string.format((base == 16 and "0x" or "") .. "%0"..padding..format, number)
+								if base == 8 and string.sub(number, 0, 1) ~= "0" then
+									number = '0' .. number
+								end
+								file:delete(s, e - s)
+								file:insert(s, number)
+								selection.pos = s
+							end
+						end
+					end
+				end
+			end
 		end
-		local number = tonumber(data, base == 8 and 8 or nil)
-		if not number then goto continue end
-		number = number + delta * count
-		-- string.format does not support negative hex/oct values
-		if base ~= 10 and number < 0 then number = 0 end
-		number = string.format((base == 16 and "0x" or "") .. "%0"..padding..format, number)
-		if base == 8 and string.sub(number, 0, 1) ~= "0" then
-			number = '0' .. number
-		end
-		file:delete(s, e - s)
-		file:insert(s, number)
-		selection.pos = s
-		::continue::
 	end
 end
 

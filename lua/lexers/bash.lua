@@ -58,10 +58,10 @@ local function in_expr(constructs)
 		local line = input:sub(1, index):match('[^\r\n]*$')
 		for k, v in pairs(constructs) do
 			local s = line:find(k, 1, true)
-			if not s then goto continue end
-			local e = line:find(v, 1, true)
-			if not e or e < s then return true end
-			::continue::
+			if s then
+				local e = line:find(v, 1, true)
+				if not e or e < s then return true end
+			end
 		end
 		return nil
 	end)

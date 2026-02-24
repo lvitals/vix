@@ -2,6 +2,19 @@
 local M = {}
 vix.ftdetect = M
 
+local searchpath = package.searchpath or function(name, path)
+	name = name:gsub('%.', '/')
+	for part in path:gmatch('[^;]+') do
+		local filename = part:gsub('%?', name)
+		local f = io.open(filename, "r")
+		if f then
+			f:close()
+			return filename
+		end
+	end
+	return nil
+end
+
 --[[
 	filetype.lua identifies the opened file's filetype and sets syntax highlighting and etc
 
@@ -435,7 +448,7 @@ vix.events.subscribe(vix.events.WIN_OPEN, function(win)
 			or syntax
 	end
 	-- Detect returns filetype, lexer is optional
-	if package.searchpath("lexers." .. syntax, package.path) then
+	if searchpath("lexers." .. syntax, package.path) then
 		win:set_syntax(syntax)
 		return
 	else

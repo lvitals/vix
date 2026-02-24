@@ -251,19 +251,22 @@ static bool ui_term_backend_resize(Ui *tui, int width, int height) {
 }
 
 static void ui_term_backend_save(Ui *tui, bool fscr) {
-	curs_set(1);
+	if (tui->is_tty)
+		curs_set(1);
 	if (fscr) {
 		def_prog_mode();
 		endwin();
-	} else {
+	} else if (tui->is_tty) {
 		reset_shell_mode();
 	}
 }
 
 static void ui_term_backend_restore(Ui *tui) {
-	reset_prog_mode();
+	if (tui->is_tty)
+		reset_prog_mode();
 	wclear(stdscr);
-	curs_set(0);
+	if (tui->is_tty)
+		curs_set(0);
 }
 
 int ui_terminal_colors(void) {
@@ -284,9 +287,11 @@ static bool ui_term_backend_init(Ui *tui, char *term) {
 	cbreak();
 	noecho();
 	nonl();
-	keypad(stdscr, TRUE);
+	if (tui->is_tty)
+		keypad(stdscr, TRUE);
 	meta(stdscr, TRUE);
-	curs_set(0);
+	if (tui->is_tty)
+		curs_set(0);
 	return true;
 }
 
