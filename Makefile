@@ -12,6 +12,7 @@ ENABLE_LUA     ?= 1
 ENABLE_TRE     ?= 0
 ENABLE_ACL     ?= 0
 ENABLE_SELINUX ?= 0
+ENABLE_CURSES  ?= 0
 DEBUG          ?= 0
 ASAN           ?= 0
 
@@ -23,8 +24,13 @@ INCS = -I.
 LIBS = -lc -lm
 
 # Essential TUI dependencies
+ifeq ($(ENABLE_CURSES), 1)
 TUI_CFLAGS := $(shell $(PKG_CONFIG) --cflags termkey ncursesw || echo "-I/usr/include")
 TUI_LIBS   := $(shell $(PKG_CONFIG) --libs termkey ncursesw || echo "-ltermkey -lncursesw")
+else
+TUI_CFLAGS := $(shell $(PKG_CONFIG) --cflags termkey || echo "-I/usr/include")
+TUI_LIBS   := $(shell $(PKG_CONFIG) --libs termkey || echo "-ltermkey")
+endif
 INCS      += ${TUI_CFLAGS}
 LIBS      += ${TUI_LIBS}
 
@@ -52,7 +58,7 @@ endif
 CC       ?= cc
 CPPFLAGS  = -DVERSION='"$(VERSION)"' \
             -D_POSIX_C_SOURCE=200809L \
-            -DCONFIG_CURSES=1 \
+            -DCONFIG_CURSES=$(ENABLE_CURSES) \
             -DCONFIG_HELP=1 \
             -DCONFIG_LUA=$(ENABLE_LUA) \
             -DCONFIG_TRE=$(ENABLE_TRE) \
