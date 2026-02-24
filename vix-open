@@ -1,0 +1,89 @@
+#!/bin/sh
+set -e
+
+# Later, we're going to want to set $IFS to a single newline, so let's prepare one.
+NL='
+'
+
+fatal() {
+	echo "$@" >&2
+	exit 1
+}
+
+usage() {
+	fatal "Usage: $(basename "$0") [-f] [-p prompt] [--] [file-pattern]
+
+Interactively select a file to open
+
+Options:
+    -f            always present given arguments, even when there is only one
+    -p            use prompt as prompt string
+    file-pattern  list of filenames and directories"
+}
+
+# print a list of filenames on stdin and distinguish directories
+wrap_dirs() {
+	while read -r filename
+	do
+		if [ -d "$filename" ]; then
+			printf '%s/\n' "$filename"
+		else
+			printf '%s\n' "$filename"
+		fi
+	done
+}
+
+VIX_OPEN_LINES="${VIX_OPEN_LINES:-0}"
+VIX_MENU_PROMPT=''
+ALLOW_AUTO_SELECT='1'
+
+while getopts fhp: opt; do
+	case "$opt" in
+	f)
+		ALLOW_AUTO_SELECT=''
+		;;
+	p)
+		VIX_MENU_PROMPT="$OPTARG"
+		;;
+	*)
+		usage
+		;;
+	esac
+done
+shift "$((OPTIND - 1))"
+
+# At this point, all the remaining arguments should be the expansion of
+# any globs that were passed on the command line.
+
+if [ "$#" -eq 1 ] && [ "$ALLOW_AUTO_SELECT" = '1' ]; then
+	# If there were globs on the command-line, they've expanded to
+	# a single item, so we can just process it.
+
+	if [ -d "$1" ]; then
+		# Recurse and show the contents of the named directory,
+		# We pass -f to force the next iteration to present the
+		# full list, even if it's just an empty directory.
+		cd "$1"
+		IFS="$NL"  # Don't split ls output on tabs or spaces.
+		exec "$0" -p "$VIX_MENU_PROMPT" -f "$(ls -1)"
+	else
+		# We've found a single item, and it's not a directory,
+		# so it must be a filename (or file-like thing) to open,
+		# unless the parent directory does not exist.
+		parentdir="$(dirname -- "$1")"
+		if [ -d "$parentdir" ]; then
+			cd "$parentdir"
+			printf '%s/%s\n' "$(pwd -P)" "$(basename -- "${1%\*}")"
+			exit 0
+		else
+			exit 1
+		fi
+	fi
+fi
+
+# At this point, we have a bunch of options we need to present to the
+# user so they can pick one.
+CHOICE="$(printf '%s\n' '..' "$@" | wrap_dirs | vix-menu -b -l "$VIX_OPEN_LINES" -p "$VIX_MENU_PROMPT")"
+
+# Did they pick a file or directory? Who knows, let's let the next iteration figure it out.
+exec "$0" -p "$VIX_MENU_PROMPT" -- "$CHOICE"

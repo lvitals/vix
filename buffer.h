@@ -1,0 +1,54 @@
+#ifndef BUFFER_H
+#define BUFFER_H
+
+#include "text.h"
+
+/**
+ * @file
+ * A dynamically growing buffer storing arbitrary data.
+ * @rst
+ * .. note:: Used for Register, *not* Text content.
+ * @endrst
+ */
+
+/** A dynamically growing buffer storing arbitrary data. */
+typedef struct {
+	char *data;    /**< Data pointer, ``NULL`` if empty. */
+	size_t len;    /**< Current length of data. */
+	size_t size;   /**< Maximal capacity of the buffer. */
+} Buffer;
+
+/** Release all resources, reinitialize buffer. */
+VIX_INTERNAL void buffer_release(Buffer*);
+/** Reserve space to store at least ``size`` bytes.*/
+VIX_INTERNAL bool buffer_reserve(Buffer*, size_t size);
+/** Reserve space for at least ``len`` *more* bytes. */
+VIX_INTERNAL bool buffer_grow(Buffer*, size_t len);
+/** If buffer is non-empty, make sure it is ``NUL`` terminated. */
+VIX_INTERNAL bool buffer_terminate(Buffer*);
+/** Set buffer content, growing the buffer as needed. */
+VIX_INTERNAL bool buffer_put(Buffer*, const void *data, size_t len);
+/** Set buffer content to ``NUL`` terminated data. */
+VIX_INTERNAL bool buffer_put0(Buffer*, const char *data);
+/** Remove ``len`` bytes starting at ``pos``. */
+VIX_INTERNAL bool buffer_remove(Buffer*, size_t pos, size_t len);
+/** Insert NUL-terminated data at pos. */
+VIX_INTERNAL bool buffer_insert0(Buffer*, size_t pos, const char *data);
+/** Append further content to the end. */
+VIX_INTERNAL bool buffer_append(Buffer*, const void *data, size_t len);
+/** Append NUL-terminated data. */
+VIX_INTERNAL bool buffer_append0(Buffer*, const char *data);
+/** Append formatted buffer content, ensures NUL termination on success. */
+VIX_INTERNAL bool buffer_appendf(Buffer*, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+/** Return length of a buffer without trailing NUL byte. */
+VIX_INTERNAL size_t buffer_length0(Buffer*);
+/**
+ * Get pointer to buffer data.
+ * Guaranteed to return a NUL terminated string even if buffer is empty.
+ */
+VIX_INTERNAL const char *buffer_content0(Buffer*);
+
+/** ``read(3p)`` like interface for reading into a Buffer (``context``) */
+VIX_INTERNAL ssize_t read_into_buffer(void *context, char *data, size_t len);
+
+#endif

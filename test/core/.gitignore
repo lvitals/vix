@@ -1,0 +1,12 @@
+*.gcda
+*.gcno
+*.gcov
+*.valgrind
+/buffer-test
+/ccan-config
+/config.h
+/data
+/hardlink
+/map-test
+/symlink
+/text-test

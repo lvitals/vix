@@ -1,0 +1,89 @@
+#!/bin/sh
+set -e
+
+fatal() {
+	echo "$@" >&2
+	exit 1
+}
+
+usage() {
+	fatal "Usage: $(basename "$0") [--file|--word] [--] pattern
+
+Interactively complete file or word
+
+Options:
+    --file   expand pattern into a list of matching file names (default)
+    --word   apply pattern to a list of words from standard input
+    pattern  pattern to be completed"
+}
+
+basic_regex_quote() { printf "%s" "$1" | sed 's|[\\.*^$[]|\\&|g'; }
+glob_quote () { printf "%s" "$1" | sed 's|[\\?*[]]|\\&|g'; }
+
+COMPLETE_WORD=0
+FIND_FILE_LIMIT="${FIND_FILE_LIMIT:-1000}"
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--file)
+		COMPLETE_WORD=0
+		shift
+		;;
+	--word)
+		COMPLETE_WORD=1
+		shift
+		;;
+	--)
+		shift
+		break
+		;;
+	-*|'')
+		usage
+		;;
+	*)
+		break
+		;;
+	esac
+done
+
+[ "$#" -lt 1 ] && usage
+
+PATTERN="$1"
+
+if [ $COMPLETE_WORD = 1 ]; then
+	# shellcheck disable=SC1003
+	tr -s '\t {}()[],<>%^&.\\' '\n' |
+		grep "^$(basic_regex_quote "$PATTERN")." |
+		sort -u
+else
+	# Expand to absolute path because of the -path option below.
+	# shellcheck disable=SC2088
+	case $PATTERN in
+		/*)
+			XPATTERN="$PATTERN"
+			;;
+		'~'|'~/'*)
+			XPATTERN="$HOME$(echo "$PATTERN" | tail -c +2)"
+			;;
+		*)
+			XPATTERN="$PWD/$PATTERN"
+			;;
+	esac
+
+	# The first path condition rules out paths that start with "." unless
+	# they start with "..". That way, hidden paths should stay hidden, but
+	# non-normalised paths should still show up.
+	find "$(dirname "$XPATTERN")" \
+		-name '.*' -prune \
+		-o \( \
+			! -name '.*' \
+			-a -path "$(glob_quote "$XPATTERN")*" \
+			-print \
+		\) 2>/dev/null |
+		head -n "$FIND_FILE_LIMIT" |
+		sort |
+		sed "s|^$(dirname "$XPATTERN")/||"
+fi |
+	vix-menu -b |
+	sed "s|^$(basename "$PATTERN")$(echo "$PATTERN" | tail -c 2 | grep -F /)||" |
+	tr -d '\n'
