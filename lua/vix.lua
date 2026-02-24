@@ -5,7 +5,6 @@
 if not package.searchpath then
 	package.searchpath = function(name, path)
 		local errmsg = ""
-		name = name:gsub('%.', '/')
 		for part in path:gmatch('[^;]+') do
 			local filename = ""
 			local s, e = part:find('?')

@@ -25,7 +25,7 @@ for t in $test_files; do
 	TESTS_RUN=$((TESTS_RUN + 1))
 	t=${t%.in}
 	t=${t#./}
-	$VIX '+qall!' "$t".in < /dev/null 2> /dev/null
+	$VIX '+qall!' "$t".in < /dev/null 2> "$t".log
 	RETURN_CODE=$?
 
 	printf "%-50s" "$t"
@@ -36,9 +36,14 @@ for t in $test_files; do
 		else
 			printf "FAIL\n"
 			diff -u "$t".ref "$t".out > "$t".err
+			if [ -s "$t".log ]; then
+				echo "--- STDERR ---" >> "$t".err
+				cat "$t".log >> "$t".err
+			fi
 		fi
 	else
 		printf "ERROR\n"
+		cat "$t".log > "$t".err
 	fi
 done
 

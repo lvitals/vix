@@ -860,7 +860,6 @@ local M = {}
 -- This comment is needed for LDoc to process the previous field.
 
 if not lpeg then lpeg = require('lpeg') end -- Scintillua's Lua environment defines _G.lpeg
-_G.lpeg = lpeg
 local lpeg = lpeg
 local P, R, S, V, B = lpeg.P, lpeg.R, lpeg.S, lpeg.V, lpeg.B
 local Ct, Cc, Cp, Cmt, C = lpeg.Ct, lpeg.Cc, lpeg.Cp, lpeg.Cmt, lpeg.C
@@ -1571,14 +1570,10 @@ end
 -- @return path to a lexer or `nil` plus an error message
 local function searchpath(name, path)
 	local tried = {}
-	name = name:gsub('%.', '/')
 	for part in path:gmatch('[^;]+') do
 		local filename = part:gsub('%?', name)
-		local f = io.open(filename, "r")
-		if f then
-			f:close()
-			return filename
-		end
+		local ok, errmsg = loadfile(filename)
+		if ok or not errmsg:find('cannot open') then return filename end
 		tried[#tried + 1] = string.format("no file '%s'", filename)
 	end
 	return nil, table.concat(tried, '\n')
@@ -1615,7 +1610,17 @@ function M.load(name, alt_name)
 		require = function() return ro_lexer end -- legacy
 	}
 	for _, name in ipairs(env) do env[name] = _G[name] end
-	local lexer = assert(loadfile(assert(searchpath(name, path)), 't', env))(alt_name or name)
+	
+	local filename = assert(searchpath(name, path))
+	local chunk, err
+	if setfenv then
+		chunk, err = loadfile(filename)
+		if chunk then setfenv(chunk, env) end
+	else
+		chunk, err = loadfile(filename, 't', env)
+	end
+	
+	local lexer = assert(chunk, err)(alt_name or name)
 	assert(lexer, string.format("'%s.lua' did not return a lexer", name))
 
 	-- If the lexer is a proxy or a child that embedded itself, set the parent to be the main
