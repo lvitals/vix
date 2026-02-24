@@ -11,7 +11,10 @@ vix:option_register("theme", "string", function(name)
 	if name ~= nil then
 		local theme = 'themes/'..name
 		package.loaded[theme] = nil
-		require(theme)
+		if not pcall(require, theme) then
+			vix:info("Theme not found: " .. name)
+			return false
+		end
 	end
 
 	local lexers = vix.lexers

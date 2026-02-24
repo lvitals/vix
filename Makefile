@@ -23,24 +23,27 @@ INCS = -I.
 LIBS = -lc -lm
 
 # Essential TUI dependencies
-TUI_CFLAGS = $(shell $(PKG_CONFIG) --cflags termkey ncursesw || echo "-I/usr/include")
-TUI_LIBS   = $(shell $(PKG_CONFIG) --libs termkey ncursesw || echo "-ltermkey -lncursesw")
+TUI_CFLAGS := $(shell $(PKG_CONFIG) --cflags termkey ncursesw || echo "-I/usr/include")
+TUI_LIBS   := $(shell $(PKG_CONFIG) --libs termkey ncursesw || echo "-ltermkey -lncursesw")
 INCS      += ${TUI_CFLAGS}
 LIBS      += ${TUI_LIBS}
 
 # Lua support
 ifeq ($(ENABLE_LUA), 1)
 LUA_PKG ?= $(shell $(PKG_CONFIG) --exists lua5.4 && echo lua5.4 || echo lua)
-LUA_CFLAGS = $(shell $(PKG_CONFIG) --cflags $(LUA_PKG))
-LUA_LIBS   = $(shell $(PKG_CONFIG) --libs $(LUA_PKG))
+ifeq ($(strip $(LUA_PKG)),)
+LUA_PKG := lua
+endif
+LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(LUA_PKG))
+LUA_LIBS   := $(shell $(PKG_CONFIG) --libs $(LUA_PKG))
 INCS      += ${LUA_CFLAGS}
 LIBS      += ${LUA_LIBS}
 endif
 
 # TRE support
 ifeq ($(ENABLE_TRE), 1)
-TRE_CFLAGS = $(shell $(PKG_CONFIG) --cflags tre)
-TRE_LIBS   = $(shell $(PKG_CONFIG) --libs tre)
+TRE_CFLAGS := $(shell $(PKG_CONFIG) --cflags tre)
+TRE_LIBS   := $(shell $(PKG_CONFIG) --libs tre)
 INCS      += ${TRE_CFLAGS}
 LIBS      += ${TRE_LIBS}
 endif
