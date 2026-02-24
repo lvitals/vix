@@ -1,0 +1,17 @@
+pkgbase = vix-git
+	pkgdesc = vix - vi-like editor based on Plan 9's structural regular expressions
+	pkgver = 0.1.r0.gHEAD
+	pkgrel = 1
+	url = https://github.com/lvitals/vix
+	arch = x86_64
+	license = ISC
+	makedepends = git
+	depends = lua
+	depends = libtermkey
+	depends = ncurses
+	provides = vix
+	conflicts = vix
+	source = git+https://github.com/lvitals/vix.git
+	sha256sums = SKIP
+
+pkgname = vix-git

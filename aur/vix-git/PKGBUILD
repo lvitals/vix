@@ -1,0 +1,32 @@
+# Maintainer: Leandro <leandro@example.com>
+pkgname=vix-git
+pkgver=0.1.r0.gHEAD
+pkgrel=1
+pkgdesc="vix - vi-like editor based on Plan 9's structural regular expressions"
+arch=('x86_64')
+url="https://github.com/lvitals/vix"
+license=('ISC')
+depends=('lua' 'libtermkey' 'ncurses')
+makedepends=('git')
+provides=('vix')
+conflicts=('vix')
+source=('git+https://github.com/lvitals/vix.git')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/vix"
+  # Generate version string: 0.1.r<count>.g<hash>
+  printf "0.1.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$srcdir/vix"
+  make PREFIX=/usr
+}
+
+package() {
+  cd "$srcdir/vix"
+  make DESTDIR="$pkgdir/" PREFIX=/usr install
+  # Assumes LICENSE file is present in repository root
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
