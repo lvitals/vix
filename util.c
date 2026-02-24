@@ -1,4 +1,4 @@
-static uint32_t
+uint32_t
 utf8_encode(uint8_t out[4], uint32_t cp)
 {
 	uint32_t result;
@@ -34,15 +34,17 @@ enum { DA_INITIAL_CAP = 16 };
 #define da_release(da) free((da)->data)
 
 #define da_unordered_remove(da, index) do { \
-	if ((index) < (da)->count - 1) \
+	if ((index) < (da)->count - 1) { \
 		(da)->data[(index)] = (da)->data[(da)->count - 1]; \
+	} \
 	(da)->count--; \
 } while(0)
 
 #define da_ordered_remove(da, index) do { \
-	if ((index) < (da)->count - 1) \
+	if ((index) < (da)->count - 1) { \
 		memmove((da)->data + (index), (da)->data + (index) + 1, \
 		        sizeof(*(da)->data) * ((da)->count - (index) - 1)); \
+	} \
 	(da)->count--; \
 } while(0)
 
@@ -63,11 +65,16 @@ da_reserve_(Vix *vix, void *data, VixDACount *capacity, VixDACount needed, size_
 {
 	VixDACount cap = *capacity;
 
-	if (!cap) cap = DA_INITIAL_CAP;
-	while (cap < needed) cap *= 2;
+	if (!cap) {
+		cap = DA_INITIAL_CAP;
+	}
+	while (cap < needed) {
+		cap *= 2;
+	}
 	data = realloc(data, size * cap);
-	if (unlikely(data == 0))
+	if (unlikely(data == 0)) {
 		longjmp(vix->oom_jmp_buf, 1);
+	}
 
 	memset((char *)data + (*capacity * size), 0, size * (cap - *capacity));
 	*capacity = cap;
@@ -80,7 +87,12 @@ memory_scan_reverse(const void *memory, uint8_t byte, ptrdiff_t n)
 	void *result = 0;
 	if (n > 0) {
 		const uint8_t *s = memory;
-		while (n) if (s[--n] == byte) { result = (void *)(s + n); break; }
+		while (n) {
+			if (s[--n] == byte) {
+				result = (void *)(s + n);
+				break;
+			}
+		}
 	}
 	return result;
 }
@@ -98,17 +110,25 @@ str8_from_c_str(char *c_str)
 static void
 str8_split_at(str8 s, str8 *left, str8 *right, ptrdiff_t n)
 {
-	if (left)  *left  = (str8){0};
-	if (right) *right = (str8){0};
+	if (left) {
+		*left = (str8){0};
+	}
+	if (right) {
+		*right = (str8){0};
+	}
 	if (n >= 0 && n <= s.length) {
-		if (left) *left = (str8){
-			.length = n,
-			.data   = s.data,
-		};
-		if (right) *right = (str8){
-			.length = MAX(0, s.length - n - 1),
-			.data   = s.data + n + 1,
-		};
+		if (left) {
+			*left = (str8){
+				.length = n,
+				.data   = s.data,
+			};
+		}
+		if (right) {
+			*right = (str8){
+				.length = MAX(0, s.length - n - 1),
+				.data   = s.data + n + 1,
+			};
+		}
 	}
 }
 
@@ -117,15 +137,20 @@ path_split(str8 path, str8 *directory, str8 *basename)
 {
 	str8_split_at(path, directory, basename,
 	              (uint8_t *)memory_scan_reverse(path.data, '/', path.length) - path.data);
-	if (directory && directory->length == 0) *directory = str8(".");
-	if (basename  && basename->length  == 0) *basename  = path;
+	if (directory && directory->length == 0) {
+		*directory = str8(".");
+	}
+	if (basename && basename->length == 0) {
+		*basename = path;
+	}
 }
 
-static char *
+char *
 absolute_path(const char *name)
 {
-	if (!name)
+	if (!name) {
 		return 0;
+	}
 
 	str8 base, dir, string = str8_from_c_str((char *)name);
 	path_split(string, &dir, &base);
@@ -138,13 +163,15 @@ absolute_path(const char *name)
 
 	char *result = 0;
 	if (realpath(path_normalized, path_resolved) == path_resolved) {
-		if (strcmp(path_resolved, "/") == 0)
+		if (strcmp(path_resolved, "/") == 0) {
 			path_resolved[0] = 0;
+		}
 
 		int len = snprintf(path_normalized, sizeof(path_normalized), "%s/%.*s",
 		                   path_resolved, (int)base.length, base.data);
-		if (len < 0 || len >= (int)sizeof(path_normalized))
+		if (len < 0 || len >= (int)sizeof(path_normalized)) {
 			return NULL;
+		}
 		result = strdup(path_normalized);
 	}
 	return result;

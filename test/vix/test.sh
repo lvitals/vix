@@ -25,7 +25,7 @@ for t in $test_files; do
 	TESTS_RUN=$((TESTS_RUN + 1))
 	t=${t%.in}
 	t=${t#./}
-	$VIX '+qall!' "$t".in < /dev/null 2> "$t".log
+	$VIX -headless '+qall!' "$t".in < /dev/null 2> "$t".log
 	RETURN_CODE=$?
 
 	printf "%-50s" "$t"

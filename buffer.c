@@ -6,13 +6,15 @@
 
 bool buffer_reserve(Buffer *buf, size_t size) {
 	/* ensure minimal buffer size, to avoid repeated realloc(3) calls */
-	if (size < BUFFER_SIZE)
+	if (size < BUFFER_SIZE) {
 		size = BUFFER_SIZE;
+	}
 	if (buf->size < size) {
 		size = MAX(size, buf->size*2);
 		char *data = realloc(buf->data, size);
-		if (!data)
+		if (!data) {
 			return false;
+		}
 		buf->size = size;
 		buf->data = data;
 	}
@@ -21,8 +23,9 @@ bool buffer_reserve(Buffer *buf, size_t size) {
 
 bool buffer_grow(Buffer *buf, size_t len) {
 	size_t size;
-	if (!addu(buf->len, len, &size))
+	if (!addu(buf->len, len, &size)) {
 		return false;
+	}
 	return buffer_reserve(buf, size);
 }
 
@@ -32,15 +35,17 @@ bool buffer_terminate(Buffer *buf) {
 }
 
 void buffer_release(Buffer *buf) {
-	if (!buf)
+	if (!buf) {
 		return;
+	}
 	free(buf->data);
 	*buf = (Buffer){0};
 }
 
 bool buffer_put(Buffer *buf, const void *data, size_t len) {
-	if (!buffer_reserve(buf, len))
+	if (!buffer_reserve(buf, len)) {
 		return false;
+	}
 	memmove(buf->data, data, len);
 	buf->len = len;
 	return true;
@@ -52,35 +57,43 @@ bool buffer_put0(Buffer *buf, const char *data) {
 
 bool buffer_remove(Buffer *buf, size_t pos, size_t len) {
 	size_t end;
-	if (len == 0)
+	if (len == 0) {
 		return true;
-	if (!addu(pos, len, &end) || end > buf->len)
+	}
+	if (!addu(pos, len, &end) || end > buf->len) {
 		return false;
+	}
 	memmove(buf->data + pos, buf->data + pos + len, buf->len - pos - len);
 	buf->len -= len;
 	return true;
 }
 
 static bool buffer_insert(Buffer *buf, size_t pos, const void *data, size_t len) {
-	if (pos > buf->len)
+	if (pos > buf->len) {
 		return false;
-	if (len == 0)
+	}
+	if (len == 0) {
 		return true;
-	if (!buffer_grow(buf, len))
+	}
+	if (!buffer_grow(buf, len)) {
 		return false;
+	}
 	size_t move = buf->len - pos;
-	if (move > 0)
+	if (move > 0) {
 		memmove(buf->data + pos + len, buf->data + pos, move);
+	}
 	memcpy(buf->data + pos, data, len);
 	buf->len += len;
 	return true;
 }
 
 bool buffer_insert0(Buffer *buf, size_t pos, const char *data) {
-	if (pos == 0)
+	if (pos == 0) {
 		return buffer_insert(buf, 0, data, strlen(data) + (buf->len == 0));
-	if (pos == buf->len)
+	}
+	if (pos == buf->len) {
 		return buffer_append0(buf, data);
+	}
 	return buffer_insert(buf, pos, data, strlen(data));
 }
 
@@ -92,8 +105,9 @@ bool buffer_append0(Buffer *buf, const char *data) {
 	size_t nul = (buf->len > 0 && buf->data[buf->len-1] == '\0') ? 1 : 0;
 	buf->len -= nul;
 	bool ret = buffer_append(buf, data, strlen(data)+1);
-	if (!ret)
+	if (!ret) {
 		buf->len += nul;
+	}
 	return ret;
 }
 
@@ -123,14 +137,16 @@ bool buffer_appendf(Buffer *buf, const char *fmt, ...) {
 
 size_t buffer_length0(Buffer *buf) {
 	size_t len = buf->len;
-	if (len > 0 && buf->data[len-1] == '\0')
+	if (len > 0 && buf->data[len-1] == '\0') {
 		len--;
+	}
 	return len;
 }
 
 const char *buffer_content0(Buffer *buf) {
-	if (buf->len == 0 || !buffer_terminate(buf))
+	if (buf->len == 0 || !buffer_terminate(buf)) {
 		return "";
+	}
 	return buf->data;
 }
 

@@ -128,7 +128,7 @@ VIX_EXPORT void vix_exit(Vix *vix, int status);
  * .. note:: This function does not return.
  * @endrst
  */
-VIX_EXPORT void vix_die(Vix *vix, const char *msg, ...) __attribute__((noreturn,format(printf, 2, 3)));
+VIX_EXPORT void vix_die(Vix *vix, const char *msg, ...);
 
 /**
  * Inform the editor core that a signal occurred.
@@ -282,7 +282,7 @@ VIX_EXPORT void vix_prompt_show(Vix *vix, const char *title);
  * .. note:: The message will automatically be hidden upon next input.
  * @endrst
  */
-VIX_EXPORT void vix_info_show(Vix *vix, const char *msg, ...) __attribute__((format(printf, 2, 3)));
+VIX_EXPORT void vix_info_show(Vix *vix, const char *msg, ...);
 
 /**
  * Display arbitrary long message in a dedicated window.
@@ -1213,6 +1213,22 @@ VIX_EXPORT bool vix_prompt_cmd(Vix *vix, const char *cmd);
  * @param prefix Prefix to filter command list by.
  */
 VIX_EXPORT void vix_print_cmds(Vix*, Buffer *buf, const char *prefix);
+
+/**
+ * List all set options with a given prefix.
+ * @param vix The editor instance.
+ * @param buf The buffer to write to.
+ * @param prefix Prefix to filter option list by.
+ */
+VIX_EXPORT void vix_print_options(Vix*, Buffer *buf, const char *prefix);
+
+/**
+ * Get current value of an option as string.
+ * @param vix The editor instance.
+ * @param name The name of the option.
+ * @param buf The buffer to write the value to.
+ */
+VIX_EXPORT void vix_print_option_value(Vix *vix, const char *name, Buffer *buf);
 
 /**
  * Pipe a given file range to an external process.

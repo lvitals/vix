@@ -1946,8 +1946,9 @@ static void cleanup(void) {
 static ssize_t readc(char *c) {
 	for (;;) {
 		ssize_t r = read(0, c, 1);
-		if (r == -1 && errno == EINTR)
+		if (r == -1 && errno == EINTR) {
 			continue;
+		}
 		return r;
 	}
 }
@@ -1962,8 +1963,9 @@ int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "");
 
 	if (argc == 1) {
-		for (const Digraph *d = digraphs; d->name[0]; d++)
+		for (const Digraph *d = digraphs; d->name[0]; d++) {
 			wprintf(L"%s %lc %s\n", d->name, d->rune, d->description);
+		}
 		return 0;
 	}
 
@@ -2010,7 +2012,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	for (int i = 0; i < argc-1; i++)
+	for (int i = 0; i < argc-1; i++) {
 		putwchar(runes[i]);
+	}
 	return 0;
 }

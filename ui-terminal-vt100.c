@@ -59,8 +59,9 @@
 #define CELL_ATTR_DIM       (1 << 5)
 
 static inline bool cell_color_equal(CellColor c1, CellColor c2) {
-	if (c1.index != (uint8_t)-1 || c2.index != (uint8_t)-1)
+	if (c1.index != (uint8_t)-1 || c2.index != (uint8_t)-1) {
 		return c1.index == c2.index;
+	}
 	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b;
 }
 
@@ -74,7 +75,9 @@ static CellColor color_terminal(Ui *ui, uint8_t index) {
 
 
 static void output(const char *data, size_t len) {
-	write(STDERR_FILENO, data, len);
+	if (write(STDERR_FILENO, data, len) == -1) {
+		/* ignore error */
+	}
 }
 
 static void output_literal(const char *data) {
@@ -99,6 +102,7 @@ static void ui_term_backend_blit(Ui *tui) {
 	/* reposition cursor, erase screen, reset attributes */
 	buffer_append0(buf, "\x1b[H" "\x1b[J" "\x1b[0m");
 	for (int y = 0; y < h; y++) {
+		buffer_appendf(buf, "\x1b[%d;1H", y + 1);
 		for (int x = 0; x < w; x++) {
 			CellStyle *style = &cell->style;
 			if (style->attr != attr) {
@@ -117,8 +121,9 @@ static void ui_term_backend_blit(Ui *tui) {
 
 				for (size_t i = 0; i < LENGTH(cell_attrs); i++) {
 					CellAttr a = cell_attrs[i].attr;
-					if ((style->attr & a) == (attr & a))
+					if ((style->attr & a) == (attr & a)) {
 						continue;
+					}
 					buffer_appendf(buf, "\x1b[%sm",
 					               style->attr & a ?
 					               cell_attrs[i].on :
@@ -148,6 +153,10 @@ static void ui_term_backend_blit(Ui *tui) {
 				}
 			}
 
+			if (y == h - 1 && x == w - 1) {
+				cell++;
+				continue;
+			}
 			buffer_append0(buf, cell->data);
 			cell++;
 		}
@@ -169,22 +178,27 @@ static void ui_term_backend_restore(Ui *tui) {
 	cursor_visible(false);
 }
 
-__attribute__((unused))
 int ui_terminal_colors(void) {
 	char *term = getenv("TERM");
 	return (term && strstr(term, "-256color")) ? 256 : 16;
 }
 
 static void ui_term_backend_suspend(Ui *tui) {
-	if (!tui->termkey) return;
+	if (!tui->termkey) {
+		return;
+	}
 	termkey_stop(tui->termkey);
-	cursor_visible(true);
-	screen_alternate(false);
+	if (tui->is_tty) {
+		cursor_visible(true);
+		screen_alternate(false);
+	}
 }
 
 void ui_terminal_resume(Ui *tui) {
-	screen_alternate(true);
-	cursor_visible(false);
+	if (tui->is_tty) {
+		screen_alternate(true);
+		cursor_visible(false);
+	}
 	termkey_start(tui->termkey);
 }
 
@@ -195,8 +209,9 @@ static bool ui_term_backend_init(Ui *tui, char *term) {
 
 static bool ui_backend_init(Ui *ui) {
 	Buffer *buf = calloc(1, sizeof(Buffer));
-	if (!buf)
+	if (!buf) {
 		return false;
+	}
 	ui->ctx = buf;
 	return true;
 }

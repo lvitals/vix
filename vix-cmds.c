@@ -10,33 +10,40 @@ typedef struct {
 } CmdUser;
 
 static void cmdfree(CmdUser *cmd) {
-	if (!cmd)
+	if (!cmd) {
 		return;
+	}
 	free((char*)cmd->def.name);
 	free(VIX_HELP_USE((char*)cmd->def.help));
 	free(cmd);
 }
 
 bool vix_cmd_register(Vix *vix, const char *name, const char *help, void *data, VixCommandFunction *func) {
-	if (!name)
+	if (!name) {
 		return false;
-	if (!vix->usercmds && !(vix->usercmds = map_new()))
+	}
+	if (!vix->usercmds && !(vix->usercmds = map_new())) {
 		return false;
+	}
 	CmdUser *cmd = calloc(1, sizeof *cmd);
-	if (!cmd)
+	if (!cmd) {
 		return false;
-	if (!(cmd->def.name = strdup(name)))
+	}
+	if (!(cmd->def.name = strdup(name))) {
 		goto err;
+	}
 #if CONFIG_HELP
-	if (help && !(cmd->def.help = strdup(help)))
+	if (help && !(cmd->def.help = strdup(help))) {
 		goto err;
+	}
 #endif
 	cmd->def.flags = CMD_ARGV|CMD_FORCE|CMD_ONCE|CMD_ADDRESS_ALL;
 	cmd->def.func = cmd_user;
 	cmd->func = func;
 	cmd->data = data;
-	if (!map_put(vix->cmds, name, &cmd->def))
+	if (!map_put(vix->cmds, name, &cmd->def)) {
 		goto err;
+	}
 	if (!map_put(vix->usercmds, name, cmd)) {
 		map_delete(vix->cmds, name);
 		goto err;
@@ -48,29 +55,36 @@ err:
 }
 
 bool vix_cmd_unregister(Vix *vix, const char *name) {
-	if (!name)
+	if (!name) {
 		return true;
+	}
 	CmdUser *cmd = map_get(vix->usercmds, name);
-	if (!cmd)
+	if (!cmd) {
 		return false;
-	if (!map_delete(vix->cmds, name))
+	}
+	if (!map_delete(vix->cmds, name)) {
 		return false;
-	if (!map_delete(vix->usercmds, name))
+	}
+	if (!map_delete(vix->usercmds, name)) {
 		return false;
+	}
 	cmdfree(cmd);
 	return true;
 }
 
 static void option_free(OptionDef *opt) {
-	if (!opt)
+	if (!opt) {
 		return;
+	}
 	for (size_t i = 0; i < LENGTH(options); i++) {
-		if (opt == &options[i])
+		if (opt == &options[i]) {
 			return;
+		}
 	}
 
-	for (const char **name = opt->names; *name; name++)
+	for (const char **name = opt->names; *name; name++) {
 		free((char*)*name);
+	}
 	free(VIX_HELP_USE((char*)opt->help));
 	free(opt);
 }
@@ -78,29 +92,35 @@ static void option_free(OptionDef *opt) {
 bool vix_option_register(Vix *vix, const char *names[], enum VixOption flags,
                          VixOptionFunction *func, void *context, const char *help) {
 
-	if (!names || !names[0])
+	if (!names || !names[0]) {
 		return false;
+	}
 
 	for (const char **name = names; *name; name++) {
-		if (map_get(vix->options, *name))
+		if (map_get(vix->options, *name)) {
 			return false;
+		}
 	}
 	OptionDef *opt = calloc(1, sizeof *opt);
-	if (!opt)
+	if (!opt) {
 		return false;
+	}
 	for (size_t i = 0; i < LENGTH(opt->names)-1 && names[i]; i++) {
-		if (!(opt->names[i] = strdup(names[i])))
+		if (!(opt->names[i] = strdup(names[i]))) {
 			goto err;
+		}
 	}
 	opt->flags = flags;
 	opt->func = func;
 	opt->context = context;
 #if CONFIG_HELP
-	if (help && !(opt->help = strdup(help)))
+	if (help && !(opt->help = strdup(help))) {
 		goto err;
+	}
 #endif
-	for (const char **name = names; *name; name++)
+	for (const char **name = names; *name; name++) {
 		map_put(vix->options, *name, opt);
+	}
 	return true;
 err:
 	option_free(opt);
@@ -109,11 +129,13 @@ err:
 
 bool vix_option_unregister(Vix *vix, const char *name) {
 	OptionDef *opt = map_get(vix->options, name);
-	if (!opt)
+	if (!opt) {
 		return false;
+	}
 	for (const char **alias = opt->names; *alias; alias++) {
-		if (!map_delete(vix->options, *alias))
+		if (!map_delete(vix->options, *alias)) {
 			return false;
+		}
 	}
 	option_free(opt);
 	return true;
@@ -163,8 +185,9 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 	strncpy(name, argv[1], sizeof(name)-1);
 	char *lastchar = &name[strlen(name)-1];
 	bool toggle = (*lastchar == '!');
-	if (toggle)
+	if (toggle) {
 		*lastchar = '\0';
+	}
 
 	OptionDef *opt = map_closest(vix->options, name);
 	if (!opt) {
@@ -172,8 +195,9 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 		return false;
 	}
 
-	if (opt->flags & VIX_OPTION_DEPRECATED && strcmp(opt->context, name) == 0)
+	if (opt->flags & VIX_OPTION_DEPRECATED && strcmp(opt->context, name) == 0) {
 		vix_info_show(vix, "%s is deprecated and will be removed in the next release", name);
+	}
 
 	if (!win && (opt->flags & VIX_OPTION_NEED_WINDOW)) {
 		vix_info_show(vix, "Need active window for `:set %s'", name);
@@ -235,8 +259,9 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 
 	size_t opt_index = 0;
 	for (; opt_index < LENGTH(options); opt_index++) {
-		if (opt == &options[opt_index])
+		if (opt == &options[opt_index]) {
 			break;
+		}
 	}
 
 	switch (opt_index) {
@@ -271,10 +296,11 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 			[OPTION_STATUSBAR] = UI_OPTION_STATUSBAR,
 		};
 		int flags = win->options;
-		if (arg.b || (toggle && !(flags & values[opt_index])))
+		if (arg.b || (toggle && !(flags & values[opt_index]))) {
 			flags |= values[opt_index];
-		else
+		} else {
 			flags &= ~values[opt_index];
+		}
 		win_options_set(win, flags);
 		break;
 	}
@@ -302,16 +328,18 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 	}
 	case OPTION_CURSOR_LINE: {
 		enum UiOption opt = win->options;
-		if (arg.b || (toggle && !(opt & UI_OPTION_CURSOR_LINE)))
+		if (arg.b || (toggle && !(opt & UI_OPTION_CURSOR_LINE))) {
 			opt |= UI_OPTION_CURSOR_LINE;
-		else
+		} else {
 			opt &= ~UI_OPTION_CURSOR_LINE;
+		}
 		win_options_set(win, opt);
 		break;
 	}
 	case OPTION_COLOR_COLUMN:
-		if (arg.i >= 0)
+		if (arg.i >= 0) {
 			win->view.colorcolumn = arg.i;
+		}
 		break;
 	case OPTION_SAVE_METHOD:
 		if (strcmp("auto", arg.s) == 0) {
@@ -365,31 +393,61 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 		}
 		break;
 	case OPTION_WRAP_COLUMN:
-		if (arg.i >= 0)
+		if (arg.i >= 0) {
 			win->view.wrapcolumn = arg.i;
+		}
 		break;
 	default:
-		if (!opt->func)
+		if (!opt->func) {
 			return false;
-		return opt->func(vix, win, opt->context, toggle, opt->flags, name, &arg);
+		}
+		bool ret = opt->func(vix, win, opt->context, toggle, opt->flags, name, &arg);
+		if (ret) {
+			goto record;
+		}
+		return false;
+	}
+
+	goto record;
+
+record:
+	{
+		lua_State *L = vix->lua;
+		if (L) {
+			lua_getfield(L, LUA_REGISTRYINDEX, "vix_session_changes");
+			if (lua_isnil(L, -1)) {
+				lua_pop(L, 1);
+				lua_newtable(L);
+				lua_pushvalue(L, -1);
+				lua_setfield(L, LUA_REGISTRYINDEX, "vix_session_changes");
+			}
+			lua_pushstring(L, opt->names[0]);
+			lua_pushboolean(L, true);
+			lua_settable(L, -3);
+			lua_pop(L, 1);
+		}
 	}
 
 	return true;
 }
 
 static bool is_file_pattern(const char *pattern) {
-	if (!pattern)
+	if (!pattern) {
 		return false;
+	}
 	struct stat meta;
-	if (stat(pattern, &meta) == 0 && S_ISDIR(meta.st_mode))
+	if (stat(pattern, &meta) == 0 && S_ISDIR(meta.st_mode)) {
 		return true;
+	}
 	/* tilde expansion is defined only for the tilde at the
 	   beginning of the pattern. */
-	if (pattern[0] == '~')
+	if (pattern[0] == '~') {
 		return true;
+	}
 	for (char special[] = "*?[{$", *s = special; *s; s++) {
-		if (strchr(pattern, *s))
+		if (strchr(pattern, *s)) {
 			return true;
+		}
 	}
 	return false;
 }
@@ -398,30 +456,34 @@ static const char *file_open_dialog(Vix *vix, const char *pattern) {
 	static char name[PATH_MAX];
 	name[0] = '\0';
 
-	if (!is_file_pattern(pattern))
+	if (!is_file_pattern(pattern)) {
 		return pattern;
+	}
 
 	Buffer bufcmd = {0}, bufout = {0}, buferr = {0};
 
-	if (!buffer_put0(&bufcmd, VIX_OPEN " ") || !buffer_append0(&bufcmd, pattern ? pattern : ""))
+	if (!buffer_put0(&bufcmd, VIX_OPEN " ") || !buffer_append0(&bufcmd, pattern ? pattern : "")) {
 		return NULL;
+	}
 
 	Filerange empty = text_range_new(0,0);
 	int status = vix_pipe(vix, vix->win->file, &empty,
 		(const char*[]){ buffer_content0(&bufcmd), NULL },
 		&bufout, read_into_buffer, &buferr, read_into_buffer, false);
 
-	if (status == 0)
+	if (status == 0) {
 		strncpy(name, buffer_content0(&bufout), sizeof(name)-1);
-	else if (status != 1)
+	} else if (status != 1) {
 		vix_info_show(vix, "Command failed %s", buffer_content0(&buferr));
+	}
 
 	buffer_release(&bufcmd);
 	buffer_release(&bufout);
 	buffer_release(&buferr);
 
-	for (char *end = name+strlen(name)-1; end >= name && isspace((unsigned char)*end); end--)
+	for (char *end = name+strlen(name)-1; end >= name && isspace((unsigned char)*end); end--) {
 		*end = '\0';
+	}
 
 	return name[0] ? name : NULL;
 }
@@ -429,8 +491,9 @@ static const char *file_open_dialog(Vix *vix, const char *pattern) {
 static bool openfiles(Vix *vix, const char **files) {
 	for (; *files; files++) {
 		const char *file = file_open_dialog(vix, *files);
-		if (!file)
+		if (!file) {
 			return false;
+		}
 		errno = 0;
 		if (!vix_window_new(vix, file)) {
 			vix_info_show(vix, "Could not open `%s' %s", file,
@@ -442,8 +505,9 @@ static bool openfiles(Vix *vix, const char **files) {
 }
 
 static bool cmd_open(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!argv[1])
+	if (!argv[1]) {
 		return vix_window_new(vix, NULL);
+	}
 	return openfiles(vix, &argv[1]);
 }
 
@@ -457,8 +521,9 @@ static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		return false;
 	}
 	Win *oldwin = win;
-	if (!oldwin)
+	if (!oldwin) {
 		return false;
+	}
 	if (cmd->flags != '!' && !vix_window_closable(oldwin)) {
 		info_unsaved_changes(vix);
 		return false;
@@ -470,8 +535,9 @@ static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		}
 		return vix_window_reload(oldwin);
 	}
-	if (!openfiles(vix, &argv[1]))
+	if (!openfiles(vix, &argv[1])) {
 		return false;
+	}
 	if (vix->win != oldwin) {
 		Win *newwin = vix->win;
 		vix_window_swap(oldwin, newwin);
@@ -488,21 +554,24 @@ static bool cmd_read(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	const char **name = argv[1] ? &argv[1] : (const char*[]){ ".", NULL };
 	for (size_t i = first_file; *name && i < LENGTH(args)-1; name++, i++) {
 		const char *file = file_open_dialog(vix, *name);
-		if (!file || !(args[i] = strdup(file)))
+		if (!file || !(args[i] = strdup(file))) {
 			goto err;
+		}
 	}
 	args[LENGTH(args)-1] = NULL;
 	ret = cmd_pipein(vix, win, cmd, args, sel, range);
 err:
-	for (size_t i = first_file; i < LENGTH(args); i++)
+	for (size_t i = first_file; i < LENGTH(args); i++) {
 		free((char*)args[i]);
+	}
 	return ret;
 }
 
 static bool has_windows(Vix *vix) {
 	for (Win *win = vix->windows; win; win = win->next) {
-		if (!win->file->internal)
+		if (!win->file->internal) {
 			return true;
+		}
 	}
 	return false;
 }
@@ -513,16 +582,18 @@ static bool cmd_quit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		return false;
 	}
 	vix_window_close(win);
-	if (!has_windows(vix))
+	if (!has_windows(vix)) {
 		vix_exit(vix, argv[1] ? atoi(argv[1]) : EXIT_SUCCESS);
+	}
 	return true;
 }
 
 static bool cmd_qall(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
 	for (Win *next, *win = vix->windows; win; win = next) {
 		next = win->next;
-		if (!win->file->internal && (!text_modified(win->file->text) || cmd->flags == '!'))
+		if (!win->file->internal && (!text_modified(win->file->text) || cmd->flags == '!')) {
 			vix_window_close(win);
+		}
 	}
 	if (!has_windows(vix)) {
 		vix_exit(vix, argv[1] ? atoi(argv[1]) : EXIT_SUCCESS);
@@ -534,28 +605,34 @@ static bool cmd_qall(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 }
 
 static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!win)
+	if (!win) {
 		return false;
+	}
 	enum UiOption options = win->options;
 	ui_arrange(&vix->ui, UI_LAYOUT_HORIZONTAL);
-	if (!argv[1])
+	if (!argv[1]) {
 		return vix_window_split(win);
+	}
 	bool ret = openfiles(vix, &argv[1]);
-	if (ret)
+	if (ret) {
 		win_options_set(vix->win, options);
+	}
 	return ret;
 }
 
 static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!win)
+	if (!win) {
 		return false;
+	}
 	enum UiOption options = win->options;
 	ui_arrange(&vix->ui, UI_LAYOUT_VERTICAL);
-	if (!argv[1])
+	if (!argv[1]) {
 		return vix_window_split(win);
+	}
 	bool ret = openfiles(vix, &argv[1]);
-	if (ret)
+	if (ret) {
 		win_options_set(vix->win, options);
+	}
 	return ret;
 }
 
@@ -570,18 +647,21 @@ static bool cmd_vnew(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 }
 
 static bool cmd_wq(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!win)
+	if (!win) {
 		return false;
+	}
 	File *file = win->file;
 	bool unmodified = file->fd == -1 && !file->name && !text_modified(file->text);
-	if (unmodified || cmd_write(vix, win, cmd, argv, sel, range))
+	if (unmodified || cmd_write(vix, win, cmd, argv, sel, range)) {
 		return cmd_quit(vix, win, cmd, (const char*[]){argv[0], NULL}, sel, range);
+	}
 	return false;
 }
 
 static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!win)
+	if (!win) {
 		return false;
+	}
 	Text *txt = win->file->text;
 	char *unit = "";
 	long count = 1;
@@ -595,8 +675,9 @@ static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv
 		}
 
 		if (*unit) {
-			while (*unit && isspace((unsigned char)*unit))
+			while (*unit && isspace((unsigned char)*unit)) {
 				unit++;
+			}
 			switch (*unit) {
 			case 'd': count *= 24; /* fall through */
 			case 'h': count *= 60; /* fall through */
@@ -607,8 +688,9 @@ static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv
 				return false;
 			}
 
-			if (argv[0][0] == 'e')
+			if (argv[0][0] == 'e') {
 				count = -count; /* earlier, move back in time */
+			}
 
 			pos = text_restore(txt, text_state(txt) + count);
 		}
@@ -617,10 +699,11 @@ static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv
 	if (!*unit) {
 		VixCountIterator it = vix_count_iterator_init(vix, count);
 		while (vix_count_iterator_next(&it)) {
-			if (argv[0][0] == 'e')
+			if (argv[0][0] == 'e') {
 				pos = text_earlier(txt);
-			else
+			} else {
 				pos = text_later(txt);
+			}
 		}
 	}
 
@@ -663,8 +746,9 @@ static bool print_keybinding(const char *key, void *value, void *data)
 {
 	KeyBinding *binding = value;
 	const char *desc = binding->alias;
-	if (!desc && binding->action)
+	if (!desc && binding->action) {
 		desc = VIX_HELP_USE(binding->action->help);
+	}
 
 	Vix  *vix = ((void **)data)[0];
 	Text *txt = ((void **)data)[1];
@@ -675,8 +759,9 @@ static bool print_keybinding(const char *key, void *value, void *data)
 
 static void print_mode(Vix *vix, Text *txt, Mode *mode)
 {
-	if (!map_empty(mode->bindings))
+	if (!map_empty(mode->bindings)) {
 		text_appendf(vix, txt, "\n %s\n\n", mode->name);
+	}
 	void *data[2] = {vix, txt};
 	map_iterate(mode->bindings, print_keybinding, data);
 }
@@ -713,8 +798,127 @@ static bool print_cmd_name(const char *key, void *value, void *data) {
 	return result && buffer_append(data, "\n", 1);
 }
 
+static bool print_option_name(const char *key, void *value, void *data) {
+	bool result = buffer_append(data, key, strlen(key));
+	return result && buffer_append(data, "\n", 1);
+}
+
 void vix_print_cmds(Vix *vix, Buffer *buf, const char *prefix) {
 	map_iterate(map_prefix(vix->cmds, prefix), print_cmd_name, buf);
+}
+
+void vix_print_options(Vix *vix, Buffer *buf, const char *prefix) {
+	map_iterate(map_prefix(vix->options, prefix), print_option_name, buf);
+}
+
+void vix_print_option_value(Vix *vix, const char *name, Buffer *buf) {
+	OptionDef *opt = map_get(vix->options, name);
+	if (!opt) {
+		return;
+	}
+
+	Win *win = vix->win;
+	size_t opt_index = 0;
+	for (; opt_index < LENGTH(options); opt_index++) {
+		if (opt == &options[opt_index]) {
+			break;
+		}
+	}
+
+	switch (opt_index) {
+	case OPTION_SHELL:
+		buffer_append0(buf, vix->shell);
+		break;
+	case OPTION_ESCDELAY:
+		buffer_appendf(buf, "%d", termkey_get_waittime(vix->ui.termkey));
+		break;
+	case OPTION_EXPANDTAB:
+		buffer_append0(buf, win && win->expandtab ? "on" : "off");
+		break;
+	case OPTION_AUTOINDENT:
+		buffer_append0(buf, vix->autoindent ? "on" : "off");
+		break;
+	case OPTION_TABWIDTH:
+		if (win) {
+			buffer_appendf(buf, "%d", win->view.tabwidth);
+		}
+		break;
+	case OPTION_SHOW_SPACES:
+		buffer_append0(buf, win && (win->options & UI_OPTION_SYMBOL_SPACE) ? "on" : "off");
+		break;
+	case OPTION_SHOW_TABS:
+		buffer_append0(buf, win && (win->options & UI_OPTION_SYMBOL_TAB) ? "on" : "off");
+		break;
+	case OPTION_SHOW_NEWLINES:
+		buffer_append0(buf, win && (win->options & UI_OPTION_SYMBOL_EOL) ? "on" : "off");
+		break;
+	case OPTION_SHOW_EOF:
+		buffer_append0(buf, win && (win->options & UI_OPTION_SYMBOL_EOF) ? "on" : "off");
+		break;
+	case OPTION_STATUSBAR:
+		buffer_append0(buf, win && (win->options & UI_OPTION_STATUSBAR) ? "on" : "off");
+		break;
+	case OPTION_NUMBER:
+		buffer_append0(buf, win && (win->options & UI_OPTION_LINE_NUMBERS_ABSOLUTE) ? "on" : "off");
+		break;
+	case OPTION_NUMBER_RELATIVE:
+		buffer_append0(buf, win && (win->options & UI_OPTION_LINE_NUMBERS_RELATIVE) ? "on" : "off");
+		break;
+	case OPTION_CURSOR_LINE:
+		buffer_append0(buf, win && (win->options & UI_OPTION_CURSOR_LINE) ? "on" : "off");
+		break;
+	case OPTION_COLOR_COLUMN:
+		if (win) {
+			buffer_appendf(buf, "%d", win->view.colorcolumn);
+		}
+		break;
+	case OPTION_SAVE_METHOD:
+		if (win) {
+			switch (win->file->save_method) {
+			case TEXT_SAVE_AUTO: buffer_append0(buf, "auto"); break;
+			case TEXT_SAVE_ATOMIC: buffer_append0(buf, "atomic"); break;
+			case TEXT_SAVE_INPLACE: buffer_append0(buf, "inplace"); break;
+			}
+		}
+		break;
+	case OPTION_LOAD_METHOD:
+		switch (vix->load_method) {
+		case TEXT_LOAD_AUTO: buffer_append0(buf, "auto"); break;
+		case TEXT_LOAD_READ: buffer_append0(buf, "read"); break;
+		case TEXT_LOAD_MMAP: buffer_append0(buf, "mmap"); break;
+		}
+		break;
+	case OPTION_CHANGE_256COLORS:
+		buffer_append0(buf, vix->change_colors ? "on" : "off");
+		break;
+	case OPTION_LAYOUT:
+		buffer_append0(buf, vix->ui.layout == UI_LAYOUT_HORIZONTAL ? "h" : "v");
+		break;
+	case OPTION_IGNORECASE:
+		buffer_append0(buf, vix->ignorecase ? "on" : "off");
+		break;
+	default:
+		{
+			lua_State *L = vix->lua;
+			if (L) {
+				lua_getfield(L, LUA_REGISTRYINDEX, "vix_option_values");
+				if (!lua_isnil(L, -1)) {
+					lua_pushstring(L, opt->names[0]);
+					lua_gettable(L, -2);
+					if (lua_isboolean(L, -1)) {
+						buffer_append0(buf, lua_toboolean(L, -1) ? "on" : "off");
+					} else if (lua_isstring(L, -1)) {
+						buffer_append0(buf, lua_tostring(L, -1));
+					} else if (lua_isnumber(L, -1)) {
+						buffer_appendf(buf, "%ld", (long)lua_tointeger(L, -1));
+					}
+					lua_pop(L, 1);
+				}
+				lua_pop(L, 1);
+			}
+		}
+		break;
+	}
 }
 
 static bool print_option(const char *key, void *value, void *data)
@@ -722,8 +926,9 @@ static bool print_option(const char *key, void *value, void *data)
 	char desc[256];
 	const OptionDef *opt = value;
 	const char *help = VIX_HELP_USE(opt->help);
-	if (strcmp(key, opt->names[0]))
+	if (strcmp(key, opt->names[0])) {
 		return true;
+	}
 	snprintf(desc, sizeof desc, "%s%s%s%s%s",
 	         opt->names[0],
 	         opt->names[1] ? "|" : "",
@@ -807,8 +1012,9 @@ static void print_symbolic_keys(Vix *vix, Text *txt)
 }
 
 static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	if (!vix_window_new(vix, NULL))
+	if (!vix_window_new(vix, NULL)) {
 		return false;
+	}
 
 	Text *txt = vix->win->file->text;
 	void *map_data[2] = {vix, txt};
@@ -818,8 +1024,9 @@ static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	text_appendf(vix, txt, " Modes\n\n");
 	for (int i = 0; i < LENGTH(vix_modes); i++) {
 		Mode *mode = &vix_modes[i];
-		if (mode->help)
+		if (mode->help) {
 			text_appendf(vix, txt, "  %-18s\t%s\n", mode->name, mode->help);
+		}
 	}
 
 	if (!map_empty(vix->keymap)) {
@@ -870,10 +1077,12 @@ static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		for (size_t i = 0; i < LENGTH(paths); i++) {
 			text_appendf(vix, txt, "\n %s\n\n", paths_description[i]);
 			for (char *elem = paths[i], *next; elem; elem = next) {
-				if ((next = strstr(elem, ";")))
+				if ((next = strstr(elem, ";"))) {
 					*next++ = '\0';
-				if (*elem)
+				}
+				if (*elem) {
 					text_appendf(vix, txt, "  %s\n", elem);
+				}
 			}
 			free(paths[i]);
 		}
@@ -893,14 +1102,16 @@ static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		{ "SELinux support: ", CONFIG_SELINUX },
 	};
 
-	for (size_t i = 0; i < LENGTH(configs); i++)
+	for (size_t i = 0; i < LENGTH(configs); i++) {
 		text_appendf(vix, txt, "  %-32s\t%s\n", configs[i].name, configs[i].enabled ? "yes" : "no");
+	}
 
 	text_mark_current_revision(txt);
 	view_cursors_to(vix->win->view.selection, 0);
 
-	if (argv[1])
+	if (argv[1]) {
 		vix_motion(vix, VIX_MOVE_SEARCH_FORWARD, argv[1]);
+	}
 	return true;
 }
 
@@ -918,13 +1129,15 @@ static bool cmd_langmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Se
 		size_t i = 0, j = 0;
 		char latin_key[8], nonlatin_key[8];
 		do {
-			if (i < sizeof(latin_key)-1)
+			if (i < sizeof(latin_key)-1) {
 				latin_key[i++] = *latin;
+			}
 			latin++;
 		} while (!ISUTF8(*latin));
 		do {
-			if (j < sizeof(nonlatin_key)-1)
+			if (j < sizeof(nonlatin_key)-1) {
 				nonlatin_key[j++] = *nonlatin;
+			}
 			nonlatin++;
 		} while (!ISUTF8(*nonlatin));
 		latin_key[i] = '\0';
@@ -952,13 +1165,15 @@ static bool cmd_map(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 
 	const char *lhs = argv[2];
 	KeyBinding *binding = vix_binding_new(vix);
-	if (!binding || !(binding->alias = strdup(argv[3])))
+	if (!binding || !(binding->alias = strdup(argv[3]))) {
 		goto err;
+	}
 
-	if (local)
+	if (local) {
 		mapped = vix_window_mode_map(win, mode, cmd->flags == '!', lhs, binding);
-	else
+	} else {
 		mapped = vix_mode_map(vix, mode, cmd->flags == '!', lhs, binding);
+	}
 
 err:
 	if (!mapped) {
@@ -986,11 +1201,13 @@ static bool cmd_unmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		return false;
 	}
 
-	if (local)
+	if (local) {
 		unmapped = vix_window_mode_unmap(win, mode, lhs);
-	else
+	} else {
 		unmapped = vix_mode_unmap(vix, mode, lhs);
-	if (!unmapped)
+	}
+	if (!unmapped) {
 		vix_info_show(vix, "Failed to unmap `%s' in %s mode", lhs, argv[1]);
+	}
 	return unmapped;
 }

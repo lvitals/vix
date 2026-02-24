@@ -15,34 +15,40 @@ static Filerange text_object_customword(Text *txt, size_t pos, int (*isboundary)
 	Filerange r;
 	char c, prev = '0', next = '0';
 	Iterator it = text_iterator_get(txt, pos);
-	if (!text_iterator_byte_get(&it, &c))
+	if (!text_iterator_byte_get(&it, &c)) {
 		return text_range_empty();
-	if (pos > 0 && text_iterator_byte_prev(&it, &prev))
+	}
+	if (pos > 0 && text_iterator_byte_prev(&it, &prev)) {
 		text_iterator_byte_next(&it, NULL);
+	}
 	text_iterator_byte_next(&it, &next);
 	if (space(c)) {
 		r.start = text_char_next(txt, text_customword_end_prev(txt, pos, isboundary));
 		r.end = text_customword_start_next(txt, pos, isboundary);
 	} else if (boundary(c)) {
-		if (boundary(prev) && !space(prev))
+		if (boundary(prev) && !space(prev)) {
 			r.start = text_customword_start_prev(txt, pos, isboundary);
-		else
+		} else {
 			r.start = pos;
+		}
 
-		if (boundary(next) && !space(next))
+		if (boundary(next) && !space(next)) {
 			r.end = text_char_next(txt, text_customword_end_next(txt, pos, isboundary));
-		else
+		} else {
 			r.end = text_char_next(txt, pos);
+		}
 	} else {
-		if (boundary(prev))
+		if (boundary(prev)) {
 			r.start = pos;
-		else
+		} else {
 			r.start = text_customword_start_prev(txt, pos, isboundary);
+		}
 
-		if (boundary(next))
+		if (boundary(next)) {
 			r.end = text_char_next(txt, pos);
-		else
+		} else {
 			r.end = text_char_next(txt, text_customword_end_next(txt, pos, isboundary));
+		}
 	}
 
 	return r;
@@ -60,10 +66,12 @@ static Filerange text_object_customword_outer(Text *txt, size_t pos, int (*isbou
 	Filerange r;
 	char c, prev = '0', next = '0';
 	Iterator it = text_iterator_get(txt, pos);
-	if (!text_iterator_byte_get(&it, &c))
+	if (!text_iterator_byte_get(&it, &c)) {
 		return text_range_empty();
-	if (pos > 0 && text_iterator_byte_prev(&it, &prev))
+	}
+	if (pos > 0 && text_iterator_byte_prev(&it, &prev)) {
 		text_iterator_byte_next(&it, NULL);
+	}
 	text_iterator_byte_next(&it, &next);
 	if (space(c)) {
 		/* middle of two words, include leading white space */
@@ -109,8 +117,9 @@ Filerange text_object_word_find_next(Text *txt, size_t pos, const char *word) {
 		size_t match_pos = text_find_next(txt, pos, word);
 		if (match_pos != pos) {
 			Filerange match_word = text_object_word(txt, match_pos);
-			if (text_range_size(&match_word) == len)
+			if (text_range_size(&match_word) == len) {
 				return match_word;
+			}
 			pos = match_word.end;
 		} else {
 			return text_range_empty();
@@ -124,8 +133,9 @@ Filerange text_object_word_find_prev(Text *txt, size_t pos, const char *word) {
 		size_t match_pos = text_find_prev(txt, pos, word);
 		if (match_pos != pos) {
 			Filerange match_word = text_object_word(txt, match_pos);
-			if (text_range_size(&match_word) == len)
+			if (text_range_size(&match_word) == len) {
 				return match_word;
+			}
 			pos = match_pos;
 		} else {
 			return text_range_empty();
@@ -135,15 +145,17 @@ Filerange text_object_word_find_prev(Text *txt, size_t pos, const char *word) {
 
 Filerange text_object_find_next(Text *txt, size_t pos, const char *search) {
 	size_t start = text_find_next(txt, pos, search);
-	if (start == pos)
+	if (start == pos) {
 		return text_range_empty();
+	}
 	return text_range_new(start, start+strlen(search));
 }
 
 Filerange text_object_find_prev(Text *txt, size_t pos, const char *search) {
 	size_t start = text_find_prev(txt, pos, search);
-	if (start == pos)
+	if (start == pos) {
 		return text_range_empty();
+	}
 	return text_range_new(start, start+strlen(search));
 }
 
@@ -170,8 +182,9 @@ static bool text_line_blank(Text *txt, size_t pos) {
 	char c;
 	bool b = true;
 	Iterator it = text_iterator_get(txt, text_line_begin(txt, pos));
-	while (text_iterator_byte_get(&it, &c) && c != '\n' && (b = blank(c)))
+	while (text_iterator_byte_get(&it, &c) && c != '\n' && (b = blank(c))) {
 		text_iterator_char_next(&it, NULL);
+	}
 	return b;
 }
 
@@ -180,22 +193,27 @@ Filerange text_object_paragraph(Text *txt, size_t pos) {
 	Filerange r;
 	if (text_line_blank(txt, pos)) {
 		Iterator it = text_iterator_get(txt, pos), rit = it;
-		while (text_iterator_byte_get(&rit, &c) && (c == '\n' || blank(c)))
+		while (text_iterator_byte_get(&rit, &c) && (c == '\n' || blank(c))) {
 			text_iterator_byte_prev(&rit, NULL);
-		if (c == '\n' || blank(c))
+		}
+		if (c == '\n' || blank(c)) {
 			r.start = rit.pos;
-		else
+		} else {
 			r.start = text_line_next(txt, rit.pos);
-		while (text_iterator_byte_get(&it, &c) && (c == '\n' || blank(c)))
+		}
+		while (text_iterator_byte_get(&it, &c) && (c == '\n' || blank(c))) {
 			text_iterator_byte_next(&it, NULL);
-		if (it.pos == text_size(txt))
+		}
+		if (it.pos == text_size(txt)) {
 			r.end = rit.pos;
-		else
+		} else {
 			r.end = text_line_begin(txt, it.pos);
+		}
 	} else {
 		r.start = text_line_blank_prev(txt, pos);
-		if (r.start > 0 || (text_byte_get(txt, r.start, &c) && c == '\n'))
+		if (r.start > 0 || (text_byte_get(txt, r.start, &c) && c == '\n')) {
 			r.start = text_line_next(txt, r.start);
+		}
 		r.end = text_line_blank_next(txt, pos);
 	}
 	return r;
@@ -253,8 +271,9 @@ static Filerange text_object_bracket(Text *txt, size_t pos, char type) {
 		text_iterator_byte_next(&it, NULL);
 	}
 
-	if (!text_range_valid(&r))
+	if (!text_range_valid(&r)) {
 		return text_range_empty();
+	}
 	return r;
 }
 
@@ -291,8 +310,9 @@ Filerange text_object_search_forward(Text *txt, size_t pos, Regex *regex) {
 	size_t end = text_size(txt);
 	RegexMatch match[1];
 	bool found = start < end && !text_search_range_forward(txt, start, end - start, regex, 1, match, 0);
-	if (found)
+	if (found) {
 		return text_range_new(match[0].start, match[0].end);
+	}
 	return text_range_empty();
 }
 
@@ -301,8 +321,9 @@ Filerange text_object_search_backward(Text *txt, size_t pos, Regex *regex) {
 	size_t end = pos;
 	RegexMatch match[1];
 	bool found = !text_search_range_backward(txt, start, end, regex, 1, match, 0);
-	if (found)
+	if (found) {
 		return text_range_new(match[0].start, match[0].end);
+	}
 	return text_range_empty();
 }
 
@@ -331,16 +352,20 @@ Filerange text_object_indentation(Text *txt, size_t pos) {
 	while ((bol = text_line_begin(txt, text_line_prev(txt, start))) != start) {
 		sol = text_line_start(txt, bol);
 		size_t indent = sol - bol;
-		if (indent < line_indent)
+		if (indent < line_indent) {
 			break;
+		}
 		bool empty = text_byte_get(txt, bol, &c) && c == '\n';
-		if (line_empty && !empty)
+		if (line_empty && !empty) {
 			break;
-		if (line_indent == 0 && empty)
+		}
+		if (line_indent == 0 && empty) {
 			break;
+		}
 		text_bytes_get(txt, bol, line_indent, tmp);
-		if (memcmp(buf, tmp, line_indent))
+		if (memcmp(buf, tmp, line_indent)) {
 			break;
+		}
 		start = bol;
 	}
 
@@ -348,16 +373,20 @@ Filerange text_object_indentation(Text *txt, size_t pos) {
 		bol = end;
 		sol = text_line_start(txt, bol);
 		size_t indent = sol - bol;
-		if (indent < line_indent)
+		if (indent < line_indent) {
 			break;
+		}
 		bool empty = text_byte_get(txt, bol, &c) && c == '\n';
-		if (line_empty && !empty)
+		if (line_empty && !empty) {
 			break;
-		if (line_indent == 0 && empty)
+		}
+		if (line_indent == 0 && empty) {
 			break;
+		}
 		text_bytes_get(txt, bol, line_indent, tmp);
-		if (memcmp(buf, tmp, line_indent))
+		if (memcmp(buf, tmp, line_indent)) {
 			break;
+		}
 		end = text_line_next(txt, bol);
 	} while (bol != end);
 
@@ -369,8 +398,9 @@ Filerange text_object_indentation(Text *txt, size_t pos) {
 Filerange text_range_linewise(Text *txt, Filerange *rin) {
 	Filerange rout = *rin;
 	rout.start = text_line_begin(txt, rin->start);
-	if (rin->end != text_line_begin(txt, rin->end))
+	if (rin->end != text_line_begin(txt, rin->end)) {
 		rout.end = text_line_next(txt, rin->end);
+	}
 	return rout;
 }
 
@@ -384,10 +414,11 @@ Filerange text_range_inner(Text *txt, Filerange *rin) {
 	char c;
 	Filerange r = *rin;
 	Iterator it = text_iterator_get(txt, rin->start);
-	while (text_iterator_byte_get(&it, &c) && space(c))
+	while (text_iterator_byte_get(&it, &c) && space(c)) {
 		text_iterator_byte_next(&it, NULL);
+	}
 	r.start = it.pos;
 	it = text_iterator_get(txt, rin->end);
-	do r.end = it.pos; while (text_iterator_byte_prev(&it, &c) && space(c));
+	do { r.end = it.pos; } while (text_iterator_byte_prev(&it, &c) && space(c));
 	return r;
 }

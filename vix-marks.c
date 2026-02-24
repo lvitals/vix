@@ -3,18 +3,22 @@
 static DA_COMPARE_FN(ranges_comparator)
 {
 	const Filerange *r1 = va, *r2 = vb;
-	if (!text_range_valid(r1))
+	if (!text_range_valid(r1)) {
 		return text_range_valid(r2) ? 1 : 0;
-	if (!text_range_valid(r2))
+	}
+	if (!text_range_valid(r2)) {
 		return -1;
+	}
 	return (r1->start < r2->start || (r1->start == r2->start && r1->end < r2->end)) ? -1 : 1;
 }
 
 void vix_mark_normalize(FilerangeList *ranges)
 {
-	for (VixDACount i = 0; i < ranges->count; i++)
-		if (text_range_size(ranges->data + i) == 0)
+	for (VixDACount i = 0; i < ranges->count; i++) {
+		if (text_range_size(ranges->data + i) == 0) {
 			da_unordered_remove(ranges, i);
+		}
+	}
 
 	if (ranges->count) {
 		da_sort(ranges, ranges_comparator);
@@ -35,19 +39,22 @@ void vix_mark_normalize(FilerangeList *ranges)
 static bool vix_mark_equal(FilerangeList a, FilerangeList b)
 {
 	bool result = a.count == b.count;
-	for (VixDACount i = 0; result && i < a.count; i++)
+	for (VixDACount i = 0; result && i < a.count; i++) {
 		result = text_range_equal(a.data + i, b.data + i);
+	}
 	return result;
 }
 
 static SelectionRegionList *mark_from(Vix *vix, enum VixMark id)
 {
 	if (vix->win) {
-		if (id == VIX_MARK_SELECTION)
+		if (id == VIX_MARK_SELECTION) {
 			return &vix->win->saved_selections;
+		}
 		File *file = vix->win->file;
-		if (id < LENGTH(file->marks))
+		if (id < LENGTH(file->marks)) {
 			return file->marks + id;
+		}
 	}
 	return 0;
 }
@@ -57,8 +64,9 @@ enum VixMark vix_mark_used(Vix *vix) {
 }
 
 void vix_mark(Vix *vix, enum VixMark mark) {
-	if (mark < LENGTH(vix->win->file->marks))
+	if (mark < LENGTH(vix->win->file->marks)) {
 		vix->action.mark = mark;
+	}
 }
 
 static FilerangeList mark_get(Vix *vix, Win *win, SelectionRegionList *mark)
@@ -68,8 +76,9 @@ static FilerangeList mark_get(Vix *vix, Win *win, SelectionRegionList *mark)
 		da_reserve(vix, &result, mark->count);
 		for (VixDACount i = 0; i < mark->count; i++) {
 			Filerange r = view_regions_restore(&win->view, mark->data + i);
-			if (text_range_valid(&r))
+			if (text_range_valid(&r)) {
 				*da_push(vix, &result) = r;
+			}
 		}
 		vix_mark_normalize(&result);
 	}
@@ -87,8 +96,9 @@ static void mark_set(Vix *vix, Win *win, SelectionRegionList *mark, FilerangeLis
 		mark->count = 0;
 		for (VixDACount i = 0; i < ranges.count; i++) {
 			SelectionRegion ss;
-			if (view_regions_save(&win->view, ranges.data + i, &ss))
+			if (view_regions_save(&win->view, ranges.data + i, &ss)) {
 				*da_push(vix, mark) = ss;
+			}
 		}
 	}
 }
@@ -106,8 +116,9 @@ void vix_jumplist(Vix *vix, int advance)
 
 	size_t cursor = win->mark_set_lru_cursor;
 	win->mark_set_lru_cursor += advance;
-	if (advance < 0)
+	if (advance < 0) {
 		cursor = win->mark_set_lru_cursor;
+	}
 	cursor %= VIX_MARK_SET_LRU_COUNT;
 
 	SelectionRegionList *next = win->mark_set_lru_regions + cursor;
@@ -134,21 +145,25 @@ void vix_jumplist(Vix *vix, int advance)
 }
 
 enum VixMark vix_mark_from(Vix *vix, char mark) {
-	if (mark >= 'a' && mark <= 'z')
+	if (mark >= 'a' && mark <= 'z') {
 		return VIX_MARK_a + mark - 'a';
+	}
 	for (size_t i = 0; i < LENGTH(vix_marks); i++) {
-		if (vix_marks[i].name == mark)
+		if (vix_marks[i].name == mark) {
 			return i;
+		}
 	}
 	return VIX_MARK_INVALID;
 }
 
 char vix_mark_to(Vix *vix, enum VixMark mark) {
-	if (VIX_MARK_a <= mark && mark <= VIX_MARK_z)
+	if (VIX_MARK_a <= mark && mark <= VIX_MARK_z) {
 		return 'a' + mark - VIX_MARK_a;
+	}
 
-	if (mark < LENGTH(vix_marks))
+	if (mark < LENGTH(vix_marks)) {
 		return vix_marks[mark].name;
+	}
 
 	return '\0';
 }

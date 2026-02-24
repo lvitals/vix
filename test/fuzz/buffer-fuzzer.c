@@ -4,9 +4,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
+typedef struct Vix Vix;
 #include "fuzzer.h"
 #include "buffer.h"
 #include "util.h"
+#include "../../buffer.c"
 
 #ifndef BUFSIZ
 #define BUFSIZ 1024
@@ -17,47 +19,52 @@ typedef enum CmdStatus (*Cmd)(Buffer *buf, const char *cmd);
 static enum CmdStatus cmd_insert(Buffer *buf, const char *cmd) {
 	char data[BUFSIZ];
 	size_t pos;
-	if (sscanf(cmd, "%zu %s\n", &pos, data) != 2)
+	if (sscanf(cmd, "%zu %s\n", &pos, data) != 2) {
 		return CMD_ERR;
+	}
 	return buffer_insert0(buf, pos, data);
 }
 
 static enum CmdStatus cmd_set(Buffer *buf, const char *cmd) {
 	char data[BUFSIZ];
-	if (sscanf(cmd, "%s\n", data) != 1)
+	if (sscanf(cmd, "%s\n", data) != 1) {
 		return CMD_ERR;
+	}
 	return buffer_put0(buf, data);
 }
 
 static enum CmdStatus cmd_delete(Buffer *buf, const char *cmd) {
 	size_t pos, len;
-	if (sscanf(cmd, "%zu %zu", &pos, &len) != 2)
+	if (sscanf(cmd, "%zu %zu", &pos, &len) != 2) {
 		return CMD_ERR;
+	}
 	return buffer_remove(buf, pos, len);
 }
 
 static enum CmdStatus cmd_clear(Buffer *buf, const char *cmd) {
-	buffer_clear(buf);
+	buf->len = 0;
 	return CMD_OK;
 }
 
 static enum CmdStatus cmd_size(Buffer *buf, const char *cmd) {
-	printf("%zu bytes\n", buffer_length(buf));
+	printf("%zu bytes\n", buf->len);
 	return CMD_OK;
 }
 
 static enum CmdStatus cmd_capacity(Buffer *buf, const char *cmd) {
-	printf("%zu bytes\n", buffer_capacity(buf));
+	printf("%zu bytes\n", buf->size);
 	return CMD_OK;
 }
 
 static enum CmdStatus cmd_print(Buffer *buf, const char *cmd) {
-	size_t len = buffer_length(buf);
-	const char *data = buffer_content(buf);
-	if (data && fwrite(data, len, 1, stdout) != 1)
+	size_t len = buf->len;
+	const char *data = buf->data;
+	if (data && fwrite(data, len, 1, stdout) != 1) {
 		return CMD_ERR;
-	if (data)
+	}
+	if (data) {
 		puts("");
+	}
 	return CMD_OK;
 }
 
@@ -82,18 +89,22 @@ int main(int argc, char *argv[]) {
 
 	for (;;) {
 		printf("> ");
-		if (!fgets(line, sizeof(line), stdin))
+		if (!fgets(line, sizeof(line), stdin)) {
 			break;
-		if (!isatty(0))
+		}
+		if (!isatty(0)) {
 			printf("%s", line);
-		if (line[0] == '\n')
+		}
+		if (line[0] == '\n') {
 			continue;
+		}
 		size_t idx = line[0];
 		if (idx < LENGTH(commands) && commands[idx]) {
 			enum CmdStatus ret = commands[idx](&buf, line+1);
 			printf("%s", cmd_status_msg[ret]);
-			if (ret == CMD_QUIT)
+			if (ret == CMD_QUIT) {
 				break;
+			}
 		} else {
 			puts("Invalid command");
 		}

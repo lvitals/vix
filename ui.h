@@ -109,7 +109,7 @@ VIX_INTERNAL void ui_terminal_resume(Ui*);
 VIX_INTERNAL void ui_terminal_save(Ui*, bool fscr);
 VIX_INTERNAL void ui_terminal_suspend(Ui*);
 
-VIX_INTERNAL __attribute__((noreturn)) void ui_die(Ui *, const char *, va_list);
+VIX_INTERNAL void ui_die(Ui *, const char *, va_list);
 VIX_INTERNAL bool ui_init(Ui *, Vix *);
 VIX_INTERNAL void ui_arrange(Ui*, enum UiLayout);
 VIX_INTERNAL void ui_draw(Ui*);
@@ -132,5 +132,7 @@ VIX_INTERNAL bool ui_window_style_set_pos(Win *win, int x, int y, enum UiStyle i
 
 VIX_INTERNAL void ui_window_options_set(Win *win, enum UiOption options);
 VIX_INTERNAL void ui_window_status(Win *win, const char *status);
+
+VIX_INTERNAL int ui_terminal_colors(void);
 
 #endif

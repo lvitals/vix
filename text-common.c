@@ -30,18 +30,21 @@ bool text_byte_get(const Text *txt, size_t pos, char *byte) {
 }
 
 size_t text_bytes_get(const Text *txt, size_t pos, size_t len, char *buf) {
-	if (!buf)
+	if (!buf) {
 		return 0;
+	}
 	char *cur = buf;
 	size_t rem = len;
 	for (Iterator it = text_iterator_get(txt, pos);
 	     text_iterator_valid(&it);
 	     text_iterator_next(&it)) {
-		if (rem == 0)
+		if (rem == 0) {
 			break;
+		}
 		size_t piece_len = it.end - it.text;
-		if (piece_len > rem)
+		if (piece_len > rem) {
 			piece_len = rem;
+		}
 		if (piece_len) {
 			memcpy(cur, it.text, piece_len);
 			cur += piece_len;
@@ -52,11 +55,13 @@ size_t text_bytes_get(const Text *txt, size_t pos, size_t len, char *buf) {
 }
 
 char *text_bytes_alloc0(const Text *txt, size_t pos, size_t len) {
-	if (len == SIZE_MAX)
+	if (len == SIZE_MAX) {
 		return NULL;
+	}
 	char *buf = malloc(len+1);
-	if (!buf)
+	if (!buf) {
 		return NULL;
+	}
 	len = text_bytes_get(txt, pos, len, buf);
 	buf[len] = '\0';
 	return buf;

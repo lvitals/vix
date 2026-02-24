@@ -7,8 +7,9 @@ static int test_count = 0;
 static void plan_no_plan(void) { }
 
 static int exit_status() {
-	if (failures > 255)
+	if (failures > 255) {
 		failures = 255;
+	}
 	return failures;
 } 
 
@@ -24,8 +25,9 @@ static int exit_status() {
 } while (0)
 
 #define skip_if(cond, n, ...)                          \
-        if (cond) skip((n), __VA_ARGS__);              \
-        else
+        if (cond) { \
+                skip((n), __VA_ARGS__); \
+        } else
 
 #define skip(n, ...) do { \
 	int _n = (n); \
@@ -41,7 +43,9 @@ time_t time(time_t *p)
 {
 	static time_t value;
 	value++;
-	if (p) *p = value;
+	if (p) { \
+		*p = value; \
+	}
 	return value;
 }
 

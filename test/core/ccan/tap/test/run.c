@@ -23,8 +23,9 @@ static void write_all(int fd, const void *data, size_t size)
 		ssize_t done;
 
 		done = write(fd, data, size);
-		if (done <= 0)
+		if (done <= 0) {
 			_exit(1);
+		}
 		data = (const char *)data + done;
 		size -= done;
 	}
@@ -53,12 +54,14 @@ static void expect(int fd, const char *pattern)
 	int r;
 
 	r = read(fd, buffer, sizeof(buffer)-1);
-	if (r < 0)
+	if (r < 0) {
 		failmsg("reading from pipe");
+	}
 	buffer[r] = '\0';
 
-	if (fnmatch(pattern, buffer, 0) != 0)
+	if (fnmatch(pattern, buffer, 0) != 0) {
 		failmsg("Expected '%s' got '%s'", pattern, buffer);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -69,18 +72,22 @@ int main(int argc, char *argv[])
 	setbuf(stdout, 0);
 	printf("1..1\n");
 	stderrfd = dup(STDERR_FILENO);
-	if (stderrfd < 0)
+	if (stderrfd < 0) {
 		err(1, "dup of stderr failed");
+	}
 
 	stdoutfd = dup(STDOUT_FILENO);
-	if (stdoutfd < 0)
+	if (stdoutfd < 0) {
 		err(1, "dup of stdout failed");
+	}
 
-	if (pipe(p) != 0)
+	if (pipe(p) != 0) {
 		failmsg("pipe failed");
+	}
 
-	if (dup2(p[1], STDERR_FILENO) < 0 || dup2(p[1], STDOUT_FILENO) < 0)
+	if (dup2(p[1], STDERR_FILENO) < 0 || dup2(p[1], STDOUT_FILENO) < 0) {
 		failmsg("Duplicating file descriptor");
+	}
 
 	plan_tests(10);
 	expect(p[0], "1..10\n");
@@ -118,8 +125,9 @@ int main(int argc, char *argv[])
 	expect(p[0], "ok 10 - true # TODO todo\n");
 	todo_end();
 
-	if (exit_status() != 3)
+	if (exit_status() != 3) {
 		failmsg("Expected exit status 3, not %i", exit_status());
+	}
 
 #if 0
 	/* Manually run the atexit command. */

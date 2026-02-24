@@ -48,7 +48,7 @@ for t in $test_files; do
 	else
 		printf "% -30s" "$t"
 
-		if printf ":q\n" | "$VIX" "$t.in" 2> "$t.err" > "$t.out"; then
+		if printf ":q\n" | "$VIX" -headless "$t.in" 2> "$t.err" > "$t.out"; then
 			TESTS_OK=$((TESTS_OK + 1))
 			printf "OK\n"
 		else

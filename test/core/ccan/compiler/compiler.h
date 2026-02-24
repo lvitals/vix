@@ -17,7 +17,7 @@
  *	fprintf(stderr, "Error: %s (%s)\n", reason, strerror(errno));
  * }
  */
-#define COLD __attribute__((__cold__))
+#define COLD
 #else
 #define COLD
 #endif
@@ -37,7 +37,7 @@
  *	exit(1);
  * }
  */
-#define NORETURN __attribute__((__noreturn__))
+#define NORETURN
 #else
 #define NORETURN
 #endif
@@ -55,8 +55,7 @@
  * Example:
  * void PRINTF_FMT(2,3) my_printf(const char *prefix, const char *fmt, ...);
  */
-#define PRINTF_FMT(nfmt, narg) \
-	__attribute__((format(__printf__, nfmt, narg)))
+#define PRINTF_FMT(nfmt, narg)
 #else
 #define PRINTF_FMT(nfmt, narg)
 #endif
@@ -71,7 +70,7 @@
  * same value for the exact same arguments.  This implies that the function
  * must not use global variables, or dereference pointer arguments.
  */
-#define CONST_FUNCTION __attribute__((__const__))
+#define CONST_FUNCTION
 #else
 #define CONST_FUNCTION
 #endif
@@ -84,7 +83,7 @@
  * A pure function is one that has no side effects other than it's return value
  * and uses no inputs other than it's arguments and global variables.
  */
-#define PURE_FUNCTION __attribute__((__pure__))
+#define PURE_FUNCTION
 #else
 #define PURE_FUNCTION
 #endif
@@ -109,7 +108,7 @@
  *	counter += add;
  * }
  */
-#define UNNEEDED __attribute__((__unused__))
+#define UNNEEDED
 #endif
 
 #ifndef NEEDED
@@ -128,10 +127,10 @@
  *		printf("Counter is %i\n", counter);
  *	}
  */
-#define NEEDED __attribute__((__used__))
+#define NEEDED
 #else
 /* Before used, unused functions and vars were always emitted. */
-#define NEEDED __attribute__((__unused__))
+#define NEEDED
 #endif
 #endif
 
@@ -150,7 +149,7 @@
  *		return 0;
  *	}
  */
-#define UNUSED __attribute__((__unused__))
+#define UNUSED
 #endif
 #else
 #ifndef UNNEEDED
@@ -223,7 +222,7 @@
  *	return realloc(buf, (*size) *= 2);
  * }
  */
-#define WARN_UNUSED_RESULT __attribute__((__warn_unused_result__))
+#define WARN_UNUSED_RESULT
 #else
 #define WARN_UNUSED_RESULT
 #endif

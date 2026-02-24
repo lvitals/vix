@@ -94,8 +94,9 @@ static void iterator_find_prev(Text *txt, size_t start, char b, size_t match) {
 
 static bool text_save_method(Text *txt, const char *filename, enum TextSaveMethod method) {
 	TextSave ctx = text_save_default(.txt = txt, .filename = filename, .method = method);
-	if (!text_save_begin(&ctx))
+	if (!text_save_begin(&ctx)) {
 		return false;
+	}
 	Filerange range = (Filerange){ .start = 0, .end = text_size(txt) };
 	ssize_t written = text_save_write_range(&ctx, &range);
 	if (written == -1 || (size_t)written != text_range_size(&range)) {
@@ -110,8 +111,9 @@ int main(int argc, char *argv[]) {
 
 	plan_no_plan();
 
-	if (setjmp(vix->oom_jmp_buf))
+	if (setjmp(vix->oom_jmp_buf)) {
 		return 1;
+	}
 
 	skip_if(TIS_INTERPRETER, 2, "I/O related") {
 
@@ -155,8 +157,9 @@ int main(int argc, char *argv[]) {
 		for (size_t l = 0; l < LENGTH(load_method); l++) {
 			for (size_t s = 0; s < LENGTH(save_method); s++) {
 #ifdef __CYGWIN__
-				if (load_method[l] == TEXT_LOAD_MMAP && save_method[s] == TEXT_SAVE_INPLACE)
+				if (load_method[l] == TEXT_LOAD_MMAP && save_method[s] == TEXT_SAVE_INPLACE) {
 					continue;
+				}
 #endif
 				snprintf(buf, sizeof buf, "Hello World: (%zu, %zu)\n", l, s);
 				txt = text_load_method(vix, filename, load_method[l]);

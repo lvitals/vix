@@ -10,8 +10,9 @@ struct Regex {
 };
 
 size_t text_regex_nsub(Regex *r) {
-       if (!r)
+       if (!r) {
                return 0;
+       }
        return r->regex.re_nsub;
 }
 
@@ -84,8 +85,9 @@ static int str_compare(size_t pos1, size_t pos2, size_t len, void *context) {
 	Regex *r = context;
 	int ret = 1;
 	void *buf1 = malloc(len), *buf2 = malloc(len);
-	if (!buf1 || !buf2)
+	if (!buf1 || !buf2) {
 		goto err;
+	}
 	text_bytes_get(r->text, pos1, len, buf1);
 	text_bytes_get(r->text, pos2, len, buf2);
 	ret = memcmp(buf1, buf2, len);
@@ -97,8 +99,9 @@ err:
 
 Regex *text_regex_new(void) {
 	Regex *r = calloc(1, sizeof(*r));
-	if (!r)
+	if (!r) {
 		return NULL;
+	}
 	r->str_source = (tre_str_source) {
 		.get_next_char = str_next_char,
 		.rewind = str_rewind,
@@ -110,8 +113,9 @@ Regex *text_regex_new(void) {
 }
 
 void text_regex_free(Regex *r) {
-	if (!r)
+	if (!r) {
 		return;
+	}
 	tre_regfree(&r->regex);
 	free(r);
 }
@@ -156,17 +160,19 @@ int text_search_range_backward(Text *txt, size_t pos, size_t len, Regex *r, size
 		size_t next = pmatch[0].end;
 		if (next == pos) {
 			next = text_line_next(txt, pos);
-			if (next == pos)
+			if (next == pos) {
 				break;
+			}
 		}
 		pos = next;
 		len = end - pos;
 
 		char c;
-		if (text_byte_get(txt, pos-1, &c) && c == '\n')
+		if (text_byte_get(txt, pos-1, &c) && c == '\n') {
 			eflags &= ~REG_NOTBOL;
-		else
+		} else {
 			eflags |= REG_NOTBOL;
+		}
 	}
 
 	return ret;

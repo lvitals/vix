@@ -62,23 +62,27 @@ static void ui_window_move(Win *win, int x, int y) {
 
 static bool color_fromstring(Ui *ui, CellColor *color, const char *s)
 {
-	if (!s)
+	if (!s) {
 		return false;
+	}
 	if (*s == '#' && strlen(s) == 7) {
 		const char *cp;
 		unsigned char r, g, b;
 		for (cp = s + 1; isxdigit((unsigned char)*cp); cp++);
-		if (*cp != '\0')
+		if (*cp != '\0') {
 			return false;
+		}
 		int n = sscanf(s + 1, "%2hhx%2hhx%2hhx", &r, &g, &b);
-		if (n != 3)
+		if (n != 3) {
 			return false;
+		}
 		*color = color_rgb(ui, r, g, b);
 		return true;
 	} else if ('0' <= *s && *s <= '9') {
 		int index = atoi(s);
-		if (index <= 0 || index > 255)
+		if (index <= 0 || index > 255) {
 			return false;
+		}
 		*color = color_terminal(ui, index);
 		return true;
 	}
@@ -110,22 +114,27 @@ static bool color_fromstring(Ui *ui, CellColor *color, const char *s)
 
 bool ui_style_define(Win *win, int id, const char *style) {
 	Ui *tui = &win->vix->ui;
-	if (id >= UI_STYLE_MAX)
+	if (id >= UI_STYLE_MAX) {
 		return false;
-	if (!style)
+	}
+	if (!style) {
 		return true;
+	}
 
 	CellStyle cell_style = CELL_STYLE_DEFAULT;
 	char *style_copy = strdup(style), *option = style_copy;
 	while (option) {
-		while (*option == ' ')
+		while (*option == ' ') {
 			option++;
+		}
 		char *next = strchr(option, ',');
-		if (next)
+		if (next) {
 			*next++ = '\0';
+		}
 		char *value = strchr(option, ':');
-		if (value)
+		if (value) {
 			for (*value++ = '\0'; *value == ' '; value++);
+		}
 		if (!strcasecmp(option, "reverse")) {
 			cell_style.attr |= CELL_ATTR_REVERSE;
 		} else if (!strcasecmp(option, "notreverse")) {
@@ -163,8 +172,9 @@ bool ui_style_define(Win *win, int id, const char *style) {
 }
 
 static void ui_draw_line(Ui *tui, int x, int y, char c, enum UiStyle style_id) {
-	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height)
+	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
 		return;
+	}
 	CellStyle style = tui->styles[style_id];
 	Cell *cells = tui->cells + y * tui->width;
 	while (x < tui->width) {
@@ -175,10 +185,14 @@ static void ui_draw_line(Ui *tui, int x, int y, char c, enum UiStyle style_id) {
 	}
 }
 
-static void ui_draw_string(Ui *tui, int x, int y, const char *str, int win_id, enum UiStyle style_id) {
+static void ui_draw_string(Ui *tui, int x, int y, int max_x, const char *str, int win_id, enum UiStyle style_id) {
 	debug("draw-string: [%d][%d]\n", y, x);
-	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height)
+	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
 		return;
+	}
+	if (max_x < 0 || max_x > tui->width) {
+		max_x = tui->width;
+	}
 
 	/* NOTE: the style that style_id refers to may contain unset values; we need to properly
 	 * clear the cell first then go through ui_window_style_set to get the correct style */
@@ -186,13 +200,19 @@ static void ui_draw_string(Ui *tui, int x, int y, const char *str, int win_id, e
 	// FIXME: does not handle double width characters etc, share code with view.c?
 	Cell *cells = tui->cells + y * tui->width;
 	const size_t cell_size = sizeof(cells[0].data)-1;
-	for (const char *next = str; *str && x < tui->width; str = next) {
+	for (const char *next = str; *str && x < max_x; str = next) {
 		do next++; while (!ISUTF8(*next));
 		size_t len = next - str;
-		if (!len)
+		if (!len) {
 			break;
+		}
 		len = MIN(len, cell_size);
-		strncpy(cells[x].data, str, len);
+		unsigned char ch = (unsigned char)*str;
+		if (len == 1 && (ch < 32 || ch == 127)) {
+			memcpy(cells[x].data, " ", 1);
+		} else {
+			strncpy(cells[x].data, str, len);
+		}
 		cells[x].data[len] = '\0';
 		cells[x].style = default_style;
 		ui_window_style_set(tui, win_id, cells + x++, style_id, false);
@@ -223,9 +243,15 @@ static void ui_window_draw(Win *win) {
 	int x = win->x, y = win->y;
 	int view_width = view->width;
 	Cell *cells = ui->cells + y * ui->width;
-	if (x + sidebar_width + view_width > ui->width)
+	if (x + sidebar_width + view_width > ui->width) {
 		view_width = ui->width - x - sidebar_width;
-	for (const Line *l = line; l; l = l->next, y++) {
+	}
+	int max_y = win->y + height;
+	if (status) {
+		max_y--;
+	}
+
+	for (const Line *l = line; l && y < max_y; l = l->next, y++) {
 		if (sidebar) {
 			if (!l->lineno || !l->len || l->lineno == prev_lineno) {
 				memset(buf, ' ', sizeof(buf));
@@ -234,14 +260,15 @@ static void ui_window_draw(Win *win) {
 				size_t number = l->lineno;
 				if (rnu) {
 					number = (win->options & UI_OPTION_LARGE_FILE) ? 0 : l->lineno;
-					if (l->lineno > cursor_lineno)
+					if (l->lineno > cursor_lineno) {
 						number = l->lineno - cursor_lineno;
-					else if (l->lineno < cursor_lineno)
+					} else if (l->lineno < cursor_lineno) {
 						number = cursor_lineno - l->lineno;
+					}
 				}
 				snprintf(buf, sizeof buf, "%*zu ", sidebar_width-1, number);
 			}
-			ui_draw_string(ui, x, y, buf, win->id,
+			ui_draw_string(ui, x, y, x + sidebar_width, buf, win->id,
 				       (l->lineno == cursor_lineno) ? UI_STYLE_LINENUMBER_CURSOR :
 				                                      UI_STYLE_LINENUMBER);
 			prev_lineno = l->lineno;
@@ -258,10 +285,12 @@ void ui_window_style_set(Ui *tui, int win_id, Cell *cell, enum UiStyle id, bool 
 	if (id != UI_STYLE_DEFAULT) {
 		if (keep_non_default) {
 			CellStyle default_style = tui->styles[win_id * UI_STYLE_MAX + UI_STYLE_DEFAULT];
-			if (!cell_color_equal(cell->style.fg, default_style.fg))
+			if (!cell_color_equal(cell->style.fg, default_style.fg)) {
 				set.fg = cell->style.fg;
-			if (!cell_color_equal(cell->style.bg, default_style.bg))
+			}
+			if (!cell_color_equal(cell->style.bg, default_style.bg)) {
 				set.bg = cell->style.bg;
+			}
 		}
 		set.fg = is_default_fg(set.fg)? cell->style.fg : set.fg;
 		set.bg = is_default_bg(set.bg)? cell->style.bg : set.bg;
@@ -276,17 +305,18 @@ bool ui_window_style_set_pos(Win *win, int x, int y, enum UiStyle id, bool keep_
 	if (x < 0 || y < 0 || y >= win->height || x >= win->width) {
 		return false;
 	}
-	Cell *cell = CELL_AT_POS(tui, win->x + x, win->y + y)
+	Cell *cell = CELL_AT_POS(tui, win->x + x, win->y + y);
 	ui_window_style_set(tui, win->id, cell, id, keep_non_default);
 	return true;
 }
 
 void ui_window_status(Win *win, const char *status) {
-	if (!(win->options & UI_OPTION_STATUSBAR))
+	if (!(win->options & UI_OPTION_STATUSBAR)) {
 		return;
+	}
 	Ui *ui = &win->vix->ui;
 	enum UiStyle style = ui->selwin == win ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
-	ui_draw_string(ui, win->x, win->y + win->height - 1, status, win->id, style);
+	ui_draw_string(ui, win->x, win->y + win->height - 1, win->x + win->width, status, win->id, style);
 }
 
 void ui_arrange(Ui *tui, enum UiLayout layout) {
@@ -294,17 +324,19 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	tui->layout = layout;
 	int n = 0, m = !!tui->info[0], x = 0, y = 0;
 	for (Win *win = tui->windows; win; win = win->next) {
-		if (win->options & UI_OPTION_ONELINE)
+		if (win->options & UI_OPTION_ONELINE) {
 			m++;
-		else
+		} else {
 			n++;
+		}
 	}
 	int max_height = tui->height - m;
 	int width = (tui->width / MAX(1, n)) - 1;
 	int height = max_height / MAX(1, n);
 	for (Win *win = tui->windows; win; win = win->next) {
-		if (win->options & UI_OPTION_ONELINE)
+		if (win->options & UI_OPTION_ONELINE) {
 			continue;
+		}
 		n--;
 		if (layout == UI_LAYOUT_HORIZONTAL) {
 			int h = n ? height : max_height - y;
@@ -328,12 +360,14 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 		}
 	}
 
-	if (layout == UI_LAYOUT_VERTICAL)
+	if (layout == UI_LAYOUT_VERTICAL) {
 		y = max_height;
+	}
 
 	for (Win *win = tui->windows; win; win = win->next) {
-		if (!(win->options & UI_OPTION_ONELINE))
+		if (!(win->options & UI_OPTION_ONELINE)) {
 			continue;
+		}
 		ui_window_resize(win, tui->width, 1);
 		ui_window_move(win, 0, y++);
 	}
@@ -342,18 +376,21 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 void ui_draw(Ui *tui) {
 	debug("ui-draw\n");
 	ui_arrange(tui, tui->layout);
-	for (Win *win = tui->windows; win; win = win->next)
+	for (Win *win = tui->windows; win; win = win->next) {
 		ui_window_draw(win);
-	if (tui->info[0])
-		ui_draw_string(tui, 0, tui->height-1, tui->info, 0, UI_STYLE_INFO);
+	}
+	if (tui->info[0]) {
+		ui_draw_string(tui, 0, tui->height-1, tui->width, tui->info, 0, UI_STYLE_INFO);
+	}
 	vix_event_emit(tui->vix, VIX_EVENT_UI_DRAW);
 	ui_term_backend_blit(tui);
 }
 
 void ui_redraw(Ui *tui) {
 	ui_term_backend_clear(tui);
-	for (Win *win = tui->windows; win; win = win->next)
+	for (Win *win = tui->windows; win; win = win->next) {
 		win->view.need_update = true;
+	}
 }
 
 void ui_resize(Ui *tui) {
@@ -361,22 +398,26 @@ void ui_resize(Ui *tui) {
 	int width = 80, height = 24;
 
 	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &ws) != -1) {
-		if (ws.ws_col > 0)
+		if (ws.ws_col > 0) {
 			width = ws.ws_col;
-		if (ws.ws_row > 0)
+		}
+		if (ws.ws_row > 0) {
 			height = ws.ws_row;
+		}
 	}
 
 	width  = MIN(width,  UI_MAX_WIDTH);
 	height = MIN(height, UI_MAX_HEIGHT);
-	if (!ui_term_backend_resize(tui, width, height))
+	if (!ui_term_backend_resize(tui, width, height)) {
 		return;
+	}
 
 	size_t size = width*height*sizeof(Cell);
 	if (size > tui->cells_size) {
 		Cell *cells = realloc(tui->cells, size);
-		if (!cells)
+		if (!cells) {
 			return;
+		}
 		memset((char*)cells+tui->cells_size, 0, size - tui->cells_size);
 		tui->cells_size = size;
 		tui->cells = cells;
@@ -386,21 +427,33 @@ void ui_resize(Ui *tui) {
 }
 
 void ui_window_release(Ui *tui, Win *win) {
-	if (!win)
+	if (!win) {
 		return;
-	if (tui->windows == win)
+	}
+	if (tui->windows == win) {
 		tui->windows = win->next;
-	if (tui->selwin == win)
+		tui->vix->windows = win->next;
+	}
+	if (win->next) {
+		win->next->prev = win->prev;
+	}
+	if (win->prev) {
+		win->prev->next = win->next;
+	}
+	if (tui->selwin == win) {
 		tui->selwin = NULL;
+	}
 	tui->ids &= ~(1UL << win->id);
 }
 
 void ui_window_focus(Win *new) {
 	Win *old = new->vix->ui.selwin;
-	if (new->options & UI_OPTION_STATUSBAR)
+	if ((new->options & UI_OPTION_STATUSBAR) || (new->options & UI_OPTION_ONELINE)) {
 		new->vix->ui.selwin = new;
-	if (old)
+	}
+	if (old) {
 		old->view.need_update = true;
+	}
 	new->view.need_update = true;
 }
 
@@ -409,30 +462,43 @@ void ui_window_options_set(Win *win, enum UiOption options) {
 	if (options & UI_OPTION_ONELINE) {
 		/* move the new window to the end of the list */
 		Ui *tui = &win->vix->ui;
-		Win *last = tui->windows;
-		while (last->next)
-			last = last->next;
-		if (last != win) {
-			if (tui->windows == win)
+		if (win->next) {
+			if (tui->windows == win) {
 				tui->windows = win->next;
+			}
+			if (win->prev) {
+				win->prev->next = win->next;
+			}
+			if (win->next) {
+				win->next->prev = win->prev;
+			}
+			Win *last = tui->windows;
+			while (last->next) {
+				last = last->next;
+			}
 			last->next = win;
+			win->prev = last;
+			win->next = NULL;
 		}
 	}
 	ui_draw(&win->vix->ui);
 }
 
 void ui_window_swap(Win *a, Win *b) {
-	if (a == b || !a || !b)
+	if (a == b || !a || !b) {
 		return;
+	}
 	Ui *tui = &a->vix->ui;
-	if (tui->windows == a)
+	if (tui->windows == a) {
 		tui->windows = b;
-	else if (tui->windows == b)
+	} else if (tui->windows == b) {
 		tui->windows = a;
-	if (tui->selwin == a)
+	}
+	if (tui->selwin == a) {
 		ui_window_focus(b);
-	else if (tui->selwin == b)
+	} else if (tui->selwin == b) {
 		ui_window_focus(a);
+	}
 }
 
 bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
@@ -440,13 +506,15 @@ bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
 	size_t bit = ~tui->ids & (tui->ids + 1);
 	size_t id = 0;
 	for (size_t tmp = bit; tmp >>= 1; id++);
-	if (id >= sizeof(size_t) * 8)
-		return NULL;
+	if (id >= sizeof(size_t) * 8) {
+		return false;
+	}
 	size_t styles_size = (id + 1) * UI_STYLE_MAX * sizeof(CellStyle);
 	if (styles_size > tui->styles_size) {
 		CellStyle *styles = realloc(tui->styles, styles_size);
-		if (!styles)
-			return NULL;
+		if (!styles) {
+			return false;
+		}
 		tui->styles = styles;
 		tui->styles_size = styles_size;
 	}
@@ -467,10 +535,6 @@ bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
 	styles[UI_STYLE_STATUS_FOCUSED].attr |= CELL_ATTR_REVERSE|CELL_ATTR_BOLD;
 	styles[UI_STYLE_INFO].attr |= CELL_ATTR_BOLD;
 
-	if (tui->windows)
-		tui->windows->prev = w->prev;
-	tui->windows = w;
-
 	if (text_size(w->file->text) > UI_LARGE_FILE_SIZE) {
 		options |= UI_OPTION_LARGE_FILE;
 		options &= ~UI_OPTION_LINE_NUMBERS_ABSOLUTE;
@@ -487,21 +551,24 @@ void ui_info_show(Ui *tui, const char *msg, va_list ap) {
 }
 
 void ui_info_hide(Ui *tui) {
-	if (tui->info[0])
+	if (tui->info[0]) {
 		tui->info[0] = '\0';
+	}
 }
 
 static TermKey *ui_termkey_new(int fd) {
 	TermKey *termkey = termkey_new(fd, UI_TERMKEY_FLAGS);
-	if (termkey)
+	if (termkey) {
 		termkey_set_canonflags(termkey, TERMKEY_CANON_DELBS);
+	}
 	return termkey;
 }
 
 static TermKey *ui_termkey_reopen(Ui *ui, int fd) {
 	int tty = open("/dev/tty", O_RDWR);
-	if (tty == -1)
+	if (tty == -1) {
 		return NULL;
+	}
 	if (tty != fd && dup2(tty, fd) == -1) {
 		close(tty);
 		return NULL;
@@ -521,8 +588,9 @@ bool ui_getkey(Ui *tui, TermKeyKey *key) {
 	if (ret == TERMKEY_RES_EOF) {
 		termkey_destroy(tui->termkey);
 		errno = 0;
-		if (!(tui->termkey = ui_termkey_reopen(tui, STDIN_FILENO)))
+		if (!(tui->termkey = ui_termkey_reopen(tui, STDIN_FILENO))) {
 			ui_die_msg(tui, "Failed to re-open stdin as /dev/tty: %s\n", errno != 0 ? strerror(errno) : "");
+		}
 		return false;
 	}
 
@@ -530,8 +598,9 @@ bool ui_getkey(Ui *tui, TermKeyKey *key) {
 		struct pollfd fd;
 		fd.fd = STDIN_FILENO;
 		fd.events = POLLIN;
-		if (poll(&fd, 1, termkey_get_waittime(tui->termkey)) == 0)
+		if (poll(&fd, 1, termkey_get_waittime(tui->termkey)) == 0) {
 			ret = termkey_getkey_force(tui->termkey, key);
+		}
 	}
 
 	return ret == TERMKEY_RES_KEY;
@@ -559,19 +628,31 @@ bool ui_init(Ui *tui, Vix *vix) {
 	}
 
 	errno = 0;
-	if (!(tui->termkey = ui_termkey_new(STDIN_FILENO))) {
+	if (vix->headless) {
+		tui->termkey = termkey_new_abstract(term, UI_TERMKEY_FLAGS);
+	} else if (!(tui->termkey = ui_termkey_new(STDIN_FILENO))) {
 		/* work around libtermkey bug which fails if stdin is /dev/null */
 		if (errno == EBADF) {
 			errno = 0;
-			if (!(tui->termkey = ui_termkey_reopen(tui, STDIN_FILENO)) && errno == ENXIO)
+			if (!(tui->termkey = ui_termkey_reopen(tui, STDIN_FILENO)) && errno == ENXIO) {
 				tui->termkey = termkey_new_abstract(term, UI_TERMKEY_FLAGS);
+			}
 		}
-		if (!tui->termkey)
-			goto err;
 	}
 
-	if (!ui_term_backend_init(tui, term))
+	if (!tui->termkey) {
 		goto err;
+	}
+
+	if (vix->headless) {
+		tui->width = 80;
+		tui->height = 24;
+		return true;
+	}
+
+	if (!ui_term_backend_init(tui, term)) {
+		goto err;
+	}
 	ui_resize(tui);
 	return true;
 err:
@@ -582,8 +663,9 @@ err:
 bool ui_terminal_init(Ui *tui) {
 	size_t styles_size = UI_STYLE_MAX * sizeof(CellStyle);
 	CellStyle *styles = calloc(1, styles_size);
-	if (!styles)
+	if (!styles) {
 		return false;
+	}
 	if (!ui_backend_init(tui)) {
 		free(styles);
 		return false;
@@ -597,10 +679,12 @@ bool ui_terminal_init(Ui *tui) {
 }
 
 void ui_terminal_free(Ui *tui) {
-	if (!tui)
+	if (!tui) {
 		return;
-	while (tui->windows)
+	}
+	while (tui->windows) {
 		ui_window_release(tui, tui->windows);
+	}
 	ui_term_backend_free(tui);
 	if (tui->termkey) {
 		termkey_destroy(tui->termkey);

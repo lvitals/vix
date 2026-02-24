@@ -151,7 +151,7 @@ VIX_INTERNAL bool text_insert(Vix *vix, Text *txt, size_t pos, const char *data,
  */
 VIX_INTERNAL bool text_delete(Text *txt, size_t pos, size_t len);
 VIX_INTERNAL bool text_delete_range(Text *txt, const Filerange*);
-VIX_INTERNAL bool text_appendf(Vix *vix, Text *txt, const char *format, ...) __attribute__((format(printf, 3, 4)));
+VIX_INTERNAL bool text_appendf(Vix *vix, Text *txt, const char *format, ...);
 /**
  * @}
  * @defgroup history Undo/Redo History

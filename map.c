@@ -51,8 +51,9 @@ void *map_get(const Map *map, const char *key)
 	/* Not empty map? */
 	if (map->u.n) {
 		Map *n = closest((Map *)map, key);
-		if (strcmp(key, n->u.s) == 0)
+		if (strcmp(key, n->u.s) == 0) {
 			return n->v;
+		}
 	}
 	return NULL;
 }
@@ -60,8 +61,9 @@ void *map_get(const Map *map, const char *key)
 void *map_closest(const Map *map, const char *prefix)
 {
 	void *result = map_get(map, prefix);
-	if (!result)
+	if (!result) {
 		result = map_prefix(map, prefix)->v;
+	}
 	return result;
 }
 
@@ -75,11 +77,13 @@ bool map_put(Map *map, const char *k, const void *value)
 	uint8_t bit_num, new_dir;
 	char *key;
 
-	if (!value)
+	if (!value) {
 		return false;
+	}
 
-	if (!(key = strdup(k)))
+	if (!(key = strdup(k))) {
 		return false;
+	}
 
 	/* Empty map? */
 	if (!map->u.n) {
@@ -124,11 +128,13 @@ bool map_put(Map *map, const char *k, const void *value)
 	while (!n->v) {
 		uint8_t direction = 0;
 
-		if (n->u.n->byte_num > byte_num)
+		if (n->u.n->byte_num > byte_num) {
 			break;
+		}
 		/* Subtle: bit numbers are "backwards" for comparison */
-		if (n->u.n->byte_num == byte_num && n->u.n->bit_num < bit_num)
+		if (n->u.n->byte_num == byte_num && n->u.n->bit_num < bit_num) {
 			break;
+		}
 
 		if (n->u.n->byte_num < len) {
 			uint8_t c = bytes[n->u.n->byte_num];
@@ -152,8 +158,9 @@ void *map_delete(Map *map, const char *key)
 	uint8_t direction;
 
 	/* Empty map? */
-	if (!map->u.n)
+	if (!map->u.n) {
 		return NULL;
+	}
 
 	/* Find closest, but keep track of parent. */
 	n = map;
@@ -172,8 +179,9 @@ void *map_delete(Map *map, const char *key)
 	}
 
 	/* Did we find it? */
-	if (strcmp(key, n->u.s))
+	if (strcmp(key, n->u.s)) {
 		return NULL;
+	}
 
 	free((char*)n->u.s);
 	value = n->v;
@@ -193,8 +201,9 @@ void *map_delete(Map *map, const char *key)
 
 static bool iterate(Map n, bool (*handle)(const char *, void *, void *), const void *data)
 {
-	if (n.v)
+	if (n.v) {
 		return handle(n.u.s, n.v, (void *)data);
+	}
 
 	return iterate(n.u.n->child[0], handle, data)
 		&& iterate(n.u.n->child[1], handle, data);
@@ -203,8 +212,9 @@ static bool iterate(Map n, bool (*handle)(const char *, void *, void *), const v
 void map_iterate(const Map *map, bool (*handle)(const char *, void *, void *), const void *data)
 {
 	/* Empty map? */
-	if (!map->u.n)
+	if (!map->u.n) {
 		return;
+	}
 
 	iterate(*map, handle, data);
 }
@@ -226,8 +236,9 @@ void *map_first(const Map *map, const char **key)
 {
 	KeyValue kv = { 0 };
 	map_iterate(map, first, &kv);
-	if (key && kv.key)
+	if (key && kv.key) {
 		*key = kv.key;
+	}
 	return kv.value;
 }
 
@@ -238,8 +249,9 @@ const Map *map_prefix(const Map *map, const char *prefix)
 	const uint8_t *bytes = (const uint8_t *)prefix;
 
 	/* Empty map -> return empty map. */
-	if (!map->u.n)
+	if (!map->u.n) {
 		return map;
+	}
 
 	top = n = map;
 
@@ -247,13 +259,15 @@ const Map *map_prefix(const Map *map, const char *prefix)
 	while (!n->v) {
 		uint8_t c = 0, direction;
 
-		if (n->u.n->byte_num < len)
+		if (n->u.n->byte_num < len) {
 			c = bytes[n->u.n->byte_num];
+		}
 
 		direction = (c >> n->u.n->bit_num) & 1;
 		n = &n->u.n->child[direction];
-		if (c)
+		if (c) {
 			top = n;
+		}
 	}
 
 	if (strncmp(n->u.s, prefix, len)) {
@@ -278,8 +292,9 @@ static void map_clear_impl(Map n)
 
 void map_clear(Map *map)
 {
-	if (map->u.n)
+	if (map->u.n) {
 		map_clear_impl(*map);
+	}
 	map->u.n = NULL;
 	map->v = NULL;
 }
@@ -300,8 +315,9 @@ static bool copy(Map *dest, Map n)
 
 bool map_copy(Map *dest, Map *src)
 {
-	if (!src || !src->u.n)
+	if (!src || !src->u.n) {
 		return true;
+	}
 
 	return copy(dest, *src);
 }
@@ -318,8 +334,9 @@ Map *map_new(void)
 
 void map_free(Map *map)
 {
-	if (!map)
+	if (!map) {
 		return;
+	}
 	map_clear(map);
 	free(map);
 }

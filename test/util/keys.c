@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -33,12 +34,15 @@ static void delay(void) {
 static void printkey(TermKeyKey *key) {
 	switch (key->type) {
 	case TERMKEY_TYPE_UNICODE:
-		if (key->modifiers & TERMKEY_KEYMOD_SHIFT)
+		if (key->modifiers & TERMKEY_KEYMOD_SHIFT) {
 			;
-		if (key->modifiers & TERMKEY_KEYMOD_CTRL)
+		}
+		if (key->modifiers & TERMKEY_KEYMOD_CTRL) {
 			key->utf8[0] &= 0x1f;
-		if (key->modifiers & TERMKEY_KEYMOD_ALT)
+		}
+		if (key->modifiers & TERMKEY_KEYMOD_ALT) {
 			;
+		}
 		print("%s", key->utf8);
 		break;
 	case TERMKEY_TYPE_KEYSYM:
@@ -50,10 +54,11 @@ static void printkey(TermKeyKey *key) {
 			print("\b");
 			break;
 		case TERMKEY_SYM_TAB:
-			if (key->modifiers & TERMKEY_KEYMOD_SHIFT)
+			if (key->modifiers & TERMKEY_KEYMOD_SHIFT) {
 				print("\033[Z");
-			else
+			} else {
 				print("\t");
+			}
 			break;
 		case TERMKEY_SYM_ENTER:
 			print("\n");
@@ -145,10 +150,12 @@ int main(int argc, char *argv[]) {
 	char buf[1024];
 	FILE *file = stdin;
 	char *term = getenv("TERM");
-	if (!term)
+	if (!term) {
 		term = "xterm";
-	if (!(termkey = termkey_new_abstract(term, TERMKEY_FLAG_UTF8)))
+	}
+	if (!(termkey = termkey_new_abstract(term, TERMKEY_FLAG_UTF8))) {
 		die("Failed to initialize libtermkey\n");
+	}
 	while (fgets(buf, sizeof buf, file)) {
 		const char *keys = buf, *next;
 		while (*keys) {
@@ -160,18 +167,22 @@ int main(int argc, char *argv[]) {
 				keys = next+1;
 			} else {
 				const char *start = keys;
-				if (ISUTF8(*keys))
+				if (ISUTF8(*keys)) {
 					keys++;
-				while (!ISUTF8(*keys))
+				}
+				while (!ISUTF8(*keys)) {
 					keys++;
+				}
 				size_t len = keys - start;
-				if (len >= sizeof(key.utf8))
+				if (len >= sizeof(key.utf8)) {
 					die("Too long UTF-8 sequence: %s\n", start);
+				}
 				// FIXME: not really correct, bug good enough for now
 				key.type = TERMKEY_TYPE_UNICODE;
 				key.modifiers = 0;
-				if (len > 0)
+				if (len > 0) {
 					memcpy(key.utf8, start, len);
+				}
 				key.utf8[len] = '\0';
 				printkey(&key);
 			}

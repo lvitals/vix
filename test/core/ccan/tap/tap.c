@@ -112,8 +112,9 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 	   expansions on it */
 	if(test_name != NULL) {
 		va_start(ap, test_name);
-		if (vasprintf(&local_test_name, test_name, ap) < 0)
+		if (vasprintf(&local_test_name, test_name, ap) < 0) {
 			local_test_name = NULL;
+		}
 		va_end(ap);
 
 		/* Make sure the test name contains more than digits
@@ -151,8 +152,9 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 		if(local_test_name != NULL) {
 			flockfile(stdout);
 			for(c = local_test_name; *c != '\0'; c++) {
-				if(*c == '#')
+				if(*c == '#') {
 					fputc('\\', stdout);
+				}
 				fputc((int)*c, stdout);
 			}
 			funlockfile(stdout);
@@ -170,22 +172,25 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 	   the test failed. */
 	if(todo) {
 		printf(" # TODO %s", todo_msg ? todo_msg : todo_msg_fixed);
-		if(!ok)
+		if(!ok) {
 			failures--;
+		}
 	}
 
 	printf("\n");
 
-	if(!ok)
+	if(!ok) {
 		_diag("    Failed %stest (%s:%s() at line %d)",
 		      todo ? "(TODO) " : "", file, func, line);
+	}
 
 	free(local_test_name);
 
 	UNLOCK;
 
-	if (!ok && tap_fail_callback)
+	if (!ok && tap_fail_callback) {
 		tap_fail_callback();
+	}
 
 	/* We only care (when testing) that ok is positive, but here we
 	   specifically only want to return 1 or 0 */
@@ -200,8 +205,9 @@ static void
 _cleanup(void)
 {
 	/* If we forked, don't do cleanup in child! */
-	if (getpid() != test_pid)
+	if (getpid() != test_pid) {
 		return;
+	}
 
 	LOCK;
 
@@ -245,9 +251,10 @@ _cleanup(void)
 		return;
 	}
 
-	if(failures)
+	if(failures) {
 		_diag("Looks like you failed %d tests of %d.",
 		      failures, test_count);
+	}
 
 	UNLOCK;
 }
@@ -312,8 +319,9 @@ plan_skip_all(const char *reason)
 
 	printf("1..0");
 
-	if(reason != NULL)
+	if(reason != NULL) {
 		printf(" # Skip %s", reason);
+	}
 
 	printf("\n");
 
@@ -375,8 +383,9 @@ skip(unsigned int n, const char *fmt, ...)
 	LOCK;
 
 	va_start(ap, fmt);
-	if (vasprintf(&skip_msg, fmt, ap) < 0)
+	if (vasprintf(&skip_msg, fmt, ap) < 0) {
 		skip_msg = NULL;
+	}
 	va_end(ap);
 
 	while(n-- > 0) {
@@ -399,8 +408,9 @@ todo_start(const char *fmt, ...)
 	LOCK;
 
 	va_start(ap, fmt);
-	if (vasprintf(&todo_msg, fmt, ap) < 0)
+	if (vasprintf(&todo_msg, fmt, ap) < 0) {
 		todo_msg = NULL;
+	}
 	va_end(ap);
 
 	todo = 1;
@@ -453,7 +463,8 @@ int
 exit_status(void)
 {
 	int r = exit_status_();
-	if (r > 255)
+	if (r > 255) {
 		r = 255;
+	}
 	return r;
 }

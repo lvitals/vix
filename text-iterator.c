@@ -16,8 +16,9 @@ bool text_iterator_byte_get(const Iterator *it, char *b) {
 }
 
 bool text_iterator_byte_next(Iterator *it, char *b) {
-	if (!text_iterator_has_next(it))
+	if (!text_iterator_has_next(it)) {
 		return false;
+	}
 	bool eof = true;
 	if (it->text != it->end) {
 		it->text++;
@@ -29,29 +30,35 @@ bool text_iterator_byte_next(Iterator *it, char *b) {
 
 	while (it->text == it->end) {
 		if (!text_iterator_next(it)) {
-			if (eof)
+			if (eof) {
 				return false;
-			if (b)
+			}
+			if (b) {
 				*b = '\0';
+			}
 			return text_iterator_prev(it);
 		}
 	}
 
-	if (b)
+	if (b) {
 		*b = *it->text;
+	}
 	return true;
 }
 
 bool text_iterator_byte_prev(Iterator *it, char *b) {
-	if (!text_iterator_has_prev(it))
+	if (!text_iterator_has_prev(it)) {
 		return false;
+	}
 	bool eof = !text_iterator_has_next(it);
 	while (it->text == it->start) {
 		if (!text_iterator_prev(it)) {
-			if (!eof)
+			if (!eof) {
 				return false;
-			if (b)
+			}
+			if (b) {
 				*b = '\0';
+			}
 			return text_iterator_next(it);
 		}
 	}
@@ -59,8 +66,9 @@ bool text_iterator_byte_prev(Iterator *it, char *b) {
 	--it->text;
 	--it->pos;
 
-	if (b)
+	if (b) {
 		*b = *it->text;
+	}
 	return true;
 }
 
@@ -96,7 +104,9 @@ bool text_iterator_codepoint_next(Iterator *it, char *c) {
 	char test_byte;
 	while (text_iterator_byte_next(it, &test_byte)) {
 		if (ISUTF8(test_byte)) {
-			if (c) *c = test_byte;
+			if (c) {
+				*c = test_byte;
+			}
 			return true;
 		}
 	}
@@ -107,7 +117,9 @@ bool text_iterator_codepoint_prev(Iterator *it, char *c) {
 	char test_byte;
 	while (text_iterator_byte_prev(it, &test_byte)) {
 		if (ISUTF8(test_byte)) {
-			if (c) *c = test_byte;
+			if (c) {
+				*c = test_byte;
+			}
 			return true;
 		}
 	}
@@ -115,8 +127,9 @@ bool text_iterator_codepoint_prev(Iterator *it, char *c) {
 }
 
 bool text_iterator_char_next(Iterator *it, char *c) {
-	if (!text_iterator_codepoint_next(it, c))
+	if (!text_iterator_codepoint_next(it, c)) {
 		return false;
+	}
 	mbstate_t ps = { 0 };
 	const Text *txt = text_iterator_text(it);
 	for (;;) {
@@ -132,18 +145,21 @@ bool text_iterator_char_next(Iterator *it, char *c) {
 			return true;
 		} else {
 			int width = wcwidth(wc);
-			if (width != 0)
+			if (width != 0) {
 				return true;
-			if (!text_iterator_codepoint_next(it, c))
+			}
+			if (!text_iterator_codepoint_next(it, c)) {
 				return false;
+			}
 		}
 	}
 	return true;
 }
 
 bool text_iterator_char_prev(Iterator *it, char *c) {
-	if (!text_iterator_codepoint_prev(it, c))
+	if (!text_iterator_codepoint_prev(it, c)) {
 		return false;
+	}
 	const Text *txt = text_iterator_text(it);
 	for (;;) {
 		char buf[MB_LEN_MAX];
@@ -159,10 +175,12 @@ bool text_iterator_char_prev(Iterator *it, char *c) {
 			return true;
 		} else {
 			int width = wcwidth(wc);
-			if (width != 0)
+			if (width != 0) {
 				return true;
-			if (!text_iterator_codepoint_prev(it, c))
+			}
+			if (!text_iterator_codepoint_prev(it, c)) {
 				return false;
+			}
 		}
 	}
 	return true;

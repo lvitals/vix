@@ -220,6 +220,7 @@ struct Vix {
 	volatile sig_atomic_t need_resize;   /* need to resize UI (SIGWINCH occurred) */
 	volatile sig_atomic_t resume;        /* need to resume UI (SIGCONT occurred) */
 	volatile sig_atomic_t terminate;     /* need to terminate we were being killed by SIGTERM */
+	bool headless;                       /* whether to run in headless mode (no TTY) */
 	Map *actions;                        /* registered editor actions / special keys commands */
 
 	struct {

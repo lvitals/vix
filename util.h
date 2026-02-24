@@ -89,8 +89,9 @@
 #define addu __builtin_add_overflow
 #else
 static inline bool addu(size_t a, size_t b, size_t *c) {
-	if (SIZE_MAX - a < b)
+	if (SIZE_MAX - a < b) {
 		return false;
+	}
 	*c = a + b;
 	return true;
 }
@@ -119,5 +120,8 @@ typedef struct {
 	VixDACount  count;
 	VixDACount  capacity;
 } str8_list;
+
+VIX_INTERNAL uint32_t utf8_encode(uint8_t out[4], uint32_t cp);
+VIX_INTERNAL char *absolute_path(const char *name);
 
 #endif /* UTIL_H */

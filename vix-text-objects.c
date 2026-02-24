@@ -15,13 +15,15 @@ int vix_textobject_register(Vix *vix, int type, void *data, VixTextObjectFunctio
 bool vix_textobject(Vix *vix, enum VixTextObject id) {
 
 	vix->action.textobj = 0;
-	if (id < LENGTH(vix_textobjects))
+	if (id < LENGTH(vix_textobjects)) {
 		vix->action.textobj = vix_textobjects + id;
-	else if ((VixDACount)id - LENGTH(vix_textobjects) < vix->textobjects.count)
+	} else if ((VixDACount)id - LENGTH(vix_textobjects) < vix->textobjects.count) {
 		vix->action.textobj = vix->textobjects.data + id - LENGTH(vix_textobjects);
+	}
 
-	if (!vix->action.textobj)
+	if (!vix->action.textobj) {
 		return false;
+	}
 	vix_do(vix);
 	return true;
 }
@@ -29,8 +31,9 @@ bool vix_textobject(Vix *vix, enum VixTextObject id) {
 static Filerange vix_text_object_search_forward(Vix *vix, Text *txt, size_t pos) {
 	Filerange range = text_range_empty();
 	Regex *regex = vix_regex(vix, NULL);
-	if (regex)
+	if (regex) {
 		range = text_object_search_forward(txt, pos, regex);
+	}
 	text_regex_free(regex);
 	return range;
 }
@@ -38,8 +41,9 @@ static Filerange vix_text_object_search_forward(Vix *vix, Text *txt, size_t pos)
 static Filerange vix_text_object_search_backward(Vix *vix, Text *txt, size_t pos) {
 	Filerange range = text_range_empty();
 	Regex *regex = vix_regex(vix, NULL);
-	if (regex)
+	if (regex) {
 		range = text_object_search_backward(txt, pos, regex);
+	}
 	text_regex_free(regex);
 	return range;
 }

@@ -44,10 +44,11 @@ static int  (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 
 static void
 appenditem(Item *item, Item **list, Item **last) {
-	if (!*last)
+	if (!*last) {
 		*list = item;
-	else
+	} else {
 		(*last)->right = item;
+	}
 	item->left = *last;
 	item->right = NULL;
 	*last = item;
@@ -104,23 +105,31 @@ static void
 calcoffsets(void) {
         size_t i, n;
 
-	if (lines > 0)
+	if (lines > 0) {
 		n = lines;
-	else
+	} else {
 		n = mw - (promptw + inputw + textw("<") + textw(">"));
+	}
 
-        for (i = 0, next = curr; next; next = next->right)
-                if ((i += (lines>0 ? 1 : MIN(textw(next->text), n))) > n)
+        for (i = 0, next = curr; next; next = next->right) {
+                if ((i += (lines>0 ? 1 : MIN(textw(next->text), n))) > n) {
                         break;
-        for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-                if ((i += (lines>0 ? 1 : MIN(textw(prev->left->text), n))) > n)
+                }
+        }
+        for (i = 0, prev = curr; prev && prev->left; prev = prev->left) {
+                if ((i += (lines>0 ? 1 : MIN(textw(prev->left->text), n))) > n) {
                         break;
+                }
+        }
 }
 
 static void
 cleanup(void) {
-	if (barpos == 0) fprintf(stderr, "\n");
-	else fprintf(stderr, "\033[G\033[K");
+	if (barpos == 0) {
+		fprintf(stderr, "\n");
+	} else {
+		fprintf(stderr, "\033[G\033[K");
+	}
 	tcsetattr(0, TCSANOW, &tio_old);
 }
 
@@ -137,9 +146,13 @@ drawtext(const char *t, size_t w, Color col) {
 	size_t i, tw;
 	char *buf;
 
-	if (w<5) return; /* This is the minimum size needed to write a label: 1 char + 4 padding spaces */
+	if (w<5) {
+		return; /* This is the minimum size needed to write a label: 1 char + 4 padding spaces */
+	}
 	tw = w-4; /* This is the text width, without the padding */
-	if (!(buf = calloc(1, tw+1))) die("Can't calloc.");
+	if (!(buf = calloc(1, tw+1))) {
+		die("Can't calloc.");
+	}
 	switch (col) {
 	case C_Reverse:
 		prestr="\033[7m";
@@ -153,8 +166,11 @@ drawtext(const char *t, size_t w, Color col) {
 	memset(buf, ' ', tw);
 	buf[tw] = '\0';
 	memcpy(buf, t, MIN(strlen(t), tw));
-	if (textw(t) > w) /* Remember textw returns the width WITH padding */
-		for (i = MAX(textvalidn(t, w-4), 0); i < tw; i++) buf[i] = '.';
+	if (textw(t) > w) { /* Remember textw returns the width WITH padding */
+		for (i = MAX(textvalidn(t, w-4), 0); i < tw; i++) {
+			buf[i] = '.';
+		}
+	}
 
 	fprintf(stderr, "%s  %s  %s", prestr, buf, poststr);
 	free(buf);
@@ -162,8 +178,11 @@ drawtext(const char *t, size_t w, Color col) {
 
 static void
 resetline(void) {
-	if (barpos != 0) fprintf(stderr, "\033[%ldH", (long)(barpos > 0 ? 0 : (mh-lines)));
-	else fprintf(stderr, "\033[%zuF", lines);
+	if (barpos != 0) {
+		fprintf(stderr, "\033[%ldH", (long)(barpos > 0 ? 0 : (mh-lines)));
+	} else {
+		fprintf(stderr, "\033[%zuF", lines);
+	}
 }
 
 static void
@@ -178,27 +197,34 @@ drawmenu(void) {
 	fprintf(stderr, "\033[0G");
 	fprintf(stderr, "\033[K");
 
-	if (prompt)
+	if (prompt) {
 		drawtext(prompt, promptw, C_Reverse);
+	}
 
 	drawtext(text, (lines==0 && matches) ? inputw : mw-promptw, C_Normal);
 
 	if (lines > 0) {
-		if (barpos != 0) resetline();
+		if (barpos != 0) {
+			resetline();
+		}
 		for (rw = 0, item = curr; item != next; rw++, item = item->right) {
 			fprintf(stderr, "\n");
 			drawtext(item->text, mw, (item == sel) ? C_Reverse : C_Normal);
 		}
-		for (; rw < lines; rw++)
+		for (; rw < lines; rw++) {
 			fprintf(stderr, "\n\033[K");
+		}
 		resetline();
 	} else if (matches) {
 		rw = mw-(4+promptw+inputw);
-		if (curr->left)
+		if (curr->left) {
 			drawtext("<", 5 /*textw("<")*/, C_Normal);
+		}
 		for (item = curr; item != next; item = item->right) {
 			drawtext(item->text, MIN(textw(item->text), rw), (item == sel) ? C_Reverse : C_Normal);
-			if ((rw -= textw(item->text)) <= 0) break;
+			if ((rw -= textw(item->text)) <= 0) {
+				break;
+			}
 		}
 		if (next) {
 			fprintf(stderr, "\033[%zuG", mw-5);
@@ -212,9 +238,11 @@ drawmenu(void) {
 
 static char*
 fstrstr(const char *s, const char *sub) {
-	for (size_t len = strlen(sub); *s; s++)
-		if (!fstrncmp(s, sub, len))
+	for (size_t len = strlen(sub); *s; s++) {
+		if (!fstrncmp(s, sub, len)) {
 			return (char*)s;
+		}
+	}
 	return NULL;
 }
 
@@ -231,41 +259,49 @@ match(void)
 
 	strcpy(buf, text);
 	/* separate input text into tokens to be matched individually */
-	for (s = strtok(buf, " "); s; tokv[tokc - 1] = s, s = strtok(NULL, " "))
-		if (++tokc > tokn && !(tokv = realloc(tokv, ++tokn * sizeof *tokv)))
+	for (s = strtok(buf, " "); s; tokv[tokc - 1] = s, s = strtok(NULL, " ")) {
+		if (++tokc > tokn && !(tokv = realloc(tokv, ++tokn * sizeof *tokv))) {
 			die("Can't realloc.");
+		}
+	}
 	len = tokc ? strlen(tokv[0]) : 0;
 
 	matches = lprefix = lsubstr = matchend = prefixend = substrend = NULL;
 	textsize = strlen(text) + 1;
 	for (item = items; item && item->text; item++) {
-		for (i = 0; i < tokc; i++)
-			if (!fstrstr(item->text, tokv[i]))
+		for (i = 0; i < tokc; i++) {
+			if (!fstrstr(item->text, tokv[i])) {
 				break;
-		if (i != tokc) /* not all tokens match */
+			}
+		}
+		if (i != tokc) { /* not all tokens match */
 			continue;
+		}
 		/* exact matches go first, then prefixes, then substrings */
-		if (!tokc || !fstrncmp(text, item->text, textsize))
+		if (!tokc || !fstrncmp(text, item->text, textsize)) {
 			appenditem(item, &matches, &matchend);
-		else if (!fstrncmp(tokv[0], item->text, len))
+		} else if (!fstrncmp(tokv[0], item->text, len)) {
 			appenditem(item, &lprefix, &prefixend);
-		else
+		} else {
 			appenditem(item, &lsubstr, &substrend);
+		}
 	}
 	if (lprefix) {
 		if (matches) {
 			matchend->right = lprefix;
 			lprefix->left = matchend;
-		} else
+		} else {
 			matches = lprefix;
+		}
 		matchend = prefixend;
 	}
 	if (lsubstr) {
 		if (matches) {
 			matchend->right = lsubstr;
 			lsubstr->left = matchend;
-		} else
+		} else {
 			matches = lsubstr;
+		}
 		matchend = substrend;
 	}
 	curr = sel = matches;
@@ -274,11 +310,13 @@ match(void)
 
 static void
 insert(const char *str, ssize_t n) {
-	if (strlen(text) + n > sizeof text - 1)
+	if (strlen(text) + n > sizeof text - 1) {
 		return;
+	}
 	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
-	if (n > 0)
+	if (n > 0) {
 		memcpy(&text[cursor], str, n);
+	}
 	cursor += n;
 	match();
 }
@@ -297,26 +335,33 @@ readstdin(void) {
 	size_t i, max = 0, size = 0;
 
 	for(i = 0; fgets(buf, sizeof buf, stdin); i++) {
-		if (i+1 >= size / sizeof *items)
-			if (!(items = realloc(items, (size += BUFSIZ))))
+		if (i+1 >= size / sizeof *items) {
+			if (!(items = realloc(items, (size += BUFSIZ)))) {
 				die("Can't realloc.");
-		if ((p = strchr(buf, '\n')))
+			}
+		}
+		if ((p = strchr(buf, '\n'))) {
 			*p = '\0';
-		if (!(items[i].text = strdup(buf)))
+		}
+		if (!(items[i].text = strdup(buf))) {
 			die("Can't strdup.");
-		if (strlen(items[i].text) > max)
+		}
+		if (strlen(items[i].text) > max) {
 			max = textw(maxstr = items[i].text);
+		}
 	}
-	if (items)
+	if (items) {
 		items[i].text = NULL;
+	}
 	inputw = textw(maxstr);
 }
 
 static void
 xread(int fd, void *buf, size_t nbyte) {
 	ssize_t r = read(fd, buf, nbyte);
-	if (r < 0 || (size_t)r != nbyte)
+	if (r < 0 || (size_t)r != nbyte) {
 		die("Can not read.");
+	}
 }
 
 static void
@@ -325,8 +370,12 @@ setup(void) {
 	struct winsize ws;
 
 	/* re-open stdin to read keyboard */
-	if (!freopen("/dev/tty", "r", stdin)) die("Can't reopen tty as stdin.");
-	if (!freopen("/dev/tty", "w", stderr)) die("Can't reopen tty as stderr.");
+	if (!freopen("/dev/tty", "r", stdin)) {
+		die("Can't reopen tty as stdin.");
+	}
+	if (!freopen("/dev/tty", "w", stderr)) {
+		die("Can't reopen tty as stderr.");
+	}
 
 	/* ioctl() the tty to get size */
 	fd = open("/dev/tty", O_RDWR);
@@ -359,7 +408,9 @@ setup(void) {
 	promptw = prompt ? textw(prompt) : 0;
 	inputw = MIN(inputw, mw/3);
 	match();
-	if (barpos != 0) resetline();
+	if (barpos != 0) {
+		resetline();
+	}
 	drawmenu();
 }
 
@@ -387,7 +438,9 @@ run(void) {
 				case '1': /* Home */
 				case '7':
 				case 'H':
-					if (c != 'H') xread(0, &c, 1); /* Remove trailing '~' from stdin */
+					if (c != 'H') {
+						xread(0, &c, 1); /* Remove trailing '~' from stdin */
+					}
 					c = CONTROL('A');
 					goto switch_top;
 				case '2': /* Insert */
@@ -401,7 +454,9 @@ run(void) {
 				case '4': /* End */
 				case '8':
 				case 'F':
-					if (c != 'F') xread(0, &c, 1); /* Remove trailing '~' from stdin */
+					if (c != 'F') {
+						xread(0, &c, 1); /* Remove trailing '~' from stdin */
+					}
 					c = CONTROL('E');
 					goto switch_top;
 				case '5': /* PageUp */
@@ -427,14 +482,17 @@ run(void) {
 				}
 				break;
 			case 'b':
-				while (cursor > 0 && text[nextrune(-1)] == ' ')
+				while (cursor > 0 && text[nextrune(-1)] == ' ') {
 					cursor = nextrune(-1);
-				while (cursor > 0 && text[nextrune(-1)] != ' ')
+				}
+				while (cursor > 0 && text[nextrune(-1)] != ' ') {
 					cursor = nextrune(-1);
+				}
 				break;
 			case 'f':
-				while (text[cursor] != '\0' && text[nextrune(+1)] == ' ')
+				while (text[cursor] != '\0' && text[nextrune(+1)] == ' ') {
 					cursor = nextrune(+1);
+				}
 				if (text[cursor] != '\0') {
 					do {
 						cursor = nextrune(+1);
@@ -454,8 +512,9 @@ run(void) {
 				}
 				break;
 			case 'v':
-				if (!next)
+				if (!next) {
 					break;
+				}
 				sel = curr = next;
 				calcoffsets();
 				break;
@@ -467,7 +526,9 @@ run(void) {
 			return 1;
 		case CONTROL('M'): /* Return */
 		case CONTROL('J'):
-			if (sel) strncpy(text, sel->text, sizeof(text)-1); /* Complete the input first, when hitting return */
+			if (sel) {
+				strncpy(text, sel->text, sizeof(text)-1); /* Complete the input first, when hitting return */
+			}
 			cursor = strlen(text);
 			match();
 			drawmenu();
@@ -494,8 +555,9 @@ run(void) {
 				calcoffsets();
 				curr = prev;
 				calcoffsets();
-				while(next && (curr = curr->right))
+				while(next && (curr = curr->right)) {
 					calcoffsets();
+				}
 			}
 			sel = matchend;
 			break;
@@ -524,19 +586,22 @@ run(void) {
 			}
 			break;
 		case CONTROL('D'):
-			if (text[cursor] == '\0')
+			if (text[cursor] == '\0') {
 				break;
+			}
 			cursor = nextrune(+1);
 			/* fallthrough */
 		case CONTROL('H'):
 		case CONTROL('?'): /* Backspace */
-			if (cursor == 0)
+			if (cursor == 0) {
 				break;
+			}
 			insert(NULL, nextrune(-1) - cursor);
 			break;
 		case CONTROL('I'): /* TAB */
-			if (!sel)
+			if (!sel) {
 				break;
+			}
 			strncpy(text, sel->text, sizeof(text)-1);
 			cursor = strlen(text);
 			match();
@@ -549,20 +614,24 @@ run(void) {
 			insert(NULL, 0 - cursor);
 			break;
 		case CONTROL('W'):
-			while (cursor > 0 && text[nextrune(-1)] == ' ')
+			while (cursor > 0 && text[nextrune(-1)] == ' ') {
 				insert(NULL, nextrune(-1) - cursor);
-			while (cursor > 0 && text[nextrune(-1)] != ' ')
+			}
+			while (cursor > 0 && text[nextrune(-1)] != ' ') {
 				insert(NULL, nextrune(-1) - cursor);
+			}
 			break;
 		case CONTROL('V'):
-			if (!prev)
+			if (!prev) {
 				break;
+			}
 			sel = curr = prev;
 			calcoffsets();
 			break;
 		default:
-			if (!iscntrl(*buf))
+			if (!iscntrl(*buf)) {
 				insert(buf, strlen(buf));
+			}
 			break;
 		}
 		drawmenu();
@@ -594,13 +663,15 @@ main(int argc, char **argv) {
 			usage();
 		} else if (!strcmp(argv[i], "-p")) {
 			prompt = argv[++i];
-			if (prompt && !prompt[0])
+			if (prompt && !prompt[0]) {
 				prompt = NULL;
+			}
 		} else if (!strcmp(argv[i], "-l")) {
 			errno = 0;
 			lines = strtoul(argv[++i], NULL, 10);
-			if (errno)
+			if (errno) {
 				usage();
+			}
 		} else {
 			usage();
 		}

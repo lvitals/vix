@@ -9,8 +9,9 @@ static size_t op_delete(Vix *vix, Text *txt, OperatorContext *c) {
 	register_slot_put_range(vix, c->reg, c->reg_slot, txt, &c->range);
 	text_delete_range(txt, &c->range);
 	size_t pos = c->range.start;
-	if (c->linewise && pos == text_size(txt))
+	if (c->linewise && pos == text_size(txt)) {
 		pos = text_line_begin(txt, text_line_prev(txt, pos));
+	}
 	return pos;
 }
 
@@ -20,8 +21,9 @@ static size_t op_change(Vix *vix, Text *txt, OperatorContext *c) {
 	size_t pos = c->range.start;
 	if (linewise) {
 		size_t newpos = vix_text_insert_nl(vix, txt, pos > 0 ? pos-1 : pos);
-		if (pos > 0)
+		if (pos > 0) {
 			pos = newpos;
+		}
 	}
 	return pos;
 }
@@ -48,15 +50,17 @@ static size_t op_put(Vix *vix, Text *txt, OperatorContext *c) {
 	switch (c->arg->i) {
 	case VIX_OP_PUT_AFTER:
 	case VIX_OP_PUT_AFTER_END:
-		if (c->reg->linewise && !sel_linewise)
+		if (c->reg->linewise && !sel_linewise) {
 			pos = text_line_next(txt, pos);
-		else if (!sel && text_byte_get(txt, pos, &b) && b != '\n')
+		} else if (!sel && text_byte_get(txt, pos, &b) && b != '\n') {
 			pos = text_char_next(txt, pos);
+		}
 		break;
 	case VIX_OP_PUT_BEFORE:
 	case VIX_OP_PUT_BEFORE_END:
-		if (c->reg->linewise)
+		if (c->reg->linewise) {
 			pos = text_line_begin(txt, pos);
+		}
 		break;
 	}
 
@@ -65,12 +69,14 @@ static size_t op_put(Vix *vix, Text *txt, OperatorContext *c) {
 
 	for (int i = 0; i < c->count; i++) {
 		char nl;
-		if (c->reg->linewise && pos > 0 && text_byte_get(txt, pos-1, &nl) && nl != '\n')
+		if (c->reg->linewise && pos > 0 && text_byte_get(txt, pos-1, &nl) && nl != '\n') {
 			pos += text_insert(vix, txt, pos, "\n", 1);
+		}
 		text_insert(vix, txt, pos, data, len);
 		pos += len;
-		if (c->reg->linewise && pos > 0 && text_byte_get(txt, pos-1, &nl) && nl != '\n')
+		if (c->reg->linewise && pos > 0 && text_byte_get(txt, pos-1, &nl) && nl != '\n') {
 			pos += text_insert(vix, txt, pos, "\n", 1);
+		}
 	}
 
 	if (c->reg->linewise) {
@@ -107,16 +113,18 @@ static size_t op_shift_right(Vix *vix, Text *txt, OperatorContext *c) {
 	size_t newpos = c->pos;
 
 	/* if range ends at the begin of a line, skip line break */
-	if (pos == c->range.end)
+	if (pos == c->range.end) {
 		pos = text_line_prev(txt, pos);
+	}
 	bool multiple_lines = text_line_prev(txt, pos) >= c->range.start;
 
 	do {
 		size_t end = text_line_end(txt, pos);
 		prev_pos = pos = text_line_begin(txt, end);
 		if ((!multiple_lines || pos != end) &&
-		    text_insert(vix, txt, pos, tab, tablen) && pos <= c->pos)
+		    text_insert(vix, txt, pos, tab, tablen) && pos <= c->pos) {
 			newpos += tablen;
+		}
 		pos = text_line_prev(txt, pos);
 	}  while (pos >= c->range.start && pos != prev_pos);
 
@@ -129,8 +137,9 @@ static size_t op_shift_left(Vix *vix, Text *txt, OperatorContext *c) {
 	size_t newpos = c->pos;
 
 	/* if range ends at the begin of a line, skip line break */
-	if (pos == c->range.end)
+	if (pos == c->range.end) {
 		pos = text_line_prev(txt, pos);
+	}
 
 	do {
 		char b;
@@ -140,16 +149,19 @@ static size_t op_shift_left(Vix *vix, Text *txt, OperatorContext *c) {
 		if (text_iterator_byte_get(&it, &b) && b == '\t') {
 			len = 1;
 		} else {
-			for (len = 0; text_iterator_byte_get(&it, &b) && b == ' '; len++)
+			for (len = 0; text_iterator_byte_get(&it, &b) && b == ' '; len++) {
 				text_iterator_byte_next(&it, NULL);
+			}
 		}
 		tablen = MIN(len, tabwidth);
 		if (text_delete(txt, pos, tablen) && pos < c->pos) {
 			size_t delta = c->pos - pos;
-			if (delta > tablen)
+			if (delta > tablen) {
 				delta = tablen;
-			if (delta > newpos)
+			}
+			if (delta > newpos) {
 				delta = newpos;
+			}
 			newpos -= delta;
 		}
 		pos = text_line_prev(txt, pos);
@@ -162,10 +174,11 @@ static size_t op_cursor(Vix *vix, Text *txt, OperatorContext *c) {
 	Filerange r = text_range_linewise(txt, &c->range);
 	for (size_t line = text_range_line_first(txt, &r); line != EPOS; line = text_range_line_next(txt, &r, line)) {
 		size_t pos;
-		if (c->arg->i == VIX_OP_CURSOR_EOL)
+		if (c->arg->i == VIX_OP_CURSOR_EOL) {
 			pos = text_line_finish(txt, line);
-		else
+		} else {
 			pos = text_line_start(txt, line);
+		}
 		view_selections_new_force(&vix->win->view, pos);
 	}
 	return EPOS;
@@ -179,8 +192,9 @@ static size_t op_join(Vix *vix, Text *txt, OperatorContext *c) {
 	if (c->linewise && text_range_is_linewise(txt, &c->range)) {
 		size_t line_prev = text_line_prev(txt, pos);
 		size_t line_prev_prev = text_line_prev(txt, line_prev);
-		if (line_prev_prev >= c->range.start)
+		if (line_prev_prev >= c->range.start) {
 			pos = line_prev;
+		}
 	}
 
 	size_t len = c->arg->s ? strlen(c->arg->s) : 0;
@@ -189,15 +203,18 @@ static size_t op_join(Vix *vix, Text *txt, OperatorContext *c) {
 		prev_pos = pos;
 		size_t end = text_line_start(txt, pos);
 		pos = text_line_prev(txt, end);
-		if (pos < c->range.start || end <= pos)
+		if (pos < c->range.start || end <= pos) {
 			break;
+		}
 		text_delete(txt, pos, end - pos);
 		char prev, next;
 		if (text_byte_get(txt, pos-1, &prev) && !isspace((unsigned char)prev) &&
-		    text_byte_get(txt, pos, &next) && next != '\n')
+		    text_byte_get(txt, pos, &next) && next != '\n') {
 			text_insert(vix, txt, pos, c->arg->s, len);
-		if (mark == EMARK)
+		}
+		if (mark == EMARK) {
 			mark = text_mark_set(txt, pos);
+		}
 	} while (pos != prev_pos);
 
 	size_t newpos = text_mark_get(txt, mark);
@@ -211,12 +228,14 @@ static size_t op_modeswitch(Vix *vix, Text *txt, OperatorContext *c) {
 static size_t op_replace(Vix *vix, Text *txt, OperatorContext *c) {
 	size_t count = 0;
 	Iterator it = text_iterator_get(txt, c->range.start);
-	while (it. pos < c->range.end && text_iterator_char_next(&it, NULL))
+	while (it. pos < c->range.end && text_iterator_char_next(&it, NULL)) {
 		count++;
+	}
 	op_delete(vix, txt, c);
 	size_t pos = c->range.start;
-	for (size_t len = strlen(c->arg->s); count > 0; pos += len, count--)
+	for (size_t len = strlen(c->arg->s); count > 0; pos += len, count--) {
 		text_insert(vix, txt, pos, c->arg->s, len);
+	}
 	return c->range.start;
 }
 
@@ -270,8 +289,9 @@ bool vix_operator(Vix *vix, enum VixOperator id, ...)
 	{
 		enum VixMode mode = vix->mode->id;
 		enum VixRegister reg = vix_register_used(vix);
-		if (reg == VIX_REG_DEFAULT && (mode == VIX_MODE_INSERT || mode == VIX_MODE_REPLACE))
+		if (reg == VIX_REG_DEFAULT && (mode == VIX_MODE_INSERT || mode == VIX_MODE_REPLACE)) {
 			vix_register(vix, VIX_REG_BLACKHOLE);
+		}
 		break;
 	}
 	default:
@@ -279,10 +299,11 @@ bool vix_operator(Vix *vix, enum VixOperator id, ...)
 	}
 
 	const Operator *op = 0;
-	if (id < LENGTH(vix_operators))
+	if (id < LENGTH(vix_operators)) {
 		op = vix_operators + id;
-	else if ((VixDACount)id - VIX_OP_LAST < vix->operators.count)
+	} else if ((VixDACount)id - VIX_OP_LAST < vix->operators.count) {
 		op = vix->operators.data + id - VIX_OP_LAST;
+	}
 
 	if (!op) {
 		result = false;
@@ -308,8 +329,9 @@ bool vix_operator(Vix *vix, enum VixOperator id, ...)
 	}
 
 	/* put is not a real operator, does not need a range to operate on */
-	if (id == VIX_OP_PUT_AFTER)
+	if (id == VIX_OP_PUT_AFTER) {
 		vix_motion(vix, VIX_MOVE_NOP);
+	}
 
 out:
 	va_end(ap);

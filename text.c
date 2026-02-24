@@ -142,8 +142,9 @@ static const char *block_store(Vix *vix, Text *txt, const char *data, size_t len
 	Block *b = txt->count > 0 ? txt->data[txt->count - 1] : 0;
 	if (!b || !block_capacity(b, len)) {
 		b = block_alloc(len);
-		if (!b)
+		if (!b) {
 			return 0;
+		}
 		*da_push(vix, txt) = b;
 	}
 	return block_append(b, data, len);
@@ -153,25 +154,29 @@ static const char *block_store(Vix *vix, Text *txt, const char *data, size_t len
 static void cache_piece(Text *txt, Piece *p)
 {
 	Block *b = txt->count > 0 ? txt->data[txt->count - 1] : 0;
-	if (b && p->data >= b->data && p->data + p->len == b->data + b->len)
+	if (b && p->data >= b->data && p->data + p->len == b->data + b->len) {
 		txt->cache = p;
+	}
 }
 
 /* check whether the given piece was the most recently modified one */
 static bool cache_contains(Text *txt, Piece *p)
 {
 	Revision *rev = txt->current_revision;
-	if (txt->count == 0 || !txt->cache || txt->cache != p || !rev || !rev->change)
+	if (txt->count == 0 || !txt->cache || txt->cache != p || !rev || !rev->change) {
 		return false;
+	}
 
 	Piece *start = rev->change->new.start;
 	Piece *end = rev->change->new.end;
 	bool found = false;
 	for (Piece *cur = start; !found; cur = cur->next) {
-		if (cur == p)
+		if (cur == p) {
 			found = true;
-		if (cur == end)
+		}
+		if (cur == end) {
 			break;
+		}
 	}
 
 	Block *blk = txt->data[txt->count - 1];
@@ -183,12 +188,14 @@ static bool cache_contains(Text *txt, Piece *p)
  * piece, the span containing it and the whole text is adjusted accordingly */
 static bool cache_insert(Text *txt, Piece *p, size_t off, const char *data, size_t len)
 {
-	if (!cache_contains(txt, p))
+	if (!cache_contains(txt, p)) {
 		return false;
+	}
 	Block *blk = txt->data[txt->count - 1];
 	size_t bufpos = p->data + off - blk->data;
-	if (!block_insert(blk, bufpos, data, len))
+	if (!block_insert(blk, bufpos, data, len)) {
 		return false;
+	}
 	p->len += len;
 	txt->current_revision->change->new.len += len;
 	txt->size += len;
@@ -201,13 +208,15 @@ static bool cache_insert(Text *txt, Piece *p, size_t off, const char *data, size
  * and the whole text is adjusted accordingly */
 static bool cache_delete(Text *txt, Piece *p, size_t off, size_t len)
 {
-	if (!cache_contains(txt, p))
+	if (!cache_contains(txt, p)) {
 		return false;
+	}
 	Block *blk = txt->data[txt->count - 1];
 	size_t end;
 	size_t bufpos = p->data + off - blk->data;
-	if (!addu(off, len, &end) || end > p->len || !block_delete(blk, bufpos, len))
+	if (!addu(off, len, &end) || end > p->len || !block_delete(blk, bufpos, len)) {
 		return false;
+	}
 	p->len -= len;
 	txt->current_revision->change->new.len -= len;
 	txt->size -= len;
@@ -221,8 +230,9 @@ static void span_init(Span *span, Piece *start, Piece *end) {
 	span->end = end;
 	for (Piece *p = start; p; p = p->next) {
 		len += p->len;
-		if (p == end)
+		if (p == end) {
 			break;
+		}
 	}
 	span->len = len;
 }
@@ -258,20 +268,23 @@ static void span_swap(Text *txt, Span *old, Span *new) {
  * All further changes will be associated with this revision. */
 static Revision *revision_alloc(Text *txt) {
 	Revision *rev = calloc(1, sizeof *rev);
-	if (!rev)
+	if (!rev) {
 		return NULL;
+	}
 	rev->time = time(NULL);
 	txt->current_revision = rev;
 
 	/* set sequence number */
-	if (!txt->last_revision)
+	if (!txt->last_revision) {
 		rev->seq = 0;
-	else
+	} else {
 		rev->seq = txt->last_revision->seq + 1;
+	}
 
 	/* set earlier, later pointers */
-	if (txt->last_revision)
+	if (txt->last_revision) {
 		txt->last_revision->later = rev;
+	}
 	rev->earlier = txt->last_revision;
 
 	if (!txt->history) {
@@ -287,8 +300,9 @@ static Revision *revision_alloc(Text *txt) {
 }
 
 static void revision_free(Revision *rev) {
-	if (!rev)
+	if (!rev) {
 		return;
+	}
 	for (TextChange *next, *c = rev->change; c; c = next) {
 		next = c->next;
 		text_change_free(c);
@@ -298,27 +312,34 @@ static void revision_free(Revision *rev) {
 
 static Piece *piece_alloc(Text *txt) {
 	Piece *p = calloc(1, sizeof *p);
-	if (!p)
+	if (!p) {
 		return NULL;
+	}
 	p->text = txt;
 	p->global_next = txt->pieces;
-	if (txt->pieces)
+	if (txt->pieces) {
 		txt->pieces->global_prev = p;
+	}
 	txt->pieces = p;
 	return p;
 }
 
 static void piece_free(Piece *p) {
-	if (!p)
+	if (!p) {
 		return;
-	if (p->global_prev)
+	}
+	if (p->global_prev) {
 		p->global_prev->global_next = p->global_next;
-	if (p->global_next)
+	}
+	if (p->global_next) {
 		p->global_next->global_prev = p->global_prev;
-	if (p->text->pieces == p)
+	}
+	if (p->text->pieces == p) {
 		p->text->pieces = p->global_next;
-	if (p->text->cache == p)
+	}
+	if (p->text->cache == p) {
 		p->text->cache = NULL;
+	}
 	free(p);
 }
 
@@ -340,8 +361,9 @@ static void piece_init(Piece *p, Piece *prev, Piece *next, const char *data, siz
 static Location piece_get_intern(Text *txt, size_t pos) {
 	size_t cur = 0;
 	for (Piece *p = &txt->begin; p->next; p = p->next) {
-		if (cur <= pos && pos <= cur + p->len)
+		if (cur <= pos && pos <= cur + p->len) {
 			return (Location){ .piece = p, .off = pos - cur };
+		}
 		cur += p->len;
 	}
 
@@ -358,13 +380,15 @@ static Location piece_get_extern(const Text *txt, size_t pos) {
 	Piece *p;
 
 	for (p = txt->begin.next; p->next; p = p->next) {
-		if (cur <= pos && pos < cur + p->len)
+		if (cur <= pos && pos < cur + p->len) {
 			return (Location){ .piece = p, .off = pos - cur };
+		}
 		cur += p->len;
 	}
 
-	if (cur == pos)
+	if (cur == pos) {
 		return (Location){ .piece = p->prev, .off = p->prev->len };
+	}
 
 	return (Location){ 0 };
 }
@@ -375,26 +399,31 @@ static TextChange *text_change_alloc(Text *txt, size_t pos) {
 	Revision *rev = txt->current_revision;
 	if (!rev) {
 		rev = revision_alloc(txt);
-		if (!rev)
+		if (!rev) {
 			return NULL;
+		}
 	}
 	TextChange *c = calloc(1, sizeof *c);
-	if (!c)
+	if (!c) {
 		return NULL;
+	}
 	c->pos = pos;
 	c->next = rev->change;
-	if (rev->change)
+	if (rev->change) {
 		rev->change->prev = c;
+	}
 	rev->change = c;
 	return c;
 }
 
 static void text_change_free(TextChange *c) {
-	if (!c)
+	if (!c) {
 		return;
+	}
 	/* only free the new part of the span, the old one is still in use */
-	if (c->new.start != c->new.end)
+	if (c->new.start != c->new.end) {
 		piece_free(c->new.end);
+	}
 	piece_free(c->new.start);
 	free(c);
 }
@@ -428,35 +457,43 @@ static void text_change_free(TextChange *c) {
  */
 bool text_insert(Vix *vix, Text *txt, size_t pos, const char *data, size_t len)
 {
-	if (len == 0)
+	if (len == 0) {
 		return true;
-	if (pos > txt->size)
+	}
+	if (pos > txt->size) {
 		return false;
-	if (pos < txt->lines.pos)
+	}
+	if (pos < txt->lines.pos) {
 		lineno_cache_invalidate(&txt->lines);
+	}
 
 	Location loc = piece_get_intern(txt, pos);
 	Piece *p = loc.piece;
-	if (!p)
+	if (!p) {
 		return false;
+	}
 	size_t off = loc.off;
-	if (cache_insert(txt, p, off, data, len))
+	if (cache_insert(txt, p, off, data, len)) {
 		return true;
+	}
 
 	TextChange *c = text_change_alloc(txt, pos);
-	if (!c)
+	if (!c) {
 		return false;
+	}
 
-	if (!(data = block_store(vix, txt, data, len)))
+	if (!(data = block_store(vix, txt, data, len))) {
 		return false;
+	}
 
 	Piece *new = NULL;
 
 	if (off == p->len) {
 		/* insert between two existing pieces, hence there is nothing to
 		 * remove, just add a new piece holding the extra text */
-		if (!(new = piece_alloc(txt)))
+		if (!(new = piece_alloc(txt))) {
 			return false;
+		}
 		piece_init(new, p, p->next, data, len);
 		span_init(&c->new, new, new);
 		span_init(&c->old, NULL, NULL);
@@ -469,8 +506,9 @@ bool text_insert(Vix *vix, Text *txt, size_t pos, const char *data, size_t len)
 		Piece *before = piece_alloc(txt);
 		new = piece_alloc(txt);
 		Piece *after = piece_alloc(txt);
-		if (!before || !new || !after)
+		if (!before || !new || !after) {
 			return false;
+		}
 		piece_init(before, p->prev, new, p->data, off);
 		piece_init(new, before, after, data, len);
 		piece_init(after, new, p->next, p->data + off, p->len - off);
@@ -496,13 +534,15 @@ static size_t revision_undo(Text *txt, Revision *rev) {
 static size_t revision_redo(Text *txt, Revision *rev) {
 	size_t pos = EPOS;
 	TextChange *c = rev->change;
-	while (c->next)
+	while (c->next) {
 		c = c->next;
+	}
 	for ( ; c; c = c->prev) {
 		span_swap(txt, &c->old, &c->new);
 		pos = c->pos;
-		if (c->new.len > c->old.len)
+		if (c->new.len > c->old.len) {
 			pos += c->new.len - c->old.len;
+		}
 	}
 	return pos;
 }
@@ -512,8 +552,9 @@ size_t text_undo(Text *txt) {
 	/* taking rev snapshot makes sure that txt->current_revision is reset */
 	text_snapshot(txt);
 	Revision *rev = txt->history->prev;
-	if (!rev)
+	if (!rev) {
 		return pos;
+	}
 	pos = revision_undo(txt, txt->history);
 	txt->history = rev;
 	lineno_cache_invalidate(&txt->lines);
@@ -525,8 +566,9 @@ size_t text_redo(Text *txt) {
 	/* taking a snapshot makes sure that txt->current_revision is reset */
 	text_snapshot(txt);
 	Revision *rev = txt->history->next;
-	if (!rev)
+	if (!rev) {
 		return pos;
+	}
 	pos = revision_redo(txt, rev);
 	txt->history = rev;
 	lineno_cache_invalidate(&txt->lines);
@@ -547,27 +589,32 @@ static bool history_change_branch(Revision *rev) {
 
 static size_t history_traverse_to(Text *txt, Revision *rev) {
 	size_t pos = EPOS;
-	if (!rev)
+	if (!rev) {
 		return pos;
+	}
 	bool changed = history_change_branch(rev);
 	if (!changed) {
 		if (rev->seq == txt->history->seq) {
 			return txt->lines.pos;
 		} else if (rev->seq > txt->history->seq) {
-			while (txt->history != rev)
+			while (txt->history != rev) {
 				pos = text_redo(txt);
+			}
 			return pos;
 		} else if (rev->seq < txt->history->seq) {
-			while (txt->history != rev)
+			while (txt->history != rev) {
 				pos = text_undo(txt);
+			}
 			return pos;
 		}
 	} else {
-		while (txt->history->prev && txt->history->prev->next == txt->history)
+		while (txt->history->prev && txt->history->prev->next == txt->history) {
 			text_undo(txt);
+		}
 		pos = text_undo(txt);
-		while (txt->history != rev)
+		while (txt->history != rev) {
 			pos = text_redo(txt);
+		}
 		return pos;
 	}
 	return pos;
@@ -583,15 +630,19 @@ size_t text_later(Text *txt) {
 
 size_t text_restore(Text *txt, time_t time) {
 	Revision *rev = txt->history;
-	while (time < rev->time && rev->earlier)
+	while (time < rev->time && rev->earlier) {
 		rev = rev->earlier;
-	while (time > rev->time && rev->later)
+	}
+	while (time > rev->time && rev->later) {
 		rev = rev->later;
+	}
 	time_t diff = labs(rev->time - time);
-	if (rev->earlier && rev->earlier != txt->history && labs(rev->earlier->time - time) < diff)
+	if (rev->earlier && rev->earlier != txt->history && labs(rev->earlier->time - time) < diff) {
 		rev = rev->earlier;
-	if (rev->later && rev->later != txt->history && labs(rev->later->time - time) < diff)
+	}
+	if (rev->later && rev->later != txt->history && labs(rev->later->time - time) < diff) {
 		rev = rev->later;
+	}
 	return history_traverse_to(txt, rev);
 }
 
@@ -602,25 +653,29 @@ time_t text_state(const Text *txt) {
 Text *text_loadat_method(Vix *vix, int dirfd, const char *filename, enum TextLoadMethod method)
 {
 	Text *txt = calloc(1, sizeof *txt);
-	if (!txt)
+	if (!txt) {
 		return NULL;
+	}
 	Piece *p = piece_alloc(txt);
-	if (!p)
+	if (!p) {
 		goto out;
+	}
 	Block *block = 0;
 	lineno_cache_invalidate(&txt->lines);
 	if (filename) {
 		errno = 0;
 		block = block_load(dirfd, filename, method, &txt->info);
-		if (!block && errno)
+		if (!block && errno) {
 			goto out;
+		}
 		*da_push(vix, txt) = block;
 	}
 
-	if (!block)
+	if (!block) {
 		piece_init(p, &txt->begin, &txt->end, "\0", 0);
-	else
+	} else {
 		piece_init(p, &txt->begin, &txt->end, block->data, block->len);
+	}
 
 	piece_init(&txt->begin, NULL, p, NULL, 0);
 	piece_init(&txt->end, p, NULL, NULL, 0);
@@ -655,24 +710,30 @@ struct stat text_stat(const Text *txt) {
  *      \-+ <-- +----+ <-- +--+ <-- +-/
  */
 bool text_delete(Text *txt, size_t pos, size_t len) {
-	if (len == 0)
+	if (len == 0) {
 		return true;
+	}
 	size_t pos_end;
-	if (!addu(pos, len, &pos_end) || pos_end > txt->size)
+	if (!addu(pos, len, &pos_end) || pos_end > txt->size) {
 		return false;
-	if (pos < txt->lines.pos)
+	}
+	if (pos < txt->lines.pos) {
 		lineno_cache_invalidate(&txt->lines);
+	}
 
 	Location loc = piece_get_intern(txt, pos);
 	Piece *p = loc.piece;
-	if (!p)
+	if (!p) {
 		return false;
+	}
 	size_t off = loc.off;
-	if (cache_delete(txt, p, off, len))
+	if (cache_delete(txt, p, off, len)) {
 		return true;
+	}
 	TextChange *c = text_change_alloc(txt, pos);
-	if (!c)
+	if (!c) {
 		return false;
+	}
 
 	bool midway_start = false, midway_end = false; /* split pieces? */
 	Piece *before, *after; /* unmodified pieces before/after deletion point */
@@ -690,8 +751,9 @@ bool text_delete(Text *txt, size_t pos, size_t len) {
 		cur = p->len - off;
 		start = p;
 		before = piece_alloc(txt);
-		if (!before)
+		if (!before) {
 			return false;
+		}
 	}
 
 	/* skip all pieces which fall into deletion range */
@@ -709,8 +771,9 @@ bool text_delete(Text *txt, size_t pos, size_t len) {
 		midway_end = true;
 		end = p;
 		after = piece_alloc(txt);
-		if (!after)
+		if (!after) {
 			return false;
+		}
 		piece_init(after, before, p->next, p->data + p->len - (cur - len), cur - len);
 	}
 
@@ -722,12 +785,14 @@ bool text_delete(Text *txt, size_t pos, size_t len) {
 	Piece *new_start = NULL, *new_end = NULL;
 	if (midway_start) {
 		new_start = before;
-		if (!midway_end)
+		if (!midway_end) {
 			new_end = before;
+		}
 	}
 	if (midway_end) {
-		if (!midway_start)
+		if (!midway_start) {
 			new_start = after;
+		}
 		new_end = after;
 	}
 
@@ -738,19 +803,22 @@ bool text_delete(Text *txt, size_t pos, size_t len) {
 }
 
 bool text_delete_range(Text *txt, const Filerange *r) {
-	if (!text_range_valid(r))
+	if (!text_range_valid(r)) {
 		return false;
+	}
 	return text_delete(txt, r->start, text_range_size(r));
 }
 
 void text_free(Text *txt) {
-	if (!txt)
+	if (!txt) {
 		return;
+	}
 
 	// free history
 	Revision *hist = txt->history;
-	while (hist && hist->prev)
+	while (hist && hist->prev) {
 		hist = hist->prev;
+	}
 	while (hist) {
 		Revision *later = hist->later;
 		revision_free(hist);
@@ -762,8 +830,9 @@ void text_free(Text *txt) {
 		piece_free(p);
 	}
 
-	for (VixDACount i = 0; i < txt->count; i++)
+	for (VixDACount i = 0; i < txt->count; i++) {
 		block_free(txt->data[i]);
+	}
 	da_release(txt);
 
 	free(txt);
@@ -778,8 +847,9 @@ bool text_mmaped(const Text *txt, const char *ptr) {
 	for (VixDACount i = 0; i < txt->count; i++) {
 		Block *blk = txt->data[i];
 		if ((blk->type == BLOCK_TYPE_MMAP_ORIG || blk->type == BLOCK_TYPE_MMAP) &&
-		    (uintptr_t)(blk->data) <= addr && addr < (uintptr_t)(blk->data + blk->size))
+		    (uintptr_t)(blk->data) <= addr && addr < (uintptr_t)(blk->data + blk->size)) {
 			return true;
+		}
 	}
 	return false;
 }
@@ -857,8 +927,9 @@ static size_t lines_count(Text *txt, size_t pos, size_t len) {
 			start = end + 1;
 		}
 
-		if (len == 0)
+		if (len == 0) {
 			break;
+		}
 	}
 	return lines;
 }
@@ -882,11 +953,13 @@ static size_t lines_skip_forward(Text *txt, size_t pos, size_t lines, size_t *li
 			lines--;
 		}
 
-		if (lines == 0)
+		if (lines == 0) {
 			break;
+		}
 	}
-	if (lines_skipped)
+	if (lines_skipped) {
 		*lines_skipped = lines_old - lines;
+	}
 	return pos;
 }
 
@@ -898,8 +971,9 @@ static void lineno_cache_invalidate(LineCache *cache) {
 size_t text_pos_by_lineno(Text *txt, size_t lineno) {
 	size_t lines_skipped;
 	LineCache *cache = &txt->lines;
-	if (lineno <= 1)
+	if (lineno <= 1) {
 		return 0;
+	}
 	if (lineno > cache->lineno) {
 		cache->pos = lines_skip_forward(txt, cache->pos, lineno - cache->lineno, &lines_skipped);
 		cache->lineno += lines_skipped;
@@ -919,14 +993,16 @@ size_t text_pos_by_lineno(Text *txt, size_t lineno) {
 
 size_t text_lineno_by_pos(Text *txt, size_t pos) {
 	LineCache *cache = &txt->lines;
-	if (pos > txt->size)
+	if (pos > txt->size) {
 		pos = txt->size;
+	}
 	if (pos < cache->pos) {
 		size_t diff = cache->pos - pos;
-		if (diff < pos)
+		if (diff < pos) {
 			cache->lineno -= lines_count(txt, pos, diff);
-		else
+		} else {
 			cache->lineno = lines_count(txt, 0, pos) + 1;
+		}
 	} else if (pos > cache->pos) {
 		cache->lineno += lines_count(txt, cache->pos, pos - cache->pos);
 	}
@@ -935,27 +1011,32 @@ size_t text_lineno_by_pos(Text *txt, size_t pos) {
 }
 
 Mark text_mark_set(Text *txt, size_t pos) {
-	if (pos == txt->size)
+	if (pos == txt->size) {
 		return (Mark)&txt->end;
+	}
 	Location loc = piece_get_extern(txt, pos);
-	if (!loc.piece)
+	if (!loc.piece) {
 		return EMARK;
+	}
 	return (Mark)(loc.piece->data + loc.off);
 }
 
 size_t text_mark_get(const Text *txt, Mark mark) {
 	size_t cur = 0;
 
-	if (mark == EMARK)
+	if (mark == EMARK) {
 		return EPOS;
-	if (mark == (Mark)&txt->end)
+	}
+	if (mark == (Mark)&txt->end) {
 		return txt->size;
+	}
 
 	for (Piece *p = txt->begin.next; p->next; p = p->next) {
 		Mark start = (Mark)(p->data);
 		Mark end = start + p->len;
-		if (start <= mark && mark < end)
+		if (start <= mark && mark < end) {
 			return cur + (mark - start);
+		}
 		cur += p->len;
 	}
 

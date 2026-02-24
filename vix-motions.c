@@ -7,11 +7,13 @@
 static Regex *search_word(Vix *vix, Text *txt, size_t pos) {
 	char expr[512];
 	Filerange word = text_object_word(txt, pos);
-	if (!text_range_valid(&word))
+	if (!text_range_valid(&word)) {
 		return NULL;
+	}
 	char *buf = text_bytes_alloc0(txt, word.start, text_range_size(&word));
-	if (!buf)
+	if (!buf) {
 		return NULL;
+	}
 	snprintf(expr, sizeof(expr), "[[:<:]]%s[[:>:]]", buf);
 	Regex *regex = vix_regex(vix, expr);
 	if (!regex) {
@@ -49,8 +51,9 @@ static size_t search_common(Vix *vix, Text *txt, size_t pos, bool backward) {
 		size_t newpos = backward ?
 			text_search_backward(txt, pos, regex) :
 			text_search_forward(txt, pos, regex);
-		if (newpos == pos)
+		if (newpos == pos) {
 			vix_info_show(vix, "Pattern not found: `%s'", pattern);
+		}
 		pos = newpos;
 	}
 	text_regex_free(regex);
@@ -70,8 +73,9 @@ static size_t common_word_next(Vix *vix, Text *txt, size_t pos,
                                int (*isboundary)(int)) {
 	char c;
 	Iterator it = text_iterator_get(txt, pos);
-	if (!text_iterator_byte_get(&it, &c))
+	if (!text_iterator_byte_get(&it, &c)) {
 		return pos;
+	}
 	const Movement *motion = NULL;
 	int count = VIX_COUNT_DEFAULT(vix->action.count, 1);
 	if (isspace((unsigned char)c)) {
@@ -92,16 +96,19 @@ static size_t common_word_next(Vix *vix, Text *txt, size_t pos,
 	}
 
 	while (count--) {
-		if (vix->interrupted)
+		if (vix->interrupted) {
 			return pos;
+		}
 		size_t newpos = motion->txt(txt, pos);
-		if (newpos == pos)
+		if (newpos == pos) {
 			break;
+		}
 		pos = newpos;
 	}
 
-	if (motion->type & INCLUSIVE)
+	if (motion->type & INCLUSIVE) {
 		pos = text_char_next(txt, pos);
+	}
 
 	return pos;
 }
@@ -119,15 +126,17 @@ static size_t longword_next(Vix *vix, Text *txt, size_t pos) {
 static size_t to_right(Vix *vix, Text *txt, size_t pos) {
 	char c;
 	size_t hit = text_find_next(txt, pos+1, vix->search_char);
-	if (!text_byte_get(txt, hit, &c) || c != vix->search_char[0])
+	if (!text_byte_get(txt, hit, &c) || c != vix->search_char[0]) {
 		return pos;
+	}
 	return hit;
 }
 
 static size_t till_right(Vix *vix, Text *txt, size_t pos) {
 	size_t hit = to_right(vix, txt, pos+1);
-	if (hit != pos)
+	if (hit != pos) {
 		return text_char_prev(txt, hit);
+	}
 	return pos;
 }
 
@@ -137,27 +146,32 @@ static size_t to_left(Vix *vix, Text *txt, size_t pos) {
 
 static size_t till_left(Vix *vix, Text *txt, size_t pos) {
 	size_t hit = to_left(vix, txt, pos-1);
-	if (hit != pos-1)
+	if (hit != pos-1) {
 		return text_char_next(txt, hit);
+	}
 	return pos;
 }
 
 static size_t to_line_right(Vix *vix, Text *txt, size_t pos) {
 	char c;
-	if (pos == text_line_end(txt, pos))
+	if (pos == text_line_end(txt, pos)) {
 		return pos;
+	}
 	size_t hit = text_line_find_next(txt, pos+1, vix->search_char);
-	if (!text_byte_get(txt, hit, &c) || c != vix->search_char[0])
+	if (!text_byte_get(txt, hit, &c) || c != vix->search_char[0]) {
 		return pos;
+	}
 	return hit;
 }
 
 static size_t till_line_right(Vix *vix, Text *txt, size_t pos) {
 	size_t hit = to_line_right(vix, txt, pos+1);
-	if (pos == text_line_end(txt, pos))
+	if (pos == text_line_end(txt, pos)) {
 		return pos;
-	if (hit != pos)
+	}
+	if (hit != pos) {
 		return text_char_prev(txt, hit);
+	}
 	return pos;
 }
 
@@ -166,11 +180,13 @@ static size_t to_line_left(Vix *vix, Text *txt, size_t pos) {
 }
 
 static size_t till_line_left(Vix *vix, Text *txt, size_t pos) {
-	if (pos == text_line_begin(txt, pos))
+	if (pos == text_line_begin(txt, pos)) {
 		return pos;
+	}
 	size_t hit = to_line_left(vix, txt, pos-1);
-	if (hit != pos-1)
+	if (hit != pos-1) {
 		return text_char_next(txt, hit);
+	}
 	return pos;
 }
 
@@ -212,8 +228,9 @@ static size_t window_nop(Vix *vix, Win *win, size_t pos) {
 
 static size_t bracket_match(Text *txt, size_t pos) {
 	size_t hit = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
-	if (hit != pos)
+	if (hit != pos) {
 		return hit;
+	}
 	char current;
 	Iterator it = text_iterator_get(txt, pos);
 	while (text_iterator_byte_get(&it, &current)) {
@@ -238,8 +255,9 @@ static size_t bracket_match(Text *txt, size_t pos) {
 
 static size_t percent(Vix *vix, Text *txt, size_t pos) {
 	int ratio = VIX_COUNT_DEFAULT(vix->action.count, 0);
-	if (ratio > 100)
+	if (ratio > 100) {
 		ratio = 100;
+	}
 	return text_size(txt) * ratio / 100;
 }
 
@@ -280,12 +298,14 @@ bool vix_motion(Vix *vix, enum VixMotion motion, ...) {
 
 	switch (motion) {
 	case VIX_MOVE_WORD_START_NEXT:
-		if (vix->action.op == &vix_operators[VIX_OP_CHANGE])
+		if (vix->action.op == &vix_operators[VIX_OP_CHANGE]) {
 			motion = VIX_MOVE_WORD_NEXT;
+		}
 		break;
 	case VIX_MOVE_LONGWORD_START_NEXT:
-		if (vix->action.op == &vix_operators[VIX_OP_CHANGE])
+		if (vix->action.op == &vix_operators[VIX_OP_CHANGE]) {
 			motion = VIX_MOVE_LONGWORD_NEXT;
+		}
 		break;
 	case VIX_MOVE_SEARCH_FORWARD:
 	case VIX_MOVE_SEARCH_BACKWARD:
@@ -297,18 +317,20 @@ bool vix_motion(Vix *vix, enum VixMotion motion, ...) {
 			goto err;
 		}
 		text_regex_free(regex);
-		if (motion == VIX_MOVE_SEARCH_FORWARD)
+		if (motion == VIX_MOVE_SEARCH_FORWARD) {
 			motion = VIX_MOVE_SEARCH_REPEAT_FORWARD;
-		else
+		} else {
 			motion = VIX_MOVE_SEARCH_REPEAT_BACKWARD;
+		}
 		vix->search_direction = motion;
 		break;
 	}
 	case VIX_MOVE_SEARCH_REPEAT:
 	case VIX_MOVE_SEARCH_REPEAT_REVERSE:
 	{
-		if (!vix->search_direction)
+		if (!vix->search_direction) {
 			vix->search_direction = VIX_MOVE_SEARCH_REPEAT_FORWARD;
+		}
 		if (motion == VIX_MOVE_SEARCH_REPEAT) {
 			motion = vix->search_direction;
 		} else {
@@ -328,16 +350,18 @@ bool vix_motion(Vix *vix, enum VixMotion motion, ...) {
 	case VIX_MOVE_TILL_LINE_LEFT:
 	{
 		const char *key = va_arg(ap, char*);
-		if (!key)
+		if (!key) {
 			goto err;
+		}
 		strncpy(vix->search_char, key, sizeof(vix->search_char));
 		vix->search_char[sizeof(vix->search_char)-1] = '\0';
 		vix->last_totill = motion;
 		break;
 	}
 	case VIX_MOVE_TOTILL_REPEAT:
-		if (!vix->last_totill)
+		if (!vix->last_totill) {
 			goto err;
+		}
 		motion = vix->last_totill;
 		break;
 	case VIX_MOVE_TOTILL_REVERSE:
@@ -375,13 +399,15 @@ bool vix_motion(Vix *vix, enum VixMotion motion, ...) {
 	}
 
 	vix->action.movement = 0;
-	if (motion < LENGTH(vix_motions))
+	if (motion < LENGTH(vix_motions)) {
 		vix->action.movement = vix_motions + motion;
-	else if ((VixDACount)motion - VIX_MOVE_LAST < vix->motions.count)
+	} else if ((VixDACount)motion - VIX_MOVE_LAST < vix->motions.count) {
 		vix->action.movement = vix->motions.data + motion - VIX_MOVE_LAST;
+	}
 
-	if (!vix->action.movement)
+	if (!vix->action.movement) {
 		goto err;
+	}
 
 	va_end(ap);
 	vix_do(vix);

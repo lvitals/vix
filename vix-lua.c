@@ -47,8 +47,9 @@ static void luaL_setfuncs(lua_State *L, const luaL_Reg *l, int nup) {
 	luaL_checkstack(L, nup, "too many upvalues");
 	for (; l->name != NULL; l++) {  /* fill the table with given functions */
 		int i;
-		for (i = 0; i < nup; i++)  /* copy upvalues to the top */
+		for (i = 0; i < nup; i++) { /* copy upvalues to the top */
 			lua_pushvalue(L, -nup);
+		}
 		lua_pushcclosure(L, l->func, nup);  /* closure with those upvalues */
 		lua_setfield(L, -(nup + 2), l->name);
 	}
@@ -64,7 +65,9 @@ static void luaL_traceback(lua_State *L, lua_State *L1, const char *msg, int lev
 	lua_getglobal(L, "debug");
 	lua_getfield(L, -1, "traceback");
 	lua_remove(L, -2);
-	if (L1 != L) lua_pushthread(L1);
+	if (L1 != L) {
+		lua_pushthread(L1);
+	}
 	lua_pushstring(L, msg);
 	lua_pushinteger(L, level + (L1 == L ? 1 : 0));
 	lua_call(L, (L1 == L ? 2 : 3), 1);
@@ -165,25 +168,29 @@ static int panic_handler(lua_State *L) {
 		Vix *vix = ud;
 		vix->lua = NULL;
 		const char *msg = NULL;
-		if (lua_type(L, -1) == LUA_TSTRING)
+		if (lua_type(L, -1) == LUA_TSTRING) {
 			msg = lua_tostring(L, -1);
+		}
 		vix_info_show(vix, "Fatal Lua error: %s", msg ? msg : "unknown reason");
 		lua_close(L);
-		if (vix->running)
+		if (vix->running) {
 			siglongjmp(vix->sigbus_jmpbuf, 1);
+		}
 	}
 	return 0;
 }
 
 static int error_handler(lua_State *L) {
 	Vix *vix = lua_touserdata(L, lua_upvalueindex(1));
-	if (vix->errorhandler)
+	if (vix->errorhandler) {
 		return 1;
+	}
 	vix->errorhandler = true;
 	size_t len;
 	const char *msg = lua_tostring(L, 1);
-	if (msg)
+	if (msg) {
 		luaL_traceback(L, L, msg, 1);
+	}
 	msg = lua_tolstring(L, 1, &len);
 	vix_message_show(vix, msg);
 	vix->errorhandler = false;
@@ -209,8 +216,9 @@ static int pcall(Vix *vix, lua_State *L, int nargs, int nresults) {
  */
 static const void *func_ref_new(lua_State *L, int narg) {
 	const void *addr = lua_topointer(L, narg);
-	if (!lua_isfunction(L, narg) || !addr)
+	if (!lua_isfunction(L, narg) || !addr) {
 		luaL_argerror(L, narg, "function expected");
+	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.functions");
 	lua_pushlightuserdata(L, (void*)addr);
 	lua_pushvalue(L, narg);
@@ -221,8 +229,9 @@ static const void *func_ref_new(lua_State *L, int narg) {
 
 /* retrieve function from registry and place it at the top of the stack */
 static bool func_ref_get(lua_State *L, const void *addr) {
-	if (!addr)
+	if (!addr) {
 		return false;
+	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.functions");
 	lua_pushlightuserdata(L, (void*)addr);
 	lua_gettable(L, -2);
@@ -264,8 +273,9 @@ static void obj_type_new(lua_State *L, str8 type)
  *   return registry["vix.types"][getmetatable(userdata)]
  */
 const char *obj_type_get(lua_State *L) {
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
 		return "nil";
+	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.types");
 	lua_getmetatable(L, -2);
 	lua_gettable(L, -2);
@@ -297,13 +307,15 @@ static void *obj_ref_get(lua_State *L, void *addr, const char *type) {
 	}
 	if (DEBUG_LUA) {
 		const char *actual_type = obj_type_get(L);
-		if (strcmp(type, actual_type) != 0)
+		if (strcmp(type, actual_type) != 0) {
 			debug("get: vix.objects[%p] = %s (BUG: expected %s)\n", addr, actual_type, type);
+		}
 		void **handle = luaL_checkudata(L, -1, type);
-		if (!handle)
+		if (!handle) {
 			debug("get: vix.objects[%p] = %s (BUG: invalid handle)\n", addr, type);
-		else if (*handle != addr)
+		} else if (*handle != addr) {
 			debug("get: vix.objects[%p] = %s (BUG: handle mismatch %p)\n", addr, type, *handle);
+		}
 	}
 	/* verify that obj is correct type then unmodify the stack */
 	luaL_checkudata(L, -1, type);
@@ -334,10 +346,11 @@ static void obj_ref_free(lua_State *L, void *addr) {
 		lua_pushlightuserdata(L, addr);
 		lua_gettable(L, -2);
 		lua_remove(L, -2);
-		if (lua_isnil(L, -1))
+		if (lua_isnil(L, -1)) {
 			debug("free-unused: %p\n", addr);
-		else
+		} else {
 			debug("free: vix.objects[%p] = %s\n", addr, obj_type_get(L));
+		}
 		lua_pop(L, 1);
 	}
 	lua_pushnil(L);
@@ -365,16 +378,18 @@ static void *obj_ref_new(lua_State *L, void *addr, const char *type) {
 	if (strcmp(type, old_type) == 0) {
 		debug("new: vix.objects[%p] = %s (returning existing object)\n", addr, old_type);
 		void **handle = luaL_checkudata(L, -1, type);
-		if (!handle)
+		if (!handle) {
 			debug("new: vix.objects[%p] = %s (BUG: invalid handle)\n", addr, old_type);
-		else if (*handle != addr)
+		} else if (*handle != addr) {
 			debug("new: vix.objects[%p] = %s (BUG: handle mismatch %p)\n", addr, old_type, *handle);
+		}
 		return addr;
 	}
-	if (!lua_isnil(L, -1))
+	if (!lua_isnil(L, -1)) {
 		debug("new: vix.objects[%p] = %s (WARNING: changing object type from %s)\n", addr, type, old_type);
-	else
+	} else {
 		debug("new: vix.objects[%p] = %s (creating new object)\n", addr, type);
+	}
 	lua_pop(L, 1);
 	void **handle = obj_new(L, sizeof(addr), type);
 	obj_ref_set(L, addr);
@@ -385,8 +400,9 @@ static void *obj_ref_new(lua_State *L, void *addr, const char *type) {
 /* (type) check validity of object reference at stack location `idx' and retrieve it */
 static void *obj_ref_check(lua_State *L, int idx, const char *type) {
 	void **addr = luaL_checkudata(L, idx, type);
-	if (!obj_ref_get(L, *addr, type))
+	if (!obj_ref_get(L, *addr, type)) {
 		luaL_argerror(L, idx, "invalid object reference");
+	}
 	return *addr;
 }
 
@@ -396,8 +412,9 @@ static void *obj_ref_check_containerof(lua_State *L, int idx, const char *type, 
 }
 
 static void *obj_lightref_new(lua_State *L, void *addr, const char *type) {
-	if (!addr)
+	if (!addr) {
 		return NULL;
+	}
 	void **handle = obj_new(L, sizeof(addr), type);
 	*handle = addr;
 	return addr;
@@ -445,16 +462,18 @@ static size_t checkpos(lua_State *L, int narg) {
 	 * using < avoids undefined behaviour when n == SIZE_MAX+1
 	 * which can be represented in lua_Number
 	 */
-	if (n >= 0 && n < (lua_Number)SIZE_MAX && n == (size_t)n)
+	if (n >= 0 && n < (lua_Number)SIZE_MAX && n == (size_t)n) {
 		return n;
+	}
 	return luaL_argerror(L, narg, "expected position, got number");
 }
 
 static void pushpos(lua_State *L, size_t pos) {
-	if (pos == EPOS)
+	if (pos == EPOS) {
 		lua_pushnil(L);
-	else
+	} else {
 		lua_pushinteger(L, pos);
+	}
 }
 
 static void pushrange(lua_State *L, Filerange *r) {
@@ -489,19 +508,24 @@ static Filerange getrange(lua_State *L, int index) {
 
 static const char *keymapping(Vix *vix, const char *keys, const Arg *arg) {
 	lua_State *L = vix->lua;
-	if (!func_ref_get(L, arg->v))
+	if (!func_ref_get(L, arg->v)) {
 		return keys;
+	}
 	lua_pushstring(L, keys);
-	if (pcall(vix, L, 1, 1) != 0)
+	if (pcall(vix, L, 1, 1) != 0) {
 		return keys;
-	if (lua_type(L, -1) != LUA_TNUMBER)
+	}
+	if (lua_type(L, -1) != LUA_TNUMBER) {
 		return keys; /* invalid or no return value, assume zero */
+	}
 	lua_Number number = lua_tonumber(L, -1);
 	lua_Integer integer = lua_tointeger(L, -1);
-	if (number != integer)
+	if (number != integer) {
 		return keys;
-	if (integer < 0)
+	}
+	if (integer < 0) {
 		return NULL; /* need more input */
+	}
 	size_t len = integer;
 	size_t max = strlen(keys);
 	return (len <= max) ? keys+len : keys;
@@ -573,8 +597,9 @@ static int windows(lua_State *L) {
 
 static int windows_iter(lua_State *L) {
 	Win **handle = lua_touserdata(L, lua_upvalueindex(1));
-	if (!*handle)
+	if (!*handle) {
 		return 0;
+	}
 	Win *win = obj_ref_new(L, *handle, VIX_LUA_TYPE_WINDOW), *next;
 	if (win) {
 		for (next = win->next; next && next->file->internal; next = next->next);
@@ -603,11 +628,13 @@ static int files(lua_State *L) {
 
 static int files_iter(lua_State *L) {
 	File **handle = lua_touserdata(L, lua_upvalueindex(1));
-	if (!*handle)
+	if (!*handle) {
 		return 0;
+	}
 	File *file = obj_ref_new(L, *handle, VIX_LUA_TYPE_FILE);
-	if (file)
+	if (file) {
 		*handle = file->next;
+	}
 	return 1;
 }
 
@@ -743,10 +770,12 @@ static int action_register(lua_State *L) {
 	const void *func = func_ref_new(L, 3);
 	const char *help = luaL_optstring(L, 4, NULL);
 	KeyAction *action = vix_action_new(vix, name, help, keymapping, (Arg){ .v = func });
-	if (!action)
+	if (!action) {
 		goto err;
-	if (!vix_action_register(vix, action))
+	}
+	if (!vix_action_register(vix, action)) {
 		goto err;
+	}
 	obj_ref_new(L, action, VIX_LUA_TYPE_KEYACTION);
 	return 1;
 err:
@@ -760,16 +789,19 @@ static int keymap(lua_State *L, Vix *vix, Win *win) {
 	const char *key = luaL_checkstring(L, 3);
 	const char *help = luaL_optstring(L, 5, NULL);
 	KeyBinding *binding = vix_binding_new(vix);
-	if (!binding)
+	if (!binding) {
 		goto err;
+	}
 	if (lua_isstring(L, 4)) {
 		const char *alias = luaL_checkstring(L, 4);
-		if (!(binding->alias = strdup(alias)))
+		if (!(binding->alias = strdup(alias))) {
 			goto err;
+		}
 	} else if (lua_isfunction(L, 4)) {
 		const void *func = func_ref_new(L, 4);
-		if (!(binding->action = vix_action_new(vix, NULL, help, keymapping, (Arg){ .v = func })))
+		if (!(binding->action = vix_action_new(vix, NULL, help, keymapping, (Arg){ .v = func }))) {
 			goto err;
+		}
 	} else if (lua_isuserdata(L, 4)) {
 		binding->action = obj_ref_check(L, 4, VIX_LUA_TYPE_KEYACTION);
 	} else {
@@ -777,11 +809,13 @@ static int keymap(lua_State *L, Vix *vix, Win *win) {
 	}
 
 	if (win) {
-		if (!vix_window_mode_map(win, mode, true, key, binding))
+		if (!vix_window_mode_map(win, mode, true, key, binding)) {
 			goto err;
+		}
 	} else {
-		if (!vix_mode_map(vix, mode, true, key, binding))
+		if (!vix_mode_map(vix, mode, true, key, binding)) {
 			goto err;
+		}
 	}
 
 	lua_pushboolean(L, true);
@@ -865,10 +899,11 @@ static int keyunmap(lua_State *L, Vix *vix, Win *win) {
 	enum VixMode mode = luaL_checkinteger(L, 2);
 	const char *key = luaL_checkstring(L, 3);
 	bool ret;
-	if (!win)
+	if (!win) {
 		ret = vix_mode_unmap(vix, mode, key);
-	else
+	} else {
 		ret = vix_window_mode_unmap(win, mode, key);
+	}
 	lua_pushboolean(L, ret);
 	return 1;
 }
@@ -909,8 +944,9 @@ static int mappings(lua_State *L) {
 	Vix *vix = obj_ref_check(L, 1, "vix");
 	lua_newtable(L);
 	for (Mode *mode = mode_get(vix, luaL_checkinteger(L, 2)); mode; mode = mode->parent) {
-		if (!mode->bindings)
+		if (!mode->bindings) {
 			continue;
+		}
 		map_iterate(mode->bindings, binding_collect, vix->lua);
 	}
 	return 1;
@@ -934,12 +970,14 @@ static int motion(lua_State *L) {
 
 static size_t motion_lua(Vix *vix, Win *win, void *data, size_t pos) {
 	lua_State *L = vix->lua;
-	if (!L || !func_ref_get(L, data) || !obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW))
+	if (!L || !func_ref_get(L, data) || !obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW)) {
 		return EPOS;
+	}
 
 	lua_pushinteger(L, pos);
-	if (pcall(vix, L, 2, 1) != 0)
+	if (pcall(vix, L, 2, 1) != 0) {
 		return EPOS;
+	}
 	return getpos(L, -1);
 }
 
@@ -983,17 +1021,21 @@ static int operator(lua_State *L) {
 
 static size_t operator_lua(Vix *vix, Text *text, OperatorContext *c) {
 	lua_State *L = vix->lua;
-	if (!L || !func_ref_get(L, c->context))
+	if (!L || !func_ref_get(L, c->context)) {
 		return EPOS;
+	}
 	File *file = vix->files;
-	while (file && (file->internal || file->text != text))
+	while (file && (file->internal || file->text != text)) {
 		file = file->next;
-	if (!file || !obj_ref_new(L, file, VIX_LUA_TYPE_FILE))
+	}
+	if (!file || !obj_ref_new(L, file, VIX_LUA_TYPE_FILE)) {
 		return EPOS;
+	}
 	pushrange(L, &c->range);
 	pushpos(L, c->pos);
-	if (pcall(vix, L, 3, 1) != 0)
+	if (pcall(vix, L, 3, 1) != 0) {
 		return EPOS;
+	}
 	return getpos(L, -1);
 }
 
@@ -1041,11 +1083,13 @@ static int textobject(lua_State *L) {
 
 static Filerange textobject_lua(Vix *vix, Win *win, void *data, size_t pos) {
 	lua_State *L = vix->lua;
-	if (!L || !func_ref_get(L, data) || !obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW))
+	if (!L || !func_ref_get(L, data) || !obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW)) {
 		return text_range_empty();
+	}
 	lua_pushinteger(L, pos);
-	if (pcall(vix, L, 2, 2) != 0 || lua_isnil(L, -1))
+	if (pcall(vix, L, 2, 2) != 0 || lua_isnil(L, -1)) {
 		return text_range_empty();
+	}
 	return text_range_new(getpos(L, -2), getpos(L, -1));
 }
 
@@ -1074,18 +1118,46 @@ static int textobject_register(lua_State *L) {
 static bool option_lua(Vix *vix, Win *win, void *context, bool toggle,
                        enum VixOption flags, const char *name, Arg *value) {
 	lua_State *L = vix->lua;
-	if (!L || !func_ref_get(L, context))
+	if (!L || !func_ref_get(L, context)) {
 		return false;
-	if (flags & VIX_OPTION_TYPE_BOOL)
+	}
+	if (flags & VIX_OPTION_TYPE_BOOL) {
 		lua_pushboolean(L, value->b);
-	else if (flags & VIX_OPTION_TYPE_STRING)
+	} else if (flags & VIX_OPTION_TYPE_STRING) {
 		lua_pushstring(L, value->s);
-	else if (flags & VIX_OPTION_TYPE_NUMBER)
-		lua_pushnumber(L, value->i);
-	else
+	} else if (flags & VIX_OPTION_TYPE_NUMBER) {
+		lua_pushinteger(L, value->i);
+	} else {
 		return false;
+	}
 	lua_pushboolean(L, toggle);
-	return pcall(vix, L, 2, 2) == 0 && (!lua_isboolean(L, -1) || lua_toboolean(L, -1));
+	if (pcall(vix, L, 2, 1) != 0) {
+		return false;
+	}
+	bool ret = !lua_isboolean(L, -1) || lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	if (ret) {
+		lua_getfield(L, LUA_REGISTRYINDEX, "vix_option_values");
+		if (lua_isnil(L, -1)) {
+			lua_pop(L, 1);
+			lua_newtable(L);
+			lua_pushvalue(L, -1);
+			lua_setfield(L, LUA_REGISTRYINDEX, "vix_option_values");
+		}
+		lua_pushstring(L, name);
+		if (flags & VIX_OPTION_TYPE_BOOL) {
+			lua_pushboolean(L, value->b);
+		} else if (flags & VIX_OPTION_TYPE_STRING) {
+			lua_pushstring(L, value->s);
+		} else if (flags & VIX_OPTION_TYPE_NUMBER) {
+			lua_pushinteger(L, value->i);
+		}
+		lua_settable(L, -3);
+		lua_pop(L, 1);
+	}
+
+	return ret;
 }
 
 /***
@@ -1113,12 +1185,13 @@ static int option_register(lua_State *L) {
 	const char *help = luaL_optstring(L, 5, NULL);
 	const char *names[] = { name, NULL };
 	enum VixOption flags = 0;
-	if (strcmp(type, "string") == 0)
+	if (strcmp(type, "string") == 0) {
 		flags |= VIX_OPTION_TYPE_STRING;
-	else if (strcmp(type, "number") == 0)
+	} else if (strcmp(type, "number") == 0) {
 		flags |= VIX_OPTION_TYPE_NUMBER;
-	else
+	} else {
 		flags |= VIX_OPTION_TYPE_BOOL;
+	}
 	bool ret = vix_option_register(vix, names, flags, option_lua, (void*)func, help);
 	lua_pushboolean(L, ret);
 	return 1;
@@ -1141,8 +1214,9 @@ static int option_unregister(lua_State *L) {
 
 static bool command_lua(Vix *vix, Win *win, void *data, bool force, const char *argv[], Selection *sel, Filerange *range) {
 	lua_State *L = vix->lua;
-	if (!L || !func_ref_get(L, data))
+	if (!L || !func_ref_get(L, data)) {
 		return false;
+	}
 	lua_newtable(L);
 	for (size_t i = 0; argv[i]; i++) {
 		lua_pushinteger(L, i);
@@ -1150,15 +1224,19 @@ static bool command_lua(Vix *vix, Win *win, void *data, bool force, const char *
 		lua_settable(L, -3);
 	}
 	lua_pushboolean(L, force);
-	if (!obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW))
+	if (!obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW)) {
 		return false;
-	if (!sel)
+	}
+	if (!sel) {
 		sel = view_selections_primary_get(&win->view);
-	if (!obj_lightref_new(L, sel, VIX_LUA_TYPE_SELECTION))
+	}
+	if (!obj_lightref_new(L, sel, VIX_LUA_TYPE_SELECTION)) {
 		return false;
+	}
 	pushrange(L, range);
-	if (pcall(vix, L, 5, 1) != 0)
+	if (pcall(vix, L, 5, 1) != 0) {
 		return false;
+	}
 	return lua_toboolean(L, -1);
 }
 
@@ -1214,15 +1292,122 @@ static int complete_command(lua_State *L) {
 	                                  &out, &err, false);
 
 	lua_pushinteger(L, status);
-	if (out) lua_pushstring(L, out);
-	else     lua_pushnil(L);
-	if (err) lua_pushstring(L, err);
-	else     lua_pushnil(L);
+	if (out) {
+		lua_pushstring(L, out);
+	} else {
+		lua_pushnil(L);
+	}
+	if (err) {
+		lua_pushstring(L, err);
+	} else {
+		lua_pushnil(L);
+	}
 
 	free(out);
 	free(err);
 	buffer_release(&buf);
 	return 3;
+}
+
+/***
+ * Complete option name.
+ *
+ * This function uses @{vix-menu} to interactively select a matching option.
+ *
+ * @function complete_option
+ * @tparam string prefix the prefix of the option to be completed
+ * @treturn int code the exit status of the executed command
+ * @treturn string stdout the data written to stdout
+ * @treturn string stderr the data written to stderr
+ */
+static int complete_option(lua_State *L) {
+	Vix *vix = obj_ref_check(L, 1, "vix");
+	const char *prefix = luaL_checkstring(L, 2);
+	char *out = NULL, *err = NULL;
+
+	Buffer buf = {0};
+	vix_print_options(vix, &buf, prefix);
+	int status = vix_pipe_buf_collect(vix, buffer_content0(&buf), (const char*[]){"vix-menu", "-b", 0},
+	                                  &out, &err, false);
+
+	lua_pushinteger(L, status);
+	if (out) {
+		lua_pushstring(L, out);
+	} else {
+		lua_pushnil(L);
+	}
+	if (err) {
+		lua_pushstring(L, err);
+	} else {
+		lua_pushnil(L);
+	}
+
+	free(out);
+	free(err);
+	buffer_release(&buf);
+	return 3;
+}
+
+/***
+ * Get option type.
+ *
+ * @function option_type
+ * @tparam string name the name of the option
+ * @treturn string the type of the option ("bool", "number", "string") or nil
+ */
+static int lua_option_type(lua_State *L) {
+	Vix *vix = obj_ref_check(L, 1, "vix");
+	const char *name = luaL_checkstring(L, 2);
+	OptionDef *opt = map_get(vix->options, name);
+	if (!opt) {
+		lua_pushnil(L);
+		return 1;
+	}
+	
+	lua_newtable(L);
+	if (opt->flags & VIX_OPTION_TYPE_BOOL) {
+		lua_pushstring(L, "bool");
+	} else if (opt->flags & VIX_OPTION_TYPE_NUMBER) {
+		lua_pushstring(L, "number");
+	} else if (opt->flags & VIX_OPTION_TYPE_STRING) {
+		lua_pushstring(L, "string");
+	} else {
+		lua_pushnil(L);
+	}
+	lua_setfield(L, -2, "type");
+	
+	lua_pushboolean(L, (opt->flags & VIX_OPTION_NEED_WINDOW) != 0);
+	lua_setfield(L, -2, "need_window");
+
+	lua_newtable(L);
+	for (int i = 0; i < 4 && opt->names[i]; i++) {
+		lua_pushstring(L, opt->names[i]);
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "aliases");
+	
+	return 1;
+}
+
+/***
+ * Get option value.
+ *
+ * @function option_value
+ * @tparam string name the name of the option
+ * @treturn string the current value of the option or nil
+ */
+static int lua_option_value(lua_State *L) {
+	Vix *vix = obj_ref_check(L, 1, "vix");
+	const char *name = luaL_checkstring(L, 2);
+	Buffer buf = {0};
+	vix_print_option_value(vix, name, &buf);
+	if (buf.len > 0) {
+		lua_pushstring(L, buffer_content0(&buf));
+	} else {
+		lua_pushnil(L);
+	}
+	buffer_release(&buf);
+	return 1;
 }
 
 /***
@@ -1342,7 +1527,7 @@ static int pipe_func(lua_State *L) {
 			text = luaL_checkstring(L, 2);
 			cmd_idx = 3;
 		}
-	} else if (lua_isboolean(L, 4)) { // vix:pipe(text, cmd, fullscreen)
+	} else if (lua_gettop(L) == 4 && lua_isboolean(L, 4)) { // vix:pipe(text, cmd, fullscreen)
 		text = luaL_checkstring(L, 2);
 		cmd_idx = 3;
 	} else if (!(lua_isnil(L, 2) && lua_isnil(L, 3))) { // vix:pipe(file, range, cmd, [fullscreen])
@@ -1352,24 +1537,28 @@ static int pipe_func(lua_State *L) {
 	const char *cmd = luaL_checkstring(L, cmd_idx);
 	bool fullscreen = lua_isboolean(L, cmd_idx + 1) && lua_toboolean(L, cmd_idx + 1);
 
-	if (!text && !file)
+	if (!text && !file) {
 		return luaL_error(L, "vix:pipe(cmd = '%s'): win not open, file can't be nil", cmd);
+	}
 
 	int status;
-	if (text)
+	if (text) {
 		status = vix_pipe_buf_collect(vix, text, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
-	else
+	} else {
 		status = vix_pipe_collect(vix, file, &range, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
+	}
 	lua_pushinteger(L, status);
-	if (out)
+	if (out) {
 		lua_pushstring(L, out);
-	else
+	} else {
 		lua_pushnil(L);
+	}
 	free(out);
-	if (err)
+	if (err) {
 		lua_pushstring(L, err);
-	else
+	} else {
 		lua_pushnil(L);
+	}
 	free(err);
 	vix_draw(vix);
 	return 3;
@@ -1468,10 +1657,11 @@ static int vix_index(lua_State *L) {
 	if (lua_isstring(L, 2)) {
 		const char *key = lua_tostring(L, 2);
 		if (strcmp(key, "win") == 0) {
-			if (vix->win)
+			if (vix->win) {
 				obj_ref_new(L, vix->win, VIX_LUA_TYPE_WINDOW);
-			else
+			} else {
 				lua_pushnil(L);
+			}
 			return 1;
 		}
 
@@ -1492,10 +1682,11 @@ static int vix_index(lua_State *L) {
 
 		if (strcmp(key, "count") == 0) {
 			int count = vix->action.count;
-			if (count == VIX_COUNT_UNKNOWN)
+			if (count == VIX_COUNT_UNKNOWN) {
 				lua_pushnil(L);
-			else
+			} else {
 				lua_pushinteger(L, count);
+			}
 			return 1;
 		}
 
@@ -1540,18 +1731,21 @@ static int vix_options_assign(Vix *vix, lua_State *L, const char *key, int next)
 	} else if (strcmp(key, "ignorecase") == 0 || strcmp(key, "ic") == 0) {
 		vix->ignorecase = lua_toboolean(L, next);
 	} else if (strcmp(key, "loadmethod") == 0) {
-		if (!lua_isstring(L, next))
+		if (!lua_isstring(L, next)) {
 			return newindex_common(L);
+		}
 		const char *lm = lua_tostring(L, next);
-		if (strcmp(lm, "auto") == 0)
+		if (strcmp(lm, "auto") == 0) {
 			vix->load_method = TEXT_LOAD_AUTO;
-		else if (strcmp(lm, "read") == 0)
+		} else if (strcmp(lm, "read") == 0) {
 			vix->load_method = TEXT_LOAD_READ;
-		else if (strcmp(lm, "mmap") == 0)
+		} else if (strcmp(lm, "mmap") == 0) {
 			vix->load_method = TEXT_LOAD_MMAP;
+		}
 	} else if (strcmp(key, "shell") == 0) {
-		if (!lua_isstring(L, next))
+		if (!lua_isstring(L, next)) {
 			return newindex_common(L);
+		}
 		vix_shell_set(vix, lua_tostring(L, next));
 	}
 	return 0;
@@ -1569,10 +1763,11 @@ static int vix_newindex(lua_State *L) {
 
 		if (strcmp(key, "count") == 0) {
 			int count;
-			if (lua_isnil(L, 3))
+			if (lua_isnil(L, 3)) {
 				count = VIX_COUNT_UNKNOWN;
-			else
+			} else {
 				count = luaL_checkinteger(L, 3);
+			}
 			vix->action.count = count;
 			return 0;
 		}
@@ -1584,15 +1779,17 @@ static int vix_newindex(lua_State *L) {
 
 		if (strcmp(key, "register") == 0) {
 			const char *name = luaL_checkstring(L, 3);
-			if (strlen(name) == 1)
+			if (strlen(name) == 1) {
 				vix_register(vix, vix_register_from(vix, name[0]));
+			}
 			return 0;
 		}
 
 		if (strcmp(key, "mark") == 0) {
 			const char *name = luaL_checkstring(L, 3);
-			if (strlen(name) == 1)
+			if (strlen(name) == 1) {
 				vix_mark(vix, vix_mark_from(vix, name[0]));
+			}
 			return 0;
 		}
 
@@ -1605,10 +1802,11 @@ static int vix_newindex(lua_State *L) {
 			 */
 			lua_pushnil(L);
 			while (lua_next(L, 3)) {
-				if (lua_isstring(L, 4))
+				if (lua_isstring(L, 4)) {
 					ret += vix_options_assign(vix, L, lua_tostring(L, 4), 5);
-				else
+				} else {
 					ret += newindex_common(L);
+				}
 				lua_pop(L, 1);
 			}
 			lua_pop(L, 1);
@@ -1616,6 +1814,20 @@ static int vix_newindex(lua_State *L) {
 		}
 	}
 	return newindex_common(L);
+}
+
+/***
+ * Get options changed in current session.
+ * @function session_changes
+ * @treturn table a map of option names to boolean true
+ */
+static int lua_session_changes(lua_State *L) {
+	lua_getfield(L, LUA_REGISTRYINDEX, "vix_session_changes");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_newtable(L);
+	}
+	return 1;
 }
 
 static const struct luaL_Reg vix_lua[] = {
@@ -1639,6 +1851,10 @@ static const struct luaL_Reg vix_lua[] = {
 	{ "option_unregister", option_unregister },
 	{ "command_register", command_register },
 	{ "complete_command", complete_command },
+	{ "complete_option", complete_option },
+	{ "option_type", lua_option_type },
+	{ "option_value", lua_option_value },
+	{ "session_changes", lua_session_changes },
 	{ "feedkeys", feedkeys },
 	{ "insert", insert },
 	{ "replace", replace },
@@ -1666,8 +1882,9 @@ static const struct luaL_Reg vix_lua[] = {
 
 static int vix_options_index(lua_State *L) {
 	Vix *vix = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_VIX_OPTS, offsetof(Vix, options));
-	if (!vix)
+	if (!vix) {
 		return -1;
+	}
 	if (lua_isstring(L, 2)) {
 		const char *key = lua_tostring(L, 2);
 		if (strcmp(key, "autoindent") == 0 || strcmp(key, "ai") == 0) {
@@ -1705,10 +1922,12 @@ static int vix_options_index(lua_State *L) {
 
 static int vix_options_newindex(lua_State *L) {
 	Vix *vix = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_VIX_OPTS, offsetof(Vix, options));
-	if (!vix)
+	if (!vix) {
 		return 0;
-	if (lua_isstring(L, 2))
+	}
+	if (lua_isstring(L, 2)) {
 		return vix_options_assign(vix, L, lua_tostring(L, 2), 3);
+	}
 	return newindex_common(L);
 }
 
@@ -1771,11 +1990,13 @@ static int registers_index(lua_State *L) {
 	lua_newtable(L);
 	Vix *vix = lua_touserdata(L, lua_upvalueindex(1));
 	const char *symbol = luaL_checkstring(L, 2);
-	if (strlen(symbol) != 1)
+	if (strlen(symbol) != 1) {
 		return 1;
+	}
 	enum VixRegister reg = vix_register_from(vix, symbol[0]);
-	if (reg >= VIX_REG_INVALID)
+	if (reg >= VIX_REG_INVALID) {
 		return 1;
+	}
 	str8_list strings = vix_register_get(vix, reg);
 	for (VixDACount i = 0; i < strings.count; i++) {
 		str8 string = strings.data[i];
@@ -1790,8 +2011,9 @@ static int registers_index(lua_State *L) {
 static int registers_newindex(lua_State *L) {
 	Vix *vix = lua_touserdata(L, lua_upvalueindex(1));
 	const char *symbol = luaL_checkstring(L, 2);
-	if (strlen(symbol) != 1)
+	if (strlen(symbol) != 1) {
 		return 0;
+	}
 	enum VixRegister reg = vix_register_from(vix, symbol[0]);
 
 	str8_list strings = {0};
@@ -1938,57 +2160,66 @@ static int window_index(lua_State *L) {
 static int window_options_assign(Win *win, lua_State *L, const char *key, int next) {
 	enum UiOption flags = win->options;
 	if (strcmp(key, "breakat") == 0 || strcmp(key, "brk") == 0) {
-		if (lua_isstring(L, next))
+		if (lua_isstring(L, next)) {
 			view_breakat_set(&win->view, lua_tostring(L, next));
+		}
 	} else if (strcmp(key, "colorcolumn") == 0 || strcmp(key, "cc") == 0) {
 		win->view.colorcolumn = luaL_checkinteger(L, next);
 	} else if (strcmp(key, "cursorline") == 0 || strcmp(key, "cul") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_CURSOR_LINE;
-		else
+		} else {
 			flags &= ~UI_OPTION_CURSOR_LINE;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "numbers") == 0 || strcmp(key, "nu") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_LINE_NUMBERS_ABSOLUTE;
-		else
+		} else {
 			flags &= ~UI_OPTION_LINE_NUMBERS_ABSOLUTE;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "relativenumbers") == 0 || strcmp(key, "rnu") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_LINE_NUMBERS_RELATIVE;
-		else
+		} else {
 			flags &= ~UI_OPTION_LINE_NUMBERS_RELATIVE;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "showeof") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_SYMBOL_EOF;
-		else
+		} else {
 			flags &= ~UI_OPTION_SYMBOL_EOF;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "shownewlines") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_SYMBOL_EOL;
-		else
+		} else {
 			flags &= ~UI_OPTION_SYMBOL_EOL;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "showspaces") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_SYMBOL_SPACE;
-		else
+		} else {
 			flags &= ~UI_OPTION_SYMBOL_SPACE;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "showtabs") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_SYMBOL_TAB;
-		else
+		} else {
 			flags &= ~UI_OPTION_SYMBOL_TAB;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "statusbar") == 0) {
-		if (lua_toboolean(L, next))
+		if (lua_toboolean(L, next)) {
 			flags |= UI_OPTION_STATUSBAR;
-		else
+		} else {
 			flags &= ~UI_OPTION_STATUSBAR;
+		}
 		win_options_set(win, flags);
 	} else if (strcmp(key, "wrapcolumn") == 0 || strcmp(key, "wc") == 0) {
 		win->view.wrapcolumn = luaL_checkinteger(L, next);
@@ -2014,10 +2245,11 @@ static int window_newindex(lua_State *L) {
 			 */
 			lua_pushnil(L);
 			while (lua_next(L, 3)) {
-				if (lua_isstring(L, 4))
+				if (lua_isstring(L, 4)) {
 					ret += window_options_assign(win, L, lua_tostring(L, 4), 5);
-				else
+				} else {
 					ret += newindex_common(L);
+				}
 				lua_pop(L, 1);
 			}
 			lua_pop(L, 1);
@@ -2036,11 +2268,13 @@ static int window_newindex(lua_State *L) {
 
 static int window_selections_iterator_next(lua_State *L) {
 	Selection **handle = lua_touserdata(L, lua_upvalueindex(1));
-	if (!*handle)
+	if (!*handle) {
 		return 0;
+	}
 	Selection *sel = obj_lightref_new(L, *handle, VIX_LUA_TYPE_SELECTION);
-	if (!sel)
+	if (!sel) {
 		return 0;
+	}
 	*handle = view_selections_next(sel);
 	return 1;
 }
@@ -2169,8 +2403,9 @@ static int window_status(lua_State *L) {
 	int left_width = text_string_width(left, strlen(left));
 	int right_width = text_string_width(right, strlen(right));
 	int spaces = width - left_width - right_width;
-	if (spaces < 1)
-		spaces = 1;
+	if (spaces < 0) {
+		spaces = 0;
+	}
 	snprintf(status, sizeof(status)-1, "%s%*s%s", left, spaces, " ", right);
 	ui_window_status(win, status);
 	return 0;
@@ -2203,13 +2438,15 @@ static int window_close(lua_State *L) {
 	Win *win = obj_ref_check(L, 1, VIX_LUA_TYPE_WINDOW);
 	int count = 0;
 	for (Win *w = win->vix->windows; w; w = w->next) {
-		if (!w->file->internal)
+		if (!w->file->internal) {
 			count++;
+		}
 	}
 	bool force = lua_isboolean(L, 2) && lua_toboolean(L, 2);
 	bool close = count > 1 && (force || vix_window_closable(win));
-	if (close)
+	if (close) {
 		vix_window_close(win);
+	}
 	lua_pushboolean(L, close);
 	return 1;
 }
@@ -2250,8 +2487,9 @@ static const struct luaL_Reg window_funcs[] = {
 
 static int window_options_index(lua_State *L) {
 	Win *win = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_WIN_OPTS, offsetof(Win, view));
-	if (!win)
+	if (!win) {
 		return -1;
+	}
 	if (lua_isstring(L, 2)) {
 		const char *key = lua_tostring(L, 2);
 		if (strcmp(key, "breakat") == 0 || strcmp(key, "brk") == 0) {
@@ -2300,10 +2538,12 @@ static int window_options_index(lua_State *L) {
 
 static int window_options_newindex(lua_State *L) {
 	Win *win = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_WIN_OPTS, offsetof(Win, view));
-	if (!win)
+	if (!win) {
 		return 0;
-	if (lua_isstring(L, 2))
+	}
+	if (lua_isstring(L, 2)) {
 		return window_options_assign(win, L, lua_tostring(L, 2), 3);
+	}
 	return newindex_common(L);
 }
 
@@ -2317,8 +2557,9 @@ static int window_selections_index(lua_State *L) {
 	View *view = obj_ref_check(L, 1, VIX_LUA_TYPE_SELECTIONS);
 	size_t index = luaL_checkinteger(L, 2);
 	size_t count = view->selection_count;
-	if (index == 0 || index > count)
+	if (index == 0 || index > count) {
 		goto err;
+	}
 	for (Selection *s = view_selections(view); s; s = view_selections_next(s)) {
 		if (!--index) {
 			obj_lightref_new(L, s, VIX_LUA_TYPE_SELECTION);
@@ -2487,8 +2728,9 @@ static int window_selection_index(lua_State *L) {
 
 static int window_selection_newindex(lua_State *L) {
 	Selection *sel = obj_lightref_check(L, 1, VIX_LUA_TYPE_SELECTION);
-	if (!sel)
+	if (!sel) {
 		return 0;
+	}
 	if (lua_isstring(L, 2)) {
 		const char *key = lua_tostring(L, 2);
 		if (strcmp(key, "pos") == 0) {
@@ -2668,15 +2910,17 @@ static int file_newindex(lua_State *L)
 		}
 
 		if (strcmp(key, "savemethod") == 0) {
-			if (!lua_isstring(L, 3))
+			if (!lua_isstring(L, 3)) {
 				return newindex_common(L);
+			}
 			const char *sm = lua_tostring(L, 3);
-			if (strcmp(sm, "auto") == 0)
+			if (strcmp(sm, "auto") == 0) {
 				file->save_method = TEXT_SAVE_AUTO;
-			else if (strcmp(sm, "atomic") == 0)
+			} else if (strcmp(sm, "atomic") == 0) {
 				file->save_method = TEXT_SAVE_ATOMIC;
-			else if (strcmp(sm, "inplace") == 0)
+			} else if (strcmp(sm, "inplace") == 0) {
 				file->save_method = TEXT_SAVE_INPLACE;
+			}
 			return 0;
 		}
 	}
@@ -2761,13 +3005,15 @@ static int file_lines_iterator(lua_State *L) {
 static int file_lines_iterator_it(lua_State *L) {
 	File *file = *(File**)lua_touserdata(L, lua_upvalueindex(1));
 	size_t *start = lua_touserdata(L, lua_upvalueindex(2));
-	if (*start == text_size(file->text))
+	if (*start == text_size(file->text)) {
 		return 0;
+	}
 	size_t end = text_line_end(file->text, *start);
 	size_t len = end - *start;
 	char *buf = lua_newuserdata(L, len);
-	if (!buf && len)
+	if (!buf && len) {
 		return 0;
+	}
 	len = text_bytes_get(file->text, *start, len, buf);
 	lua_pushlstring(L, buf, len);
 	*start = text_line_next(file->text, end);
@@ -2796,12 +3042,14 @@ static int file_lines_iterator_it(lua_State *L) {
 static int file_content(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	Filerange range = getrange(L, 2);
-	if (!text_range_valid(&range))
+	if (!text_range_valid(&range)) {
 		goto err;
+	}
 	size_t len = text_range_size(&range);
 	char *data = lua_newuserdata(L, len);
-	if (!data)
+	if (!data) {
 		goto err;
+	}
 	len = text_bytes_get(file->text, range.start, len, data);
 	lua_pushlstring(L, data, len);
 	return 1;
@@ -2820,10 +3068,11 @@ static int file_mark_set(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	size_t pos = checkpos(L, 2);
 	Mark mark = text_mark_set(file->text, pos);
-	if (mark)
+	if (mark) {
 		obj_lightref_new(L, (void*)mark, VIX_LUA_TYPE_MARK);
-	else
+	} else {
 		lua_pushnil(L);
+	}
 	return 1;
 }
 
@@ -2837,10 +3086,11 @@ static int file_mark_get(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	Mark mark = (Mark)obj_lightref_check(L, 2, VIX_LUA_TYPE_MARK);
 	size_t pos = text_mark_get(file->text, mark);
-	if (pos == EPOS)
+	if (pos == EPOS) {
 		lua_pushnil(L);
-	else
+	} else {
 		lua_pushinteger(L, pos);
+	}
 	return 1;
 }
 
@@ -2867,8 +3117,9 @@ static int file_text_object(lua_State *L) {
 	size_t idx = lua_tointeger(L, lua_upvalueindex(1));
 	if (idx < LENGTH(vix_textobjects)) {
 		const TextObject *txtobj = &vix_textobjects[idx];
-		if (txtobj->txt)
+		if (txtobj->txt) {
 			range = txtobj->txt(file->text, pos);
+		}
 	}
 	pushrange(L, &range);
 	return 1;
@@ -2895,8 +3146,9 @@ static int file_lines_index(lua_State *L) {
 	if (start != EPOS && end != EPOS) {
 		size_t size = end - start;
 		char *data = lua_newuserdata(L, size);
-		if (!data && size)
+		if (!data && size) {
 			goto err;
+		}
 		size = text_bytes_get(txt, start, size, data);
 		lua_pushlstring(L, data, size);
 		return 1;
@@ -2923,8 +3175,9 @@ static int file_lines_newindex(lua_State *L)
 	if (start != EPOS && end != EPOS) {
 		text_delete(txt, start, end - start);
 		text_insert(vix, txt, start, data, size);
-		if (text_size(txt) == start + size)
+		if (text_size(txt) == start + size) {
 			text_insert(vix, txt, text_size(txt), "\n", 1);
+		}
 	}
 	return 0;
 }
@@ -2934,10 +3187,12 @@ static int file_lines_len(lua_State *L) {
 	size_t lines = 0;
 	char lastchar;
 	size_t size = text_size(txt);
-	if (size > 0)
+	if (size > 0) {
 		lines = text_lineno_by_pos(txt, size);
-	if (lines > 1 && text_byte_get(txt, size-1, &lastchar) && lastchar == '\n')
+	}
+	if (lines > 1 && text_byte_get(txt, size-1, &lastchar) && lastchar == '\n') {
 		lines--;
+	}
 	lua_pushinteger(L, lines);
 	return 1;
 }
@@ -2953,14 +3208,17 @@ static int window_marks_index(lua_State *L) {
 	lua_newtable(L);
 	Vix *vix = lua_touserdata(L, lua_upvalueindex(1));
 	Win *win = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_MARKS, offsetof(Win, saved_selections));
-	if (!win)
+	if (!win) {
 		return 1;
+	}
 	const char *symbol = luaL_checkstring(L, 2);
-	if (strlen(symbol) != 1)
+	if (strlen(symbol) != 1) {
 		return 1;
+	}
 	enum VixMark mark = vix_mark_from(vix, symbol[0]);
-	if (mark == VIX_MARK_INVALID)
+	if (mark == VIX_MARK_INVALID) {
 		return 1;
+	}
 
 	FilerangeList ranges = vix_mark_get(vix, win, mark);
 	for (VixDACount i = 0; i < ranges.count; i++) {
@@ -2975,14 +3233,17 @@ static int window_marks_index(lua_State *L) {
 static int window_marks_newindex(lua_State *L) {
 	Vix *vix = lua_touserdata(L, lua_upvalueindex(1));
 	Win *win = obj_ref_check_containerof(L, 1, VIX_LUA_TYPE_MARKS, offsetof(Win, saved_selections));
-	if (!win)
+	if (!win) {
 		return 0;
+	}
 	const char *symbol = luaL_checkstring(L, 2);
-	if (strlen(symbol) != 1)
+	if (strlen(symbol) != 1) {
 		return 0;
+	}
 	enum VixMark mark = vix_mark_from(vix, symbol[0]);
-	if (mark == VIX_MARK_INVALID)
+	if (mark == VIX_MARK_INVALID) {
 		return 0;
+	}
 
 	FilerangeList ranges = {0};
 
@@ -2990,8 +3251,9 @@ static int window_marks_newindex(lua_State *L) {
 		lua_pushnil(L);
 		while (lua_next(L, 3)) {
 			Filerange range = getrange(L, -1);
-			if (text_range_valid(&range))
+			if (text_range_valid(&range)) {
 				*da_push(vix, &ranges) = range;
+			}
 			lua_pop(L, 1);
 		}
 	}
@@ -3125,8 +3387,9 @@ static void vix_lua_event_get(lua_State *L, const char *name) {
 static void vix_lua_event_call(Vix *vix, const char *name) {
 	lua_State *L = vix->lua;
 	vix_lua_event_get(L, name);
-	if (lua_isfunction(L, -1))
+	if (lua_isfunction(L, -1)) {
 		pcall(vix, L, 0, 0);
+	}
 	lua_pop(L, 1);
 }
 
@@ -3145,8 +3408,9 @@ static bool vix_lua_path_strip(Vix *vix) {
 		lua_getfield(L, -1, *var);
 		const char *path = lua_tostring(L, -1);
 		lua_pop(L, 1);
-		if (!path)
+		if (!path) {
 			return false;
+		}
 
 		char *copy = strdup(path), *stripped = calloc(1, strlen(path)+2);
 		if (!copy || !stripped) {
@@ -3156,10 +3420,12 @@ static bool vix_lua_path_strip(Vix *vix) {
 		}
 
 		for (char *elem = copy, *stripped_elem = stripped, *next; elem; elem = next) {
-			if ((next = strstr(elem, ";")))
+			if ((next = strstr(elem, ";"))) {
 				*next++ = '\0';
-			if (strstr(elem, "./"))
+			}
+			if (strstr(elem, "./")) {
 				continue; /* skip relative path entries */
+			}
 
 			/* skip paths with mismatched lua version */
 			char *ver = strstr(elem, "/lua/");
@@ -3194,8 +3460,9 @@ static bool vix_lua_path_strip(Vix *vix) {
 
 bool vix_lua_path_add(Vix *vix, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L || !path)
+	if (!L || !path) {
 		return false;
+	}
 	lua_getglobal(L, "package");
 	lua_pushstring(L, path);
 	lua_pushstring(L, "/?.lua;");
@@ -3210,8 +3477,9 @@ bool vix_lua_path_add(Vix *vix, const char *path) {
 
 bool vix_lua_cpath_add(Vix *vix, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L || !path)
+	if (!L || !path) {
 		return false;
+	}
 	lua_getglobal(L, "package");
 	lua_pushstring(L, path);
 	lua_pushstring(L, "/?.so;");
@@ -3224,8 +3492,9 @@ bool vix_lua_cpath_add(Vix *vix, const char *path) {
 
 bool vix_lua_paths_get(Vix *vix, char **lpath, char **cpath) {
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return false;
+	}
 	const char *s;
 	lua_getglobal(L, "package");
 	lua_getfield(L, -1, "path");
@@ -3248,8 +3517,9 @@ static bool package_exist(Vix *vix, lua_State *L, str8 name)
 			"end\n"
 		"end\n"
 		"return false\n";
-	if (luaL_loadstring(L, lua) != LUA_OK)
+	if (luaL_loadstring(L, lua) != LUA_OK) {
 		return false;
+	}
 	lua_pushlstring(L, (char *)name.data, name.length);
 	lua_insert(L, -2);
 	/* an error indicates package exists */
@@ -3283,8 +3553,9 @@ static void vix_lua_init(Vix *vix) {
 #else
 		lua_newstate(alloc_lua, vix);
 #endif
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix->lua = L;
 	lua_atpanic(L, &panic_handler);
 
@@ -3318,8 +3589,9 @@ static void vix_lua_init(Vix *vix) {
 	const char *home = getenv("HOME");
 	if (!home || !*home) {
 		struct passwd *pw = getpwuid(getuid());
-		if (pw)
+		if (pw) {
 			home = pw->pw_dir;
+		}
 	}
 
 	vix_lua_path_add(vix, "/etc/vix");
@@ -3523,8 +3795,9 @@ static void vix_lua_start(Vix *vix) {
  * @function quit
  */
 static void vix_lua_quit(Vix *vix) {
-	if (!vix->lua)
+	if (!vix->lua) {
 		return;
+	}
 	vix_lua_event_call(vix, "quit");
 	lua_close(vix->lua);
 	vix->lua = NULL;
@@ -3538,8 +3811,9 @@ static void vix_lua_quit(Vix *vix) {
  */
 static bool vix_lua_input(Vix *vix, const char *key, size_t len) {
 	lua_State *L = vix->lua;
-	if (!L || !vix->win || vix->win->file->internal)
+	if (!L || !vix->win || vix->win->file->internal) {
 		return false;
+	}
 	bool ret = false;
 	vix_lua_event_get(L, "input");
 	if (lua_isfunction(L, -1)) {
@@ -3554,13 +3828,15 @@ static bool vix_lua_input(Vix *vix, const char *key, size_t len) {
 }
 
 void vix_event_mode_insert_input(Vix *vix, const char *key, size_t len) {
-	if (!vix_lua_input(vix, key, len))
+	if (!vix_lua_input(vix, key, len)) {
 		vix_insert_key(vix, key, len);
+	}
 }
 
 void vix_event_mode_replace_input(Vix *vix, const char *key, size_t len) {
-	if (!vix_lua_input(vix, key, len))
+	if (!vix_lua_input(vix, key, len)) {
 		vix_replace_key(vix, key, len);
+	}
 }
 
 /***
@@ -3571,8 +3847,9 @@ void vix_event_mode_replace_input(Vix *vix, const char *key, size_t len) {
 static void vix_lua_file_open(Vix *vix, File *file) {
 	debug("event: file-open: %s %p %p\n", file->name ? file->name : "unnamed", (void*)file, (void*)file->text);
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "file_open");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3591,14 +3868,16 @@ static void vix_lua_file_open(Vix *vix, File *file) {
  */
 static bool vix_lua_file_save_pre(Vix *vix, File *file, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return true;
+	}
 	vix_lua_event_get(L, "file_save_pre");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
 		lua_pushstring(L, path);
-		if (pcall(vix, L, 2, 1) != 0)
+		if (pcall(vix, L, 2, 1) != 0) {
 			return false;
+		}
 		return !lua_isboolean(L, -1) || lua_toboolean(L, -1);
 	}
 	lua_pop(L, 1);
@@ -3614,8 +3893,9 @@ static bool vix_lua_file_save_pre(Vix *vix, File *file, const char *path) {
  */
 static void vix_lua_file_save_post(Vix *vix, File *file, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "file_save_post");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3634,8 +3914,9 @@ static void vix_lua_file_save_post(Vix *vix, File *file, const char *path) {
 static void vix_lua_file_close(Vix *vix, File *file) {
 	debug("event: file-close: %s %p %p\n", file->name ? file->name : "unnamed", (void*)file, (void*)file->text);
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "file_close");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3656,8 +3937,9 @@ static void vix_lua_file_close(Vix *vix, File *file) {
 static void vix_lua_win_open(Vix *vix, Win *win) {
 	debug("event: win-open: %s %p %p\n", win->file->name ? win->file->name : "unnamed", (void*)win, (void*)win->view);
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "win_open");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -3675,8 +3957,9 @@ static void vix_lua_win_open(Vix *vix, Win *win) {
 static void vix_lua_win_close(Vix *vix, Win *win) {
 	debug("event: win-close: %s %p %p\n", win->file->name ? win->file->name : "unnamed", (void*)win, (void*)win->view);
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "win_close");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -3696,8 +3979,9 @@ static void vix_lua_win_close(Vix *vix, Win *win) {
  */
 static void vix_lua_win_highlight(Vix *vix, Win *win) {
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "win_highlight");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -3735,14 +4019,16 @@ static void vix_lua_win_status(Vix *vix, Win *win) {
  */
 static void vix_lua_term_csi(Vix *vix, const long *csi) {
 	lua_State *L = vix->lua;
-	if (!L)
+	if (!L) {
 		return;
+	}
 	vix_lua_event_get(L, "term_csi");
 	if (lua_isfunction(L, -1)) {
 		int nargs = csi[1];
 		lua_pushinteger(L, csi[0]);
-		for (int i = 0; i < nargs; i++)
+		for (int i = 0; i < nargs; i++) {
 			lua_pushinteger(L, csi[2 + i]);
+		}
 		pcall(vix, L, 1 + nargs, 0);
 	}
 	lua_pop(L, 1);
@@ -3815,8 +4101,9 @@ bool vix_event_emit(Vix *vix, enum VixEvents id, ...) {
 	case VIX_EVENT_FILE_CLOSE:
 	{
 		File *file = va_arg(ap, File*);
-		if (file->internal)
+		if (file->internal) {
 			break;
+		}
 		if (id == VIX_EVENT_FILE_OPEN) {
 			vix_lua_file_open(vix, file);
 		} else if (id == VIX_EVENT_FILE_SAVE_PRE) {
@@ -3836,8 +4123,9 @@ bool vix_event_emit(Vix *vix, enum VixEvents id, ...) {
 	case VIX_EVENT_WIN_STATUS:
 	{
 		Win *win = va_arg(ap, Win*);
-		if (win->file->internal && id != VIX_EVENT_WIN_STATUS)
+		if (win->file->internal && id != VIX_EVENT_WIN_STATUS) {
 			break;
+		}
 		if (id == VIX_EVENT_WIN_OPEN) {
 			vix_lua_win_open(vix, win);
 		} else if (id == VIX_EVENT_WIN_CLOSE) {

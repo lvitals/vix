@@ -77,22 +77,22 @@ static struct test tests[] = {
 	  "	return p;\n"
 	  "}" },
 	{ "HAVE_ATTRIBUTE_COLD", DEFINES_FUNC, NULL, NULL,
-	  "static int __attribute__((cold)) func(int x) { return x; }" },
+	  "static int func(int x) { return x; }" },
 	{ "HAVE_ATTRIBUTE_CONST", DEFINES_FUNC, NULL, NULL,
-	  "static int __attribute__((const)) func(int x) { return x; }" },
+	  "static int func(int x) { return x; }" },
 	{ "HAVE_ATTRIBUTE_PURE", DEFINES_FUNC, NULL, NULL,
-	  "static int __attribute__((pure)) func(int x) { return x; }" },
+	  "static int func(int x) { return x; }" },
 	{ "HAVE_ATTRIBUTE_MAY_ALIAS", OUTSIDE_MAIN, NULL, NULL,
-	  "typedef short __attribute__((__may_alias__)) short_a;" },
+	  "typedef short short_a;" },
 	{ "HAVE_ATTRIBUTE_NORETURN", DEFINES_FUNC, NULL, NULL,
 	  "#include <stdlib.h>\n"
-	  "static void __attribute__((noreturn)) func(int x) { exit(x); }" },
+	  "static void func(int x) { exit(x); }" },
 	{ "HAVE_ATTRIBUTE_PRINTF", DEFINES_FUNC, NULL, NULL,
-	  "static void __attribute__((format(__printf__, 1, 2))) func(const char *fmt, ...) { }" },
+	  "static void func(const char *fmt, ...) { }" },
 	{ "HAVE_ATTRIBUTE_UNUSED", OUTSIDE_MAIN, NULL, NULL,
-	  "static int __attribute__((unused)) func(int x) { return x; }" },
+	  "int func(int x) { return x; }" },
 	{ "HAVE_ATTRIBUTE_USED", OUTSIDE_MAIN, NULL, NULL,
-	  "static int __attribute__((used)) func(int x) { return x; }" },
+	  "int func(int x) { return x; }" },
 	{ "HAVE_BACKTRACE", DEFINES_FUNC, NULL, NULL,
 	  "#include <execinfo.h>\n"
 	  "static int func(int x) {"
@@ -254,7 +254,7 @@ static struct test tests[] = {
 	  "}\n" },
 	{ "HAVE_SECTION_START_STOP",
 	  DEFINES_FUNC, NULL, NULL,
-	  "static void *__attribute__((__section__(\"mysec\"))) p = &p;\n"
+	  "static void *p = &p;\n"
 	  "static int func(void) {\n"
 	  "	extern void *__start_mysec[], *__stop_mysec[];\n"
 	  "	return __stop_mysec - __start_mysec;\n"
@@ -294,7 +294,7 @@ static struct test tests[] = {
 	{ "HAVE_WARN_UNUSED_RESULT", DEFINES_FUNC, NULL, NULL,
 	  "#include <sys/types.h>\n"
 	  "#include <utime.h>\n"
-	  "static __attribute__((warn_unused_result)) int func(int i) {\n"
+	  "static int func(int i) {\n"
 	  "	return i + 1;\n"
 	  "}" },
 };
@@ -309,11 +309,13 @@ static char *grab_fd(int fd)
 	buffer = malloc(max+1);
 	while ((ret = read(fd, buffer + size, max - size)) > 0) {
 		size += ret;
-		if (size == max)
+		if (size == max) {
 			buffer = realloc(buffer, max *= 2);
+		}
 	}
-	if (ret < 0)
+	if (ret < 0) {
 		err(1, "reading from command");
+	}
 	buffer[size] = '\0';
 	return buffer;
 }
@@ -325,24 +327,28 @@ static char *run(const char *cmd, int *exitstatus)
 	char *ret;
 	int status;
 
-	if (pipe(p) != 0)
+	if (pipe(p) != 0) {
 		err(1, "creating pipe");
+	}
 
 	pid = fork();
-	if (pid == -1)
+	if (pid == -1) {
 		err(1, "forking");
+	}
 
 	if (pid == 0) {
 		if (dup2(p[1], STDOUT_FILENO) != STDOUT_FILENO
 		    || dup2(p[1], STDERR_FILENO) != STDERR_FILENO
 		    || close(p[0]) != 0
 		    || close(STDIN_FILENO) != 0
-		    || open("/dev/null", O_RDONLY) != STDIN_FILENO)
+		    || open("/dev/null", O_RDONLY) != STDIN_FILENO) {
 			exit(128);
+		}
 
 		status = system(cmd);
-		if (WIFEXITED(status))
+		if (WIFEXITED(status)) {
 			exit(WEXITSTATUS(status));
+		}
 		/* Here's a hint... */
 		exit(128 + WTERMSIG(status));
 	}
@@ -350,13 +356,15 @@ static char *run(const char *cmd, int *exitstatus)
 	close(p[1]);
 	ret = grab_fd(p[0]);
 	/* This shouldn't fail... */
-	if (waitpid(pid, &status, 0) != pid)
+	if (waitpid(pid, &status, 0) != pid) {
 		err(1, "Failed to wait for child");
+	}
 	close(p[0]);
-	if (WIFEXITED(status))
+	if (WIFEXITED(status)) {
 		*exitstatus = WEXITSTATUS(status);
-	else
+	} else {
 		*exitstatus = -WTERMSIG(status);
+	}
 	return ret;
 }
 
@@ -365,16 +373,18 @@ static char *connect_args(const char *argv[], const char *extra)
 	unsigned int i, len = strlen(extra) + 1;
 	char *ret;
 
-	for (i = 1; argv[i]; i++)
+	for (i = 1; argv[i]; i++) {
 		len += 1 + strlen(argv[i]);
+	}
 
 	ret = malloc(len);
 	len = 0;
 	for (i = 1; argv[i]; i++) {
 		strcpy(ret + len, argv[i]);
 		len += strlen(argv[i]);
-		if (argv[i+1])
+		if (argv[i+1]) {
 			ret[len++] = ' ';
+		}
 	}
 	strcpy(ret + len, extra);
 	return ret;
@@ -385,8 +395,9 @@ static struct test *find_test(const char *name)
 	unsigned int i;
 
 	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
-		if (strcmp(tests[i].name, name) == 0)
+		if (strcmp(tests[i].name, name) == 0) {
 			return &tests[i];
+		}
 	}
 	abort();
 }
@@ -403,8 +414,9 @@ static bool run_test(const char *cmd, struct test *test)
 	FILE *outf;
 	int status;
 
-	if (test->done)
+	if (test->done) {
 		return test->answer;
+	}
 
 	if (test->depends) {
 		size_t len;
@@ -436,8 +448,9 @@ static bool run_test(const char *cmd, struct test *test)
 	}
 
 	outf = fopen(INPUT_FILE, "w");
-	if (!outf)
+	if (!outf) {
 		err(1, "creating %s", INPUT_FILE);
+	}
 
 	fprintf(outf, "%s", PRE_BOILERPLATE);
 	switch (test->style & ~(EXECUTE|MAY_NOT_COMPILE)) {
@@ -468,29 +481,34 @@ static bool run_test(const char *cmd, struct test *test)
 	}
 	fclose(outf);
 
-	if (verbose > 1)
-		if (system("cat " INPUT_FILE) == -1)
+	if (verbose > 1) {
+		if (system("cat " INPUT_FILE) == -1) {
 			;
+		}
+	}
 
 	if (test->link) {
 		char *newcmd;
 		newcmd = malloc(strlen(cmd) + strlen(" ")
 				+ strlen(test->link) + 1);
 		sprintf(newcmd, "%s %s", cmd, test->link);
-		if (verbose > 1)
+		if (verbose > 1) {
 			printf("Extra link line: %s", newcmd);
+		}
 		cmd = newcmd;
 	}
 
 	output = run(cmd, &status);
 	if (status != 0 || strstr(output, "warning")) {
-		if (verbose)
+		if (verbose) {
 			printf("Compile %s for %s, status %i: %s\n",
 			       status ? "fail" : "warning",
 			       test->name, status, output);
-		if ((test->style & EXECUTE) && !(test->style & MAY_NOT_COMPILE))
+		}
+		if ((test->style & EXECUTE) && !(test->style & MAY_NOT_COMPILE)) {
 			errx(1, "Test for %s did not compile:\n%s",
 			     test->name, output);
+		}
 		test->answer = false;
 		free(output);
 	} else {
@@ -499,11 +517,13 @@ static bool run_test(const char *cmd, struct test *test)
 		/* We run INSIDE_MAIN tests for sanity checking. */
 		if ((test->style & EXECUTE) || (test->style & INSIDE_MAIN)) {
 			output = run("./" OUTPUT_FILE, &status);
-			if (!(test->style & EXECUTE) && status != 0)
+			if (!(test->style & EXECUTE) && status != 0) {
 				errx(1, "Test for %s failed with %i:\n%s",
 				     test->name, status, output);
-			if (verbose && status)
+			}
+			if (verbose && status) {
 				printf("%s exited %i\n", test->name, status);
+			}
 			free(output);
 		}
 		test->answer = (status == 0);
@@ -544,12 +564,14 @@ int main(int argc, const char *argv[])
 		}
 	}
 
-	if (argc == 1)
+	if (argc == 1) {
 		argv = default_args;
+	}
 
 	cmd = connect_args(argv, " -o " OUTPUT_FILE " " INPUT_FILE);
-	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
+	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
 		run_test(cmd, &tests[i]);
+	}
 
 	unlink(OUTPUT_FILE);
 	unlink(INPUT_FILE);
@@ -564,8 +586,9 @@ int main(int argc, const char *argv[])
 	printf("#define CCAN_CFLAGS \"%s\"\n\n", connect_args(argv+1, ""));
 	/* This one implies "#include <ccan/..." works, eg. for tdb2.h */
 	printf("#define HAVE_CCAN 1\n");
-	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
+	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
 		printf("#define %s %u\n", tests[i].name, tests[i].answer);
+	}
 	printf("#endif /* CCAN_CONFIG_H */\n");
 	return 0;
 }

@@ -84,20 +84,24 @@ static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 
 	if (!data) {
 		data = calloc(1, sizeof(CursesData));
-		if (!data) return CELL_COLOR_DEFAULT;
+		if (!data) {
+			return CELL_COLOR_DEFAULT;
+		}
 		ui->backend_data = data;
 		data->change_colors = -1;
 	}
 
-	if (data->change_colors == -1)
+	if (data->change_colors == -1) {
 		data->change_colors = ui->vix->change_colors && can_change_color() && COLORS >= 256;
+	}
 	if (data->change_colors) {
 		uint32_t hexrep = (r << 16) | (g << 8) | b;
 		for (short i = 0; i < MAX_COLOR_CLOBBER; ++i) {
-			if (clobbering_colors[i] == hexrep)
+			if (clobbering_colors[i] == hexrep) {
 				return i + 16;
-			else if (!clobbering_colors[i])
+			} else if (!clobbering_colors[i]) {
 				break;
+			}
 		}
 
 		short i = color_clobber_idx;
@@ -106,8 +110,9 @@ static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 		           (b * 1000) / 0xff);
 
 		/* in the unlikely case a user requests this many colors, reuse old slots */
-		if (++color_clobber_idx >= MAX_COLOR_CLOBBER)
+		if (++color_clobber_idx >= MAX_COLOR_CLOBBER) {
 			color_clobber_idx = 0;
+		}
 
 		return i + 16;
 	}
@@ -157,8 +162,9 @@ static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 		}
 	}
 
-	if (COLORS <= 16)
+	if (COLORS <= 16) {
 		return color_256_to_16[i];
+	}
 	return i;
 }
 
@@ -167,10 +173,12 @@ static CellColor color_terminal(Ui *ui, uint8_t index) {
 }
 
 static inline unsigned int color_pair_hash(short fg, short bg) {
-	if (fg == CELL_COLOR_DEFAULT)
+	if (fg == CELL_COLOR_DEFAULT) {
 		fg = COLORS;
-	if (bg == CELL_COLOR_DEFAULT)
+	}
+	if (bg == CELL_COLOR_DEFAULT) {
 		bg = COLORS + 1;
+	}
 	return fg * (COLORS + 2) + bg;
 }
 
@@ -180,37 +188,45 @@ static short color_pair_get(Ui *ui, short fg, short bg) {
 
 	if (!data) {
 		data = calloc(1, sizeof(CursesData));
-		if (!data)
+		if (!data) {
 			return 0;
+		}
 		ui->backend_data = data;
 		data->change_colors = -1;
 		pair_content(0, &data->default_fg, &data->default_bg);
 		has_default_colors = (use_default_colors() == OK);
-		if (COLORS)
+		if (COLORS) {
 			data->color2palette = calloc((COLORS + 2) * (COLORS + 2), sizeof(short));
+		}
 	}
 
-	if (fg >= COLORS)
+	if (fg >= COLORS) {
 		fg = data->default_fg;
-	if (bg >= COLORS)
+	}
+	if (bg >= COLORS) {
 		bg = data->default_bg;
+	}
 
 	if (!has_default_colors) {
-		if (fg == -1)
+		if (fg == -1) {
 			fg = data->default_fg;
-		if (bg == -1)
+		}
+		if (bg == -1) {
 			bg = data->default_bg;
+		}
 	}
 
-	if (!data->color2palette)
+	if (!data->color2palette) {
 		return 0;
+	}
 
 	unsigned int index = color_pair_hash(fg, bg);
 	if (data->color2palette[index] == 0) {
 		short oldfg, oldbg;
 		short color_pairs_max = MIN(MAX_COLOR_PAIRS, SHRT_MAX);
-		if (++data->color_pair_current >= color_pairs_max)
+		if (++data->color_pair_current >= color_pairs_max) {
 			data->color_pair_current = 1;
+		}
 		pair_content(data->color_pair_current, &oldfg, &oldbg);
 		unsigned int old_index = color_pair_hash(oldfg, oldbg);
 		if (init_pair(data->color_pair_current, fg, bg) == OK) {
@@ -227,6 +243,9 @@ static inline attr_t style_to_attr(Ui *ui, CellStyle *style) {
 }
 
 static void ui_term_backend_blit(Ui *tui) {
+	if (tui->vix->headless) {
+		return;
+	}
 	int w = tui->width, h = tui->height;
 	Cell *cell = tui->cells;
 	for (int y = 0; y < h; y++) {
@@ -237,22 +256,33 @@ static void ui_term_backend_blit(Ui *tui) {
 		}
 	}
 	wnoutrefresh(stdscr);
-	if (tui->doupdate)
+	if (tui->doupdate) {
 		doupdate();
+	}
 }
 
 static void ui_term_backend_clear(Ui *tui) {
+	if (tui->vix->headless) {
+		return;
+	}
 	clear();
 }
 
 static bool ui_term_backend_resize(Ui *tui, int width, int height) {
+	if (tui->vix->headless) {
+		return true;
+	}
 	return resizeterm(height, width) == OK &&
 	       wresize(stdscr, height, width) == OK;
 }
 
 static void ui_term_backend_save(Ui *tui, bool fscr) {
-	if (tui->is_tty)
+	if (tui->vix->headless) {
+		return;
+	}
+	if (tui->is_tty) {
 		curs_set(1);
+	}
 	if (fscr) {
 		def_prog_mode();
 		endwin();
@@ -262,11 +292,16 @@ static void ui_term_backend_save(Ui *tui, bool fscr) {
 }
 
 static void ui_term_backend_restore(Ui *tui) {
-	if (tui->is_tty)
+	if (tui->vix->headless) {
+		return;
+	}
+	if (tui->is_tty) {
 		reset_prog_mode();
+	}
 	wclear(stdscr);
-	if (tui->is_tty)
+	if (tui->is_tty) {
 		curs_set(0);
+	}
 }
 
 int ui_terminal_colors(void) {
@@ -278,8 +313,9 @@ static bool ui_term_backend_init(Ui *tui, char *term) {
 	if (!screen) {
 		snprintf(tui->info, sizeof(tui->info), "Warning: unknown term `%s'", term);
 		screen = newterm(strstr(term, "-256color") ? "xterm-256color" : "xterm", stderr, stdin);
-		if (!screen)
+		if (!screen) {
 			return false;
+		}
 	}
 	tui->ctx = screen;
 	start_color();
@@ -287,11 +323,14 @@ static bool ui_term_backend_init(Ui *tui, char *term) {
 	cbreak();
 	noecho();
 	nonl();
-	if (tui->is_tty)
+	if (tui->is_tty) {
 		keypad(stdscr, TRUE);
+	}
 	meta(stdscr, TRUE);
-	if (tui->is_tty)
+	scrollok(stdscr, FALSE);
+	if (tui->is_tty) {
 		curs_set(0);
+	}
 	return true;
 }
 
@@ -303,8 +342,9 @@ void ui_terminal_resume(Ui *term) { }
 
 static void ui_term_backend_suspend(Ui *term) {
 	CursesData *data = term->backend_data;
-	if (data && data->change_colors == 1)
+	if (data && data->change_colors == 1) {
 		undo_palette();
+	}
 }
 
 static void ui_term_backend_free(Ui *term) {

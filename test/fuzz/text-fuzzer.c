@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -6,10 +7,20 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <setjmp.h>
+#include <termkey.h>
 #include "fuzzer.h"
-#include "text.h"
-#include "text-util.h"
-#include "util.h"
+#include "vix-core.h"
+
+static Vix vix_obj;
+static Vix *vix = &vix_obj;
+
+#include "../../util.c"
+#include "../../text.c"
+
+bool vix_event_emit(Vix *v, enum VixEvents id, ...) {
+	return true;
+}
 
 #ifndef BUFSIZ
 #define BUFSIZ 1024
@@ -24,10 +35,11 @@ static char data[BUFSIZ];
 static uint64_t bench(void) {
 	struct timespec ts;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
 		return (uint64_t)(ts.tv_sec * 1000000 + ts.tv_nsec / 1000);
-	else
+	} else {
 		return 0;
+	}
 }
 
 static size_t pos_start(Text *txt) {
@@ -49,8 +61,9 @@ static size_t pos_random(Text *txt) {
 static size_t pos_prev(Text *txt) {
 	static size_t pos = EPOS;
 	size_t max = text_size(txt);
-	if (pos > max)
+	if (pos > max) {
 		pos = max;
+	}
 	return pos-- % (max + 1);
 }
 
@@ -65,7 +78,7 @@ static size_t pos_stripe(Text *txt) {
 }
 
 static enum CmdStatus bench_insert(Text *txt, size_t pos, const char *cmd) {
-	return text_insert(txt, pos, data, sizeof data);
+	return text_insert(vix, txt, pos, data, sizeof data);
 }
 
 static enum CmdStatus bench_delete(Text *txt, size_t pos, const char *cmd) {
@@ -74,16 +87,18 @@ static enum CmdStatus bench_delete(Text *txt, size_t pos, const char *cmd) {
 
 static enum CmdStatus bench_replace(Text *txt, size_t pos, const char *cmd) {
 	text_delete(txt, pos, 1);
-	text_insert(txt, pos, "-", 1);
+	text_insert(vix, txt, pos, "-", 1);
 	return CMD_OK;
 }
 
 static enum CmdStatus bench_mark(Text *txt, size_t pos, const char *cmd) {
 	Mark mark = text_mark_set(txt, pos);
-	if (mark == EMARK)
+	if (mark == EMARK) {
 		return CMD_FAIL;
-	if (text_mark_get(txt, mark) != pos)
+	}
+	if (text_mark_get(txt, mark) != pos) {
 		return CMD_FAIL;
+	}
 	return CMD_OK;
 }
 
@@ -113,8 +128,9 @@ static enum CmdStatus cmd_bench(Text *txt, const char *cmd) {
 	}
 
 	const char *params = cmd;
-	while (*params == ' ')
+	while (*params == ' ') {
 		params++;
+	}
 
 	size_t idx_cmd = params[0];
 	if (idx_cmd >= LENGTH(bench_cmd) || !bench_cmd[idx_cmd]) {
@@ -138,8 +154,9 @@ static enum CmdStatus cmd_bench(Text *txt, const char *cmd) {
 		uint64_t s = bench();
 		enum CmdStatus ret = bench_cmd[idx_cmd](txt, pos, NULL);
 		uint64_t e = bench();
-		if (ret != CMD_OK)
+		if (ret != CMD_OK) {
 			return ret;
+		}
 		printf("%zu: %" PRIu64 "us\n", i, e-s);
 	}
 	return CMD_OK;
@@ -148,16 +165,18 @@ static enum CmdStatus cmd_bench(Text *txt, const char *cmd) {
 static enum CmdStatus cmd_insert(Text *txt, const char *cmd) {
 	char data[BUFSIZ];
 	size_t pos;
-	if (sscanf(cmd, "%zu %s\n", &pos, data) != 2)
+	if (sscanf(cmd, "%zu %s\n", &pos, data) != 2) {
 		return CMD_ERR;
+	}
 	size_t len = strlen(data);
-	return text_insert(txt, pos, data, len);
+	return text_insert(vix, txt, pos, data, len);
 }
 
 static enum CmdStatus cmd_delete(Text *txt, const char *cmd) {
 	size_t pos, len;
-	if (sscanf(cmd, "%zu %zu", &pos, &len) != 2)
+	if (sscanf(cmd, "%zu %zu", &pos, &len) != 2) {
 		return CMD_ERR;
+	}
 	return text_delete(txt, pos, len);
 }
 
@@ -189,18 +208,21 @@ static enum CmdStatus cmd_later(Text *txt, const char *cmd) {
 
 static enum CmdStatus cmd_mark_set(Text *txt, const char *cmd) {
 	size_t pos;
-	if (sscanf(cmd, "%zu\n", &pos) != 1)
+	if (sscanf(cmd, "%zu\n", &pos) != 1) {
 		return CMD_ERR;
+	}
 	Mark m = text_mark_set(txt, pos);
-	if (m != EMARK)
+	if (m != EMARK) {
 		mark = m;
+	}
 	return m != EMARK;
 }
 
 static enum CmdStatus cmd_mark_get(Text *txt, const char *cmd) {
 	size_t pos = text_mark_get(txt, mark);
-	if (pos != EPOS)
+	if (pos != EPOS) {
 		printf("%zu\n", pos);
+	}
 	return pos != EPOS;
 }
 
@@ -210,14 +232,17 @@ static enum CmdStatus cmd_print(Text *txt, const char *cmd) {
 	     rem > 0 && text_iterator_valid(&it);
 	     text_iterator_next(&it)) {
 		size_t prem = it.end - it.text;
-		if (prem > rem)
+		if (prem > rem) {
 			prem = rem;
-		if (fwrite(it.text, prem, 1, stdout) != 1)
+		}
+		if (fwrite(it.text, prem, 1, stdout) != 1) {
 			return CMD_ERR;
+		}
 		rem -= prem;
 	}
-	if (rem != size)
+	if (rem != size) {
 		puts("");
+	}
 	return rem == 0; 
 }
 
@@ -262,9 +287,10 @@ static Cmd commands[] = {
 };
 
 static int repl(const char *name, FILE *input) {
-	Text *txt = text_load(name);
-	if (!name)
+	Text *txt = text_load(vix, name);
+	if (!name) {
 		name = "-";
+	}
 	if (!txt) {
 		fprintf(stderr, "Failed to load text from `%s'\n", name);
 		return 1;
@@ -275,18 +301,22 @@ static int repl(const char *name, FILE *input) {
 	char line[BUFSIZ];
 	for (;;) {
 		printf("> ");
-		if (!fgets(line, sizeof(line), input))
+		if (!fgets(line, sizeof(line), input)) {
 			break;
-		if (!isatty(0))
+		}
+		if (!isatty(0)) {
 			printf("%s", line);
-		if (line[0] == '\n')
+		}
+		if (line[0] == '\n') {
 			continue;
+		}
 		size_t idx = line[0];
 		if (idx < LENGTH(commands) && commands[idx]) {
 			enum CmdStatus ret = commands[idx](txt, line+1);
 			printf("%s", cmd_status_msg[ret]);
-			if (ret == CMD_QUIT)
+			if (ret == CMD_QUIT) {
 				break;
+			}
 		} else {
 			puts("Invalid command");
 		}
@@ -301,8 +331,9 @@ static int repl(const char *name, FILE *input) {
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
 	FILE *input = fmemopen((void*)data, len, "r");
-	if (!input)
+	if (!input) {
 		return 1;
+	}
 	int r = repl(NULL, input);
 	fclose(input);
 	return r;

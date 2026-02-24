@@ -106,6 +106,10 @@ vix.events.subscribe(vix.events.WIN_STATUS, function(win)
 	table.insert(left_parts, (file.name or '[No Name]') ..
 		(file.modified and ' [+]' or '') .. (vix.recording and ' @' or ''))
 
+	if win.syntax then
+		table.insert(left_parts, win.syntax)
+	end
+
 	local count = vix.count
 	local keys = vix.input_queue
 	if keys ~= '' then
@@ -148,6 +152,98 @@ vix:command_register("lua", function(argv, force, win, selection, range)
 	return true
 end, "Execute Lua code")
 
+vix:command_register("wrc", function()
+	local home = os.getenv("HOME")
+	local config_dir = os.getenv("XDG_CONFIG_HOME") or (home .. "/.config")
+	local local_rc_path = config_dir .. "/vix/vixrc.lua"
+	
+	local read_path = package.searchpath('vixrc', package.path)
+	
+	local lines = {}
+	if read_path then
+		local f = io.open(read_path, "r")
+		if f then
+			for line in f:lines() do table.insert(lines, line) end
+			f:close()
+		end
+	end
+
+	local changes = vix:session_changes()
+	local changed_count = 0
+	
+	-- Helper to find or create block and insert/replace
+	local function update_block(block_name, opt, cmd, aliases)
+		local block_start = nil
+		local block_end = nil
+		for i, line in ipairs(lines) do
+			if line:match("vix.events.subscribe%(vix.events." .. block_name) then
+				block_start = i
+				for j = i + 1, #lines do
+					if lines[j]:match("^end%)") then
+						block_end = j
+						break
+					end
+				end
+				break
+			end
+		end
+
+		local found = false
+		if block_start and block_end then
+			for i = block_start + 1, block_end - 1 do
+				local matched = false
+				for _, alias in ipairs(aliases or {opt}) do
+					if lines[i]:match("set%s+" .. alias .. "[%s']") or lines[i]:match("set%s+" .. alias .. '[%s"]') then
+						matched = true
+						break
+					end
+				end
+				if matched then
+					lines[i] = "\t" .. cmd
+					found = true
+					break
+				end
+			end
+			if not found then
+				table.insert(lines, block_end, "\t" .. cmd)
+			end
+			return true
+		end
+		return false
+	end
+
+	for opt, _ in pairs(changes) do
+		local val = vix:option_value(opt)
+		if val then
+			local info = vix:option_type(opt)
+			local cmd = string.format("vix:command('set %s %s')", opt, val)
+			local block = (info and info.need_window) and "WIN_OPEN" or "INIT"
+			
+			if not update_block(block, opt, cmd, info and info.aliases) then
+				-- Fallback: if block not found, just append to end
+				table.insert(lines, cmd)
+			end
+			changed_count = changed_count + 1
+		end
+	end
+
+	if changed_count == 0 then
+		vix:info("No session changes to save.")
+		return true
+	end
+
+	os.execute("mkdir -p " .. config_dir .. "/vix")
+	local f = io.open(local_rc_path, "w")
+	if f then
+		for _, line in ipairs(lines) do f:write(line .. "\n") end
+		f:close()
+		vix:info(string.format("Saved %d options to %s", changed_count, local_rc_path))
+	else
+		vix:info("Failed to write to " .. local_rc_path)
+	end
+	return true
+end, "Save session changes to vixrc.lua")
+
 -- default plugins
 
 require('plugins/filetype')
@@ -156,3 +252,4 @@ require('plugins/digraph')
 require('plugins/number-inc-dec')
 require('plugins/complete-word')
 require('plugins/complete-filename')
+require('plugins/shell-alias')

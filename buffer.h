@@ -39,7 +39,7 @@ VIX_INTERNAL bool buffer_append(Buffer*, const void *data, size_t len);
 /** Append NUL-terminated data. */
 VIX_INTERNAL bool buffer_append0(Buffer*, const char *data);
 /** Append formatted buffer content, ensures NUL termination on success. */
-VIX_INTERNAL bool buffer_appendf(Buffer*, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+VIX_INTERNAL bool buffer_appendf(Buffer*, const char *fmt, ...);
 /** Return length of a buffer without trailing NUL byte. */
 VIX_INTERNAL size_t buffer_length0(Buffer*);
 /**

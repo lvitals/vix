@@ -202,11 +202,13 @@ static KEY_ACTION_FN(ka_nop)
 static KEY_ACTION_FN(ka_macro_record)
 {
 	if (!vix_macro_record_stop(vix)) {
-		if (!keys[0])
+		if (!keys[0]) {
 			return NULL;
+		}
 		const char *next = vix_keys_next(vix, keys);
-		if (next - keys > 1)
+		if (next - keys > 1) {
 			return next;
+		}
 		enum VixRegister reg = vix_register_from(vix, keys[0]);
 		vix_macro_record(vix, reg);
 		keys++;
@@ -217,11 +219,13 @@ static KEY_ACTION_FN(ka_macro_record)
 
 static KEY_ACTION_FN(ka_macro_replay)
 {
-	if (!keys[0])
+	if (!keys[0]) {
 		return NULL;
+	}
 	const char *next = vix_keys_next(vix, keys);
-	if (next - keys > 1)
+	if (next - keys > 1) {
 		return next;
+	}
 	enum VixRegister reg = vix_register_from(vix, keys[0]);
 	vix_macro_replay(vix, reg);
 	return keys+1;
@@ -255,27 +259,31 @@ static KEY_ACTION_FN(ka_selections_new)
 			sel = view_selections(view);
 			break;
 		case INT_MAX:
-			for (Selection *s = view_selections(view); s; s = view_selections_next(s))
+			for (Selection *s = view_selections(view); s; s = view_selections_next(s)) {
 				sel = s;
+			}
 			break;
 		}
 
-		if (!sel)
+		if (!sel) {
 			return keys;
+		}
 
 		size_t oldpos = view_cursors_pos(sel);
-		if (arg->i > 0)
+		if (arg->i > 0) {
 			view_line_down(sel);
-		else if (arg->i < 0)
+		} else if (arg->i < 0) {
 			view_line_up(sel);
+		}
 		size_t newpos = view_cursors_pos(sel);
 		view_cursors_to(sel, oldpos);
 		Selection *sel_new = view_selections_new(view, newpos);
 		if (!sel_new) {
-			if (arg->i == -1)
+			if (arg->i == -1) {
 				sel_new = view_selections_prev(sel);
-			else if (arg->i == +1)
+			} else if (arg->i == +1) {
 				sel_new = view_selections_next(sel);
+			}
 		}
 		if (sel_new) {
 			view_selections_primary_set(sel_new);
@@ -292,17 +300,16 @@ static KEY_ACTION_FN(ka_selections_align)
 	Text *txt = vix_text(vix);
 	int mincol = INT_MAX;
 	for (Selection *s = view_selections(view); s; s = view_selections_next(s)) {
-		if (!s->line)
-			continue;
-		if (s->col >= 0 && s->col < mincol)
-			mincol = s->col;
+		size_t pos = view_cursors_pos(s);
+		int col = text_line_width_get(txt, pos);
+		if (col >= 0 && col < mincol) {
+			mincol = col;
+		}
 	}
 	for (Selection *s = view_selections(view); s; s = view_selections_next(s)) {
-		if (view_cursors_cell_set(s, mincol) == -1) {
-			size_t pos = view_cursors_pos(s);
-			size_t col = text_line_width_set(txt, pos, mincol);
-			view_cursors_to(s, col);
-		}
+		size_t pos = view_cursors_pos(s);
+		size_t newpos = text_line_width_set(txt, pos, mincol);
+		view_cursors_to(s, newpos);
 	}
 	return keys;
 }
@@ -320,16 +327,19 @@ static KEY_ACTION_FN(ka_selections_align_indent)
 			Filerange sel = view_selections_get(s);
 			size_t pos = left_align ? sel.start : sel.end;
 			int col = text_line_width_get(txt, pos);
-			if (col < mincol)
+			if (col < mincol) {
 				mincol = col;
-			if (col > maxcol)
+			}
+			if (col > maxcol) {
 				maxcol = col;
+			}
 		}
 
 		size_t len = maxcol - mincol;
 		char *buf = malloc(len+1);
-		if (!buf)
+		if (!buf) {
 			return keys;
+		}
 		memset(buf, ' ', len);
 
 		for (Selection *s = view_selections_column(view, i); s; s = view_selections_column_next(s, i)) {
@@ -339,8 +349,9 @@ static KEY_ACTION_FN(ka_selections_align_indent)
 			int col = text_line_width_get(txt, pos);
 			if (col < maxcol) {
 				size_t off = maxcol - col;
-				if (off <= len)
+				if (off <= len) {
 					text_insert(vix, txt, ipos, buf, off);
+				}
 			}
 		}
 
@@ -354,10 +365,11 @@ static KEY_ACTION_FN(ka_selections_align_indent)
 static KEY_ACTION_FN(ka_selections_clear)
 {
 	View *view = vix_view(vix);
-	if (view->selection_count > 1)
+	if (view->selection_count > 1) {
 		view_selections_dispose_all(view);
-	else
+	} else {
 		view_selection_clear(view_selections_primary_get(view));
+	}
 	return keys;
 }
 
@@ -365,12 +377,14 @@ static Selection *ka_selection_new(View *view, Filerange *r, bool isprimary) {
 	Text *txt = view->text;
 	size_t pos = text_char_prev(txt, r->end);
 	Selection *s = view_selections_new(view, pos);
-	if (!s)
+	if (!s) {
 		return NULL;
+	}
 	view_selections_set(s, r);
 	s->anchored = true;
-	if (isprimary)
+	if (isprimary) {
 		view_selections_primary_set(s);
+	}
 	return s;
 }
 
@@ -380,8 +394,9 @@ static KEY_ACTION_FN(ka_selections_match_next)
 	View *view = vix_view(vix);
 	Selection *s = view_selections_primary_get(view);
 	Filerange sel = view_selections_get(s);
-	if (!text_range_valid(&sel))
+	if (!text_range_valid(&sel)) {
 		return keys;
+	}
 
 	static bool match_word;
 
@@ -398,28 +413,33 @@ static KEY_ACTION_FN(ka_selections_match_next)
 	}
 
 	char *buf = text_bytes_alloc0(txt, sel.start, text_range_size(&sel));
-	if (!buf)
+	if (!buf) {
 		return keys;
+	}
 
 	bool match_all = arg->b;
 	Filerange primary = sel;
 
 	for (;;) {
 		sel = find_next(txt, sel.end, buf);
-		if (!text_range_valid(&sel))
+		if (!text_range_valid(&sel)) {
 			break;
-		if (ka_selection_new(view, &sel, !match_all) && !match_all)
+		}
+		if (ka_selection_new(view, &sel, !match_all) && !match_all) {
 			goto out;
+		}
 	}
 
 	sel = primary;
 
 	for (;;) {
 		sel = find_prev(txt, sel.start, buf);
-		if (!text_range_valid(&sel))
+		if (!text_range_valid(&sel)) {
 			break;
-		if (ka_selection_new(view, &sel, !match_all) && !match_all)
+		}
+		if (ka_selection_new(view, &sel, !match_all) && !match_all) {
 			break;
+		}
 	}
 
 out:
@@ -432,8 +452,9 @@ static KEY_ACTION_FN(ka_selections_match_skip)
 	View *view = vix_view(vix);
 	Selection *sel = view_selections_primary_get(view);
 	keys = ka_selections_match_next(vix, keys, arg);
-	if (sel != view_selections_primary_get(view))
+	if (sel != view_selections_primary_get(view)) {
 		view_selections_dispose(sel);
+	}
 	return keys;
 }
 
@@ -450,8 +471,9 @@ static KEY_ACTION_FN(ka_selections_remove_column)
 	View *view = vix_view(vix);
 	int max = view_selections_column_count(view);
 	int column = VIX_COUNT_DEFAULT(vix->action.count, arg->i) - 1;
-	if (column >= max)
+	if (column >= max) {
 		column = max - 1;
+	}
 	if (view->selection_count == 1) {
 		vix_keys_feed(vix, "<Escape>");
 		return keys;
@@ -471,8 +493,9 @@ static KEY_ACTION_FN(ka_selections_remove_column_except)
 	View *view = vix_view(vix);
 	int max = view_selections_column_count(view);
 	int column = VIX_COUNT_DEFAULT(vix->action.count, arg->i) - 1;
-	if (column >= max)
+	if (column >= max) {
 		column = max - 1;
+	}
 	if (view->selection_count == 1) {
 		vix_redraw(vix);
 		return keys;
@@ -482,10 +505,11 @@ static KEY_ACTION_FN(ka_selections_remove_column_except)
 	Selection *col = view_selections_column(view, column);
 	for (Selection *next; sel; sel = next) {
 		next = view_selections_next(sel);
-		if (sel == col)
+		if (sel == col) {
 			col = view_selections_column_next(col, column);
-		else
+		} else {
 			view_selections_dispose(sel);
+		}
 	}
 
 	vix->action.count = VIX_COUNT_UNKNOWN;
@@ -510,12 +534,14 @@ static KEY_ACTION_FN(ka_wscroll)
 		view_scroll_halfpage_down(view);
 		break;
 	default:
-		if (count == VIX_COUNT_UNKNOWN)
+		if (count == VIX_COUNT_UNKNOWN) {
 			count = arg->i < 0 ? -arg->i : arg->i;
-		if (arg->i < 0)
+		}
+		if (arg->i < 0) {
 			view_scroll_up(view, count);
-		else
+		} else {
 			view_scroll_down(view, count);
+		}
 		break;
 	}
 	vix->action.count = VIX_COUNT_UNKNOWN;
@@ -526,12 +552,14 @@ static KEY_ACTION_FN(ka_wslide)
 {
 	View *view = vix_view(vix);
 	int count = vix->action.count;
-	if (count == VIX_COUNT_UNKNOWN)
+	if (count == VIX_COUNT_UNKNOWN) {
 		count = arg->i < 0 ? -arg->i : arg->i;
-	if (arg->i >= 0)
+	}
+	if (arg->i >= 0) {
 		view_slide_down(view, count);
-	else
+	} else {
 		view_slide_up(view, count);
+	}
 	vix->action.count = VIX_COUNT_UNKNOWN;
 	return keys;
 }
@@ -539,21 +567,24 @@ static KEY_ACTION_FN(ka_wslide)
 static KEY_ACTION_FN(ka_selections_navigate)
 {
 	View *view = vix_view(vix);
-	if (view->selection_count == 1)
+	if (view->selection_count == 1) {
 		return ka_wscroll(vix, keys, arg);
+	}
 	Selection *s = view_selections_primary_get(view);
 	VixCountIterator it = vix_count_iterator_get(vix, 1);
 	while (vix_count_iterator_next(&it)) {
 		if (arg->i > 0) {
 			s = view_selections_next(s);
-			if (!s)
+			if (!s) {
 				s = view_selections(view);
+			}
 		} else {
 			s = view_selections_prev(s);
 			if (!s) {
 				s = view_selections(view);
-				for (Selection *n = s; n; n = view_selections_next(n))
+				for (Selection *n = s; n; n = view_selections_next(n)) {
 					s = n;
+				}
 			}
 		}
 	}
@@ -593,32 +624,39 @@ static KEY_ACTION_FN(ka_selections_rotate)
 		Rotate rot;
 		rot.sel = s;
 		rot.len = text_range_size(&sel);
-		if ((rot.data = malloc(rot.len)))
+		if ((rot.data = malloc(rot.len))) {
 			rot.len = text_bytes_get(txt, sel.start, rot.len, rot.data);
-		else
+		} else {
 			rot.len = 0;
+		}
 		*da_push(vix, rotations) = rot;
 
-		if (!line)
+		if (!line) {
 			line = text_lineno_by_pos(txt, view_cursors_pos(s));
-		if (next)
+		}
+		if (next) {
 			line_next = text_lineno_by_pos(txt, view_cursors_pos(next));
+		}
 		if (!next || (columns > 1 && line != line_next)) {
 			VixDACount len = rotations->count;
 			size_t off = arg->i > 0 ? count % len : len - (count % len);
 			for (VixDACount i = 0; i < rotations->count; i++) {
 				VixDACount j = (i + off) % len;
-				if (i == j)
+				if (i == j) {
 					continue;
+				}
 				Rotate *oldrot = rotations->data + i;
 				Rotate *newrot = rotations->data + j;
 				Filerange newsel = view_selections_get(newrot->sel);
-				if (!text_range_valid(&newsel))
+				if (!text_range_valid(&newsel)) {
 					continue;
-				if (!text_delete_range(txt, &newsel))
+				}
+				if (!text_delete_range(txt, &newsel)) {
 					continue;
-				if (!text_insert(vix, txt, newsel.start, oldrot->data, oldrot->len))
+				}
+				if (!text_insert(vix, txt, newsel.start, oldrot->data, oldrot->len)) {
 					continue;
+				}
 				newsel.end = newsel.start + oldrot->len;
 				view_selections_set(newrot->sel, &newsel);
 				free(oldrot->data);
@@ -640,8 +678,9 @@ static KEY_ACTION_FN(ka_selections_trim)
 	for (Selection *s = view_selections(view), *next; s; s = next) {
 		next = view_selections_next(s);
 		Filerange sel = view_selections_get(s);
-		if (!text_range_valid(&sel))
+		if (!text_range_valid(&sel)) {
 			continue;
+		}
 		for (char b; sel.start < sel.end && text_byte_get(txt, sel.end-1, &b)
 			&& isspace((unsigned char)b); sel.end--);
 		for (char b; sel.start <= sel.end && text_byte_get(txt, sel.start, &b)
@@ -660,8 +699,9 @@ static void selections_set(Vix *vix, View *view, FilerangeList sel)
 	enum VixMode mode = vix->mode->id;
 	bool anchored = mode == VIX_MODE_VISUAL || mode == VIX_MODE_VISUAL_LINE;
 	view_selections_set_all(view, sel, anchored);
-	if (!anchored)
+	if (!anchored) {
 		view_selections_clear_all(view);
+	}
 }
 
 static KEY_ACTION_FN(ka_selections_save)
@@ -707,8 +747,9 @@ static KEY_ACTION_FN(ka_selections_union)
 			cur = text_range_union(r2, &cur);
 			r2 = ++j < b.count ? b.data + j : 0;
 		} else {
-			if (text_range_valid(&cur))
+			if (text_range_valid(&cur)) {
 				*da_push(vix, &sel) = cur;
+			}
 			if (!r1) {
 				cur = *r2;
 				r2 = ++j < b.count ? b.data + j : 0;
@@ -727,8 +768,9 @@ static KEY_ACTION_FN(ka_selections_union)
 		}
 	}
 
-	if (text_range_valid(&cur))
+	if (text_range_valid(&cur)) {
 		*da_push(vix, &sel) = cur;
+	}
 
 	selections_set(vix, view, sel);
 	vix_cancel(vix);
@@ -745,10 +787,14 @@ static FilerangeList intersect(FilerangeList a, FilerangeList b)
 	FilerangeList result = {0};
 	for (VixDACount i = 0, j = 0; i < a.count && j < b.count;) {
 		Filerange *r1 = a.data + i, *r2 = b.data + j;
-		if (text_range_overlap(r1, r2))
+		if (text_range_overlap(r1, r2)) {
 			*da_push(vix, &result) = text_range_intersect(r1, r2);
-		if (r1->end < r2->end) i++;
-		else                   j++;
+		}
+		if (r1->end < r2->end) {
+			i++;
+		} else {
+			j++;
+		}
 	}
 	return result;
 }
@@ -778,12 +824,14 @@ static FilerangeList complement(FilerangeList a, Filerange universe)
 	size_t pos = universe.start;
 	for (VixDACount i = 0; i < a.count; i++) {
 		Filerange r = a.data[i];
-		if (pos < r.start)
+		if (pos < r.start) {
 			*da_push(vix, &result) = text_range_new(pos, r.start);
+		}
 		pos = r.end;
 	}
-	if (pos < universe.end)
+	if (pos < universe.end) {
 		*da_push(vix, &result) = text_range_new(pos, universe.end);
+	}
 
 	return result;
 }
@@ -834,19 +882,23 @@ static KEY_ACTION_FN(ka_replace)
 	}
 
 	const char *next = vix_keys_next(vix, keys);
-	if (!next)
+	if (!next) {
 		return NULL;
+	}
 
 	char replacement[4+1];
-	if (!vix_keys_utf8(vix, keys, replacement))
+	if (!vix_keys_utf8(vix, keys, replacement)) {
 		return next;
+	}
 
-	if (replacement[0] == 0x1b) /* <Escape> */
+	if (replacement[0] == 0x1b) { /* <Escape> */
 		return next;
+	}
 
 	vix_operator(vix, VIX_OP_REPLACE, replacement);
-	if (vix->mode->id == VIX_MODE_OPERATOR_PENDING)
+	if (vix->mode->id == VIX_MODE_OPERATOR_PENDING) {
 		vix_motion(vix, VIX_MOVE_CHAR_NEXT);
+	}
 	return next;
 }
 
@@ -855,22 +907,24 @@ static KEY_ACTION_FN(ka_count)
 	int digit = keys[-1] - '0';
 	int count = VIX_COUNT_DEFAULT(vix->action.count, 0);
 	if (0 <= digit && digit <= 9) {
-		if (digit == 0 && count == 0)
+		if (digit == 0 && count == 0) {
 			vix_motion(vix, VIX_MOVE_LINE_BEGIN);
-		else
+		} else {
 			vix->action.count = VIX_COUNT_NORMALIZE(count * 10 + digit);
+		}
 	}
 	return keys;
 }
 
 static KEY_ACTION_FN(ka_gotoline)
 {
-	if (vix->action.count != VIX_COUNT_UNKNOWN)
+	if (vix->action.count != VIX_COUNT_UNKNOWN) {
 		vix_motion(vix, VIX_MOVE_LINE);
-	else if (arg->i < 0)
+	} else if (arg->i < 0) {
 		vix_motion(vix, VIX_MOVE_FILE_BEGIN);
-	else
+	} else {
 		vix_motion(vix, VIX_MOVE_FILE_END);
+	}
 	return keys;
 }
 
@@ -888,11 +942,13 @@ static KEY_ACTION_FN(ka_movement_key)
 	}
 
 	const char *next = vix_keys_next(vix, keys);
-	if (!next)
+	if (!next) {
 		return NULL;
+	}
 	char utf8[4+1];
-	if (vix_keys_utf8(vix, keys, utf8))
+	if (vix_keys_utf8(vix, keys, utf8)) {
 		vix_motion(vix, arg->i, utf8);
+	}
 	return next;
 }
 
@@ -910,18 +966,21 @@ static KEY_ACTION_FN(ka_text_object)
 
 static KEY_ACTION_FN(ka_selection_end)
 {
-	for (Selection *s = view_selections(vix_view(vix)); s; s = view_selections_next(s))
+	for (Selection *s = view_selections(vix_view(vix)); s; s = view_selections_next(s)) {
 		view_selections_flip(s);
+	}
 	return keys;
 }
 
 static KEY_ACTION_FN(ka_reg)
 {
-	if (!keys[0])
+	if (!keys[0]) {
 		return NULL;
+	}
 	const char *next = vix_keys_next(vix, keys);
-	if (next - keys > 1)
+	if (next - keys > 1) {
 		return next;
+	}
 	enum VixRegister reg = vix_register_from(vix, keys[0]);
 	vix_register(vix, reg);
 	return keys+1;
@@ -929,11 +988,13 @@ static KEY_ACTION_FN(ka_reg)
 
 static KEY_ACTION_FN(ka_mark)
 {
-	if (!keys[0])
+	if (!keys[0]) {
 		return NULL;
+	}
 	const char *next = vix_keys_next(vix, keys);
-	if (next - keys > 1)
+	if (next - keys > 1) {
 		return next;
+	}
 	enum VixMark mark = vix_mark_from(vix, keys[0]);
 	vix_mark(vix, mark);
 	return keys+1;
@@ -944,8 +1005,9 @@ static KEY_ACTION_FN(ka_undo)
 	size_t pos = text_undo(vix_text(vix));
 	if (pos != EPOS) {
 		View *view = vix_view(vix);
-		if (view->selection_count == 1)
+		if (view->selection_count == 1) {
 			view_cursors_to(view->selection, pos);
+		}
 		/* redraw all windows in case some display the same file */
 		vix_draw(vix);
 	}
@@ -957,8 +1019,9 @@ static KEY_ACTION_FN(ka_redo)
 	size_t pos = text_redo(vix_text(vix));
 	if (pos != EPOS) {
 		View *view = vix_view(vix);
-		if (view->selection_count == 1)
+		if (view->selection_count == 1) {
 			view_cursors_to(view->selection, pos);
+		}
 		/* redraw all windows in case some display the same file */
 		vix_draw(vix);
 	}
@@ -969,8 +1032,9 @@ static KEY_ACTION_FN(ka_earlier)
 {
 	size_t pos = EPOS;
 	VixCountIterator it = vix_count_iterator_get(vix, 1);
-	while (vix_count_iterator_next(&it))
+	while (vix_count_iterator_next(&it)) {
 		pos = text_earlier(vix_text(vix));
+	}
 	if (pos != EPOS) {
 		view_cursors_to(vix_view(vix)->selection, pos);
 		/* redraw all windows in case some display the same file */
@@ -983,8 +1047,9 @@ static KEY_ACTION_FN(ka_later)
 {
 	size_t pos = EPOS;
 	VixCountIterator it = vix_count_iterator_get(vix, 1);
-	while (vix_count_iterator_next(&it))
+	while (vix_count_iterator_next(&it)) {
 		pos = text_later(vix_text(vix));
+	}
 	if (pos != EPOS) {
 		view_cursors_to(vix_view(vix)->selection, pos);
 		/* redraw all windows in case some display the same file */
@@ -1002,11 +1067,13 @@ static KEY_ACTION_FN(ka_delete)
 
 static KEY_ACTION_FN(ka_insert_register)
 {
-	if (!keys[0])
+	if (!keys[0]) {
 		return NULL;
+	}
 	const char *next = vix_keys_next(vix, keys);
-	if (next - keys > 1)
+	if (next - keys > 1) {
 		return next;
+	}
 	enum VixRegister reg = vix_register_from(vix, keys[0]);
 	if (reg != VIX_REG_INVALID) {
 		vix_register(vix, reg);
@@ -1074,8 +1141,9 @@ static KEY_ACTION_FN(ka_insert_verbatim)
 			rune = rune * base + v;
 		}
 
-		if (count > 0)
+		if (count > 0) {
 			return NULL;
+		}
 		if (type == 'u' || type == 'U') {
 			len = utf8_encode(buf, rune);
 		} else {
@@ -1086,12 +1154,14 @@ static KEY_ACTION_FN(ka_insert_verbatim)
 		data = (char *)buf;
 	} else {
 		const char *next = vix_keys_next(vix, keys);
-		if (!next)
+		if (!next) {
 			return NULL;
+		}
 		if ((rune = vix_keys_codepoint(vix, keys)) != -1) {
 			len = utf8_encode(buf, rune);
-			if (buf[0] == '\n')
+			if (buf[0] == '\n') {
 				buf[0] = '\r';
+			}
 			data = (char *)buf;
 		} else {
 			vix_info_show(vix, "Unknown key");
@@ -1099,8 +1169,9 @@ static KEY_ACTION_FN(ka_insert_verbatim)
 		keys = next;
 	}
 
-	if (len > 0)
+	if (len > 0) {
 		vix_insert_key(vix, data, len);
+	}
 	return keys;
 }
 
@@ -1141,8 +1212,9 @@ static KEY_ACTION_FN(ka_join)
 	vix_operator(vix, VIX_OP_JOIN, arg->s);
 	if (normal) {
 		vix->action.count = VIX_COUNT_DEFAULT(vix->action.count, 0);
-		if (vix->action.count > 0)
+		if (vix->action.count > 0) {
 			vix->action.count -= 1;
+		}
 		vix_motion(vix, VIX_MOVE_LINE_NEXT);
 	}
 	return keys;
@@ -1150,19 +1222,21 @@ static KEY_ACTION_FN(ka_join)
 
 static KEY_ACTION_FN(ka_normalmode_escape)
 {
-	if (vix->action.count == VIX_COUNT_UNKNOWN)
+	if (vix->action.count == VIX_COUNT_UNKNOWN) {
 		ka_selections_clear(vix, keys, arg);
-	else
+	} else {
 		vix->action.count = VIX_COUNT_UNKNOWN;
+	}
 	return keys;
 }
 
 static KEY_ACTION_FN(ka_visualmode_escape)
 {
-	if (vix->action.count == VIX_COUNT_UNKNOWN)
+	if (vix->action.count == VIX_COUNT_UNKNOWN) {
 		vix_mode_switch(vix, VIX_MODE_NORMAL);
-	else
+	} else {
 		vix->action.count = VIX_COUNT_UNKNOWN;
+	}
 	return keys;
 }
 
@@ -1193,8 +1267,9 @@ static KEY_ACTION_FN(ka_unicode_info)
 	size_t start = view_cursor_get(view);
 	size_t end = text_char_next(txt, start);
 	char *grapheme = text_bytes_alloc0(txt, start, end-start), *codepoint = grapheme;
-	if (!grapheme)
+	if (!grapheme) {
 		return keys;
+	}
 	Buffer info = {0};
 	mbstate_t ps = {0};
 	Iterator it = text_iterator_get(txt, start);
@@ -1207,18 +1282,21 @@ static KEY_ACTION_FN(ka_unicode_info)
 		wchar_t wc = 0xFFFD;
 		size_t res = mbrtowc(&wc, codepoint, len, &ps);
 		bool combining = false;
-		if (res != (size_t)-1 && res != (size_t)-2)
+		if (res != (size_t)-1 && res != (size_t)-2) {
 			combining = (wc != L'\0' && wcwidth(wc) == 0);
+		}
 		unsigned char ch = *codepoint;
-		if (ch < 128 && !isprint(ch))
+		if (ch < 128 && !isprint(ch)) {
 			buffer_appendf(&info, "<^%c> ", ch == 127 ? '?' : ch + 64);
-		else
+		} else {
 			buffer_appendf(&info, "<%s%.*s> ", combining ? " " : "", (int)len, codepoint);
+		}
 		if (arg->i == VIX_ACTION_UNICODE_INFO) {
 			buffer_appendf(&info, "U+%04"PRIX32" ", (uint32_t)wc);
 		} else {
-			for (size_t i = 0; i < len; i++)
+			for (size_t i = 0; i < len; i++) {
 				buffer_appendf(&info, "%02x ", (uint8_t)codepoint[i]);
+			}
 		}
 		codepoint += len;
 	}
@@ -1231,10 +1309,11 @@ err:
 
 static KEY_ACTION_FN(ka_percent)
 {
-	if (vix->action.count == VIX_COUNT_UNKNOWN)
+	if (vix->action.count == VIX_COUNT_UNKNOWN) {
 		vix_motion(vix, VIX_MOVE_BRACKET_MATCH);
-	else
+	} else {
 		vix_motion(vix, VIX_MOVE_PERCENT);
+	}
 	return keys;
 }
 
@@ -1272,14 +1351,23 @@ int main(int argc, char *argv[])
 			       CONFIG_ACL     ? " +acl"     : "",
 			       CONFIG_SELINUX ? " +selinux" : "");
 			return 0;
+		} else if (strcmp(argv[i], "-headless") == 0) {
+			continue;
 		} else {
 			fprintf(stderr, "Unknown command option: %s\n", argv[i]);
 			return 1;
 		}
 	}
 
-	if (!vix_init(vix))
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "-headless") == 0) {
+			vix->headless = true;
+		}
+	}
+
+	if (!vix_init(vix)) {
 		return EXIT_FAILURE;
+	}
 
 	/* install signal handlers etc.
 	 * Do it before any external lua code is run by EVENT_INIT to prevent lost
@@ -1300,8 +1388,9 @@ int main(int argc, char *argv[])
 	}
 
 	sa.sa_handler = SIG_IGN;
-	if (sigaction(SIGPIPE, &sa, NULL) == -1 || sigaction(SIGQUIT, &sa, NULL) == -1)
+	if (sigaction(SIGPIPE, &sa, NULL) == -1 || sigaction(SIGQUIT, &sa, NULL) == -1) {
 		vix_die(vix, "Failed to ignore signals\n");
+	}
 
 	sigset_t blockset;
 	sigemptyset(&blockset);
@@ -1310,14 +1399,16 @@ int main(int argc, char *argv[])
 	sigaddset(&blockset, SIGWINCH);
 	sigaddset(&blockset, SIGTERM);
 	sigaddset(&blockset, SIGHUP);
-	if (sigprocmask(SIG_BLOCK, &blockset, NULL) == -1)
+	if (sigprocmask(SIG_BLOCK, &blockset, NULL) == -1) {
 		vix_die(vix, "Failed to block signals\n");
+	}
 
 	vix_event_emit(vix, VIX_EVENT_INIT);
 
 	for (int i = 0; i < LENGTH(vix_action); i++) {
-		if (!vix_action_register(vix, vix_action + i))
+		if (!vix_action_register(vix, vix_action + i)) {
 			vix_die(vix, "Could not register action: %s\n", vix_action[i].name);
+		}
 	}
 
 	for (int i = 0; i < LENGTH(default_bindings); i++) {
@@ -1328,8 +1419,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	for (const char **k = keymaps; k[0]; k += 2)
+	for (const char **k = keymaps; k[0]; k += 2) {
 		vix_keymap_add(vix, k[0], k[1]);
+	}
 
 
 	char *cmd = NULL;
@@ -1338,19 +1430,23 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; i++) {
 		if (argv[i][0] == '-' && !end_of_options) {
 			if (strcmp(argv[i], "-") == 0) {
-				if (!vix_window_new_fd(vix, STDOUT_FILENO))
+				if (!vix_window_new_fd(vix, STDOUT_FILENO)) {
 					vix_die(vix, "Can not create empty buffer\n");
+				}
 				ssize_t len = 0;
 				char buf[PIPE_BUF];
 				Text *txt = vix_text(vix);
-				while ((len = read(STDIN_FILENO, buf, sizeof buf)) > 0)
+				while ((len = read(STDIN_FILENO, buf, sizeof buf)) > 0) {
 					text_insert(vix, txt, text_size(txt), buf, len);
-				if (len == -1)
+				}
+				if (len == -1) {
 					vix_die(vix, "Can not read from stdin\n");
+				}
 				text_snapshot(txt);
 				int fd = open("/dev/tty", O_RDWR);
-				if (fd == -1)
+				if (fd == -1) {
 					vix_die(vix, "Can not reopen stdin\n");
+				}
 				dup2(fd, STDIN_FILENO);
 				close(fd);
 			} else if (strcmp(argv[i], "--") == 0) {
@@ -1371,10 +1467,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (!vix->win && !win_created) {
-		if (!vix_window_new(vix, NULL))
+		if (!vix_window_new(vix, NULL)) {
 			vix_die(vix, "Can not create empty buffer\n");
-		if (cmd)
+		}
+		if (cmd) {
 			vix_prompt_cmd(vix, cmd);
+		}
 	}
 
 	int status = vix_run(vix);
