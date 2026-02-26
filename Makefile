@@ -83,7 +83,7 @@ export CC CFLAGS LDFLAGS
 
 # --- Target Files ---
 ELF           = vix vix-menu vix-digraph
-MANUALS       = vix.1 vix-menu.1 vix-digraph.1
+MANUALS       = vix.1 vix-menu.1 vix-digraph.1 vix-clipboard.1 vix-complete.1 vix-open.1
 DOCUMENTATION = LICENSE README.md
 
 # --- Build Rules ---
