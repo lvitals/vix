@@ -505,6 +505,9 @@ void vix_window_prev(Vix *vix) {
 }
 
 void vix_draw(Vix *vix) {
+	if (vix->headless) {
+		return;
+	}
 	for (Win *win = vix->windows; win; win = win->next) {
 		view_draw(&win->view);
 	}
@@ -521,7 +524,11 @@ bool vix_window_new(Vix *vix, const char *filename) {
 		return false;
 	}
 	vix->ui.doupdate = false;
-	Win *win = window_new_file(vix, file, UI_OPTION_STATUSBAR|UI_OPTION_SYMBOL_EOF);
+	enum UiOption options = UI_OPTION_STATUSBAR|UI_OPTION_SYMBOL_EOF;
+	if (vix->headless) {
+		options = 0;
+	}
+	Win *win = window_new_file(vix, file, options);
 	if (!win) {
 		file_free(vix, file);
 		return false;
@@ -617,10 +624,12 @@ bool vix_init(Vix *vix)
 	}
 
 	vix->exit_status = -1;
-	if (!ui_terminal_init(&vix->ui)) {
-		return false;
+	if (!vix->headless) {
+		if (!ui_terminal_init(&vix->ui)) {
+			return false;
+		}
+		ui_init(&vix->ui, vix);
 	}
-	ui_init(&vix->ui, vix);
 	vix->change_colors = true;
 	for (size_t i = 0; i < LENGTH(vix->registers); i++) {
 		da_push(vix, vix->registers + i);

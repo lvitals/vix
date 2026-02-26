@@ -2,7 +2,7 @@
 
 export VIX_PATH=.
 export PATH="$(pwd)/../..:$PATH"
-export LANG="en_US.UTF-8"
+export LANG="C.utf8"
 [ -z "$VIX" ] && VIX="../../vix"
 $VIX -v
 

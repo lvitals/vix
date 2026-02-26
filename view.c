@@ -37,8 +37,6 @@ static const char *symbols_default[] = {
 	[SYNTAX_SYMBOL_EOF]      = "~",
 };
 
-static Cell cell_blank = { .width = 0, .len = 0, .data = " ", };
-
 /* move visible viewport n-lines up/down, redraws the view but does not change
  * cursor position which becomes invalid and should be corrected by calling
  * view_cursors_to. the return value indicates whether the visible area changed.
@@ -54,6 +52,9 @@ static void selection_free(Selection*);
 static size_t cursor_set(Selection*, Line *line, int col);
 
 void window_status_update(Vix *vix, Win *win) {
+	if (vix->headless) {
+		return;
+	}
 	char left_parts[4][255] = { "", "", "", "" };
 	char right_parts[4][32] = { "", "", "", "" };
 	char left[sizeof(left_parts)+LENGTH(left_parts)*8];
@@ -203,10 +204,14 @@ static void view_clear(View *view) {
 	view->wrapcol = 0;
 	view->prevch_breakat = false;
 
+	Win *win = (Win *)((char *)view - offsetof(Win, view));
+	if (win->vix->headless) {
+		return;
+	}
+
 	/* FIXME: awful garbage that only exists because every
 	 * struct in this program is an interdependent hellscape */
-	Win *win = (Win *)((char *)view - offsetof(Win, view));
-	ui_window_style_set(&win->vix->ui, win->id, &cell_blank, UI_STYLE_DEFAULT, false);
+	ui_window_style_set(&win->vix->ui, win->id, &view->cell_blank, UI_STYLE_DEFAULT, false);
 }
 
 static int view_max_text_width(const View *view) {
@@ -242,7 +247,7 @@ static void view_wrap_line(View *view) {
 			wrapped_line->width -= wrapped_line->cells[i].width;
 			wrapped_line->len -= wrapped_line->cells[i].len;
 		}
-		wrapped_line->cells[i] = cell_blank;
+		wrapped_line->cells[i] = view->cell_blank;
 	}
 }
 
@@ -333,7 +338,7 @@ static bool view_addch(View *view, Cell *cell) {
 		view->wrapcol = view->col;
 	}
 	view->prevch_breakat = ch_breakat;
-	cell->style = cell_blank.style;
+	cell->style = view->cell_blank.style;
 
 	unsigned char ch = (unsigned char)cell->data[0];
 	switch (ch) {
@@ -526,7 +531,7 @@ void view_draw(View *view) {
 	/* clear remaining of line, important to show cursor at end of file */
 	if (view->line) {
 		for (int x = view->col; x < view->width; x++) {
-			view->line->cells[x] = cell_blank;
+			view->line->cells[x] = view->cell_blank;
 		}
 	}
 
@@ -550,7 +555,7 @@ bool view_update(View *view) {
 	}
 	for (Line *l = view->lastline->next; l; l = l->next) {
 		for (int x = 0; x < view->width; x++) {
-			l->cells[x] = cell_blank;
+			l->cells[x] = view->cell_blank;
 		}
 	}
 	view->need_update = false;
@@ -565,7 +570,6 @@ bool view_resize(View *view, int width, int height) {
 		height = 1;
 	}
 	if (view->width == width && view->height == height) {
-		view->need_update = true;
 		return true;
 	}
 	char *textbuf = malloc(width * height * 4 + 1);
@@ -619,6 +623,7 @@ bool view_init(Win *win, Text *text) {
 	view->tabwidth = 8;
 	view->breakat = strdup("");
 	view->wrapcolumn = 0;
+	view->cell_blank = (Cell){ .width = 0, .len = 0, .data = " ", };
 	win_options_set(win, 0);
 
 	if (!view->breakat ||

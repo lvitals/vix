@@ -1335,6 +1335,7 @@ static const KeyAction vix_action[] = { KEY_ACTION_LIST(KEY_ACTION_STRUCT) };
 
 int main(int argc, char *argv[])
 {
+	setlocale(LC_ALL, "");
 	for (int i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
 			continue;

@@ -210,16 +210,22 @@ static void ui_draw_string(Ui *tui, int x, int y, int max_x, const char *str, in
 		unsigned char ch = (unsigned char)*str;
 		if (len == 1 && (ch < 32 || ch == 127)) {
 			memcpy(cells[x].data, " ", 1);
+			cells[x].data[1] = '\0';
 		} else {
-			strncpy(cells[x].data, str, len);
+			size_t n = MIN(len, cell_size);
+			memcpy(cells[x].data, str, n);
+			cells[x].data[n] = '\0';
 		}
-		cells[x].data[len] = '\0';
 		cells[x].style = default_style;
 		ui_window_style_set(tui, win_id, cells + x++, style_id, false);
 	}
 }
 
 static void ui_window_draw(Win *win) {
+	if (win->vix->headless) {
+		vix_window_draw(win);
+		return;
+	}
 	Ui *ui = &win->vix->ui;
 	View *view = &win->view;
 	const Line *line = win->view.topline;
@@ -280,6 +286,9 @@ static void ui_window_draw(Win *win) {
 }
 
 void ui_window_style_set(Ui *tui, int win_id, Cell *cell, enum UiStyle id, bool keep_non_default) {
+	if (tui->vix->headless) {
+		return;
+	}
 	CellStyle set = tui->styles[win_id * UI_STYLE_MAX + id];
 
 	if (id != UI_STYLE_DEFAULT) {
@@ -374,6 +383,9 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 }
 
 void ui_draw(Ui *tui) {
+	if (tui->vix->headless) {
+		return;
+	}
 	debug("ui-draw\n");
 	ui_arrange(tui, tui->layout);
 	for (Win *win = tui->windows; win; win = win->next) {
@@ -502,6 +514,10 @@ void ui_window_swap(Win *a, Win *b) {
 }
 
 bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
+	if (tui->vix->headless) {
+		win_options_set(w, options & UI_OPTION_ONELINE);
+		return true;
+	}
 	/* get rightmost zero bit, i.e. highest available id */
 	size_t bit = ~tui->ids & (tui->ids + 1);
 	size_t id = 0;

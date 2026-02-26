@@ -249,10 +249,25 @@ static void ui_term_backend_blit(Ui *tui) {
 	int w = tui->width, h = tui->height;
 	Cell *cell = tui->cells;
 	for (int y = 0; y < h; y++) {
-		for (int x = 0; x < w; x++) {
-			attrset(style_to_attr(tui, &cell->style));
-			mvaddstr(y, x, cell->data);
-			cell++;
+		for (int x = 0; x < w; ) {
+			attr_t attr = style_to_attr(tui, &cell->style);
+			attrset(attr);
+			int start_x = x;
+			char buf[4096] = "";
+			size_t buf_len = 0;
+			while (x < w && style_to_attr(tui, &cell->style) == attr) {
+				size_t len = strlen(cell->data);
+				if (buf_len + len < sizeof(buf)) {
+					memcpy(buf + buf_len, cell->data, len);
+					buf_len += len;
+					x++;
+					cell++;
+				} else {
+					break;
+				}
+			}
+			buf[buf_len] = '\0';
+			mvaddstr(y, start_x, buf);
 		}
 	}
 	wnoutrefresh(stdscr);
