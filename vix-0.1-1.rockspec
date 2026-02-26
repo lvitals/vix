@@ -2,7 +2,7 @@ package = "vix"
 version = "0.1-1"
 source = {
    url = "git+https://github.com/lvitals/vix.git",
-   tag = "v0.1"
+   tag = "v0.1.1"
 }
 
 local post_install_message = [[
@@ -21,7 +21,7 @@ Post-installation setup for local install:
 ]]
 
 description = {
-   summary = "a highly efficient text editor",
+   summary = "vi-like editor based on Plan 9's structural regular expressions",
    detailed = [[
       vix is a highly efficient screen-oriented text editor combining the strengths of both vi(m) and sam.
 
