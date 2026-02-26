@@ -1,5 +1,3 @@
--include ../../config.mk
-
 ALL = text-fuzzer buffer-fuzzer
 CC ?= afl-gcc
 CFLAGS += -I. -I../.. -DBUFFER_SIZE=4 -DBLOCK_SIZE=4

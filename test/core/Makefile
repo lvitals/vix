@@ -1,5 +1,3 @@
--include ../../config.mk
-
 ALL = buffer-test map-test text-test
 SRC = $(wildcard ccan/*/*.c)
 CFLAGS += -Wno-unused-function -I. -I../.. -DBUFFER_SIZE=4 -DBLOCK_SIZE=4

@@ -39,6 +39,10 @@
 #define INPUT_FILE "configuratortest.c"
 
 static int verbose;
+static char *cmd_to_free;
+static void free_cmd(void) {
+	free(cmd_to_free);
+}
 
 enum test_style {
 	OUTSIDE_MAIN		= 0x1,
@@ -438,9 +442,15 @@ static bool run_test(const char *cmd, struct test *test)
 				positive = false;
 			}
 			if (run_test(cmd, find_test(dep)) != positive) {
+				if (deps[len]) {
+					free(dep);
+				}
 				test->answer = false;
 				test->done = true;
 				return test->answer;
+			}
+			if (deps[len]) {
+				free(dep);
 			}
 			deps += len;
 			deps += strspn(deps, " ");
@@ -495,10 +505,12 @@ static bool run_test(const char *cmd, struct test *test)
 		if (verbose > 1) {
 			printf("Extra link line: %s", newcmd);
 		}
-		cmd = newcmd;
+		output = run(newcmd, &status);
+		free(newcmd);
+	} else {
+		output = run(cmd, &status);
 	}
 
-	output = run(cmd, &status);
 	if (status != 0 || strstr(output, "warning")) {
 		if (verbose) {
 			printf("Compile %s for %s, status %i: %s\n",
@@ -569,6 +581,9 @@ int main(int argc, const char *argv[])
 	}
 
 	cmd = connect_args(argv, " -o " OUTPUT_FILE " " INPUT_FILE);
+	cmd_to_free = cmd;
+	atexit(free_cmd);
+
 	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
 		run_test(cmd, &tests[i]);
 	}
@@ -583,7 +598,9 @@ int main(int argc, const char *argv[])
 	printf("#define _GNU_SOURCE /* Always use GNU extensions. */\n");
 	printf("#endif\n");
 	printf("#define CCAN_COMPILER \"%s\"\n", argv[1]);
-	printf("#define CCAN_CFLAGS \"%s\"\n\n", connect_args(argv+1, ""));
+	char *cflags = connect_args(argv+1, "");
+	printf("#define CCAN_CFLAGS \"%s\"\n\n", cflags);
+	free(cflags);
 	/* This one implies "#include <ccan/..." works, eg. for tdb2.h */
 	printf("#define HAVE_CCAN 1\n");
 	for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
