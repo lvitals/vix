@@ -13,5 +13,6 @@
 *.o
 *.out
 *.err
+*.rock
 /test/util/keys
 config.h
