@@ -1863,7 +1863,7 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 		close(null);
 
 		if (file != NULL && file->name) {
-			char *name = strrchr(file->name, '/');
+			const char *name = strrchr(file->name, '/');
 			setenv("vix_filepath", file->name, 1);
 			setenv("vix_filename", name ? name+1 : file->name, 1);
 		}
