@@ -78,6 +78,15 @@ local complete_filename = function(expand)
 				local syntax_list = ""
 				for s in pairs(syntaxes) do syntax_list = syntax_list .. s .. "\n" end
 				status, out, err = vix:pipe(syntax_list, "vix-menu -b")
+			elseif line_before_cursor:match("^:set%s+layout%s+") then
+				match_prefix = line_before_cursor:match("^:set%s+layout%s+(.*)$") or ""
+				status, out, err = vix:pipe("h\nv\n", "vix-menu -b")
+			elseif line_before_cursor:match("^:set%s+savemethod%s+") then
+				match_prefix = line_before_cursor:match("^:set%s+savemethod%s+(.*)$") or ""
+				status, out, err = vix:pipe("auto\natomic\ninplace\n", "vix-menu -b")
+			elseif line_before_cursor:match("^:set%s+loadmethod%s+") then
+				match_prefix = line_before_cursor:match("^:set%s+loadmethod%s+(.*)$") or ""
+				status, out, err = vix:pipe("auto\nread\nmmap\n", "vix-menu -b")
 			elseif line_before_cursor:match("^:set%s+([^%s!]+)%s+(.*)$") then
 				local opt_name, val_prefix = line_before_cursor:match("^:set%s+([^%s!]+)%s+(.*)$")
 				match_prefix = val_prefix
