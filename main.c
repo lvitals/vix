@@ -13,6 +13,8 @@ static Vix vix[1];
 	X(ka_call,                            REDRAW,                           .f = vix_redraw,                          "vix-redraw",                          "Redraw current editor content") \
 	X(ka_call,                            WINDOW_NEXT,                      .f = vix_window_next,                     "vix-window-next",                     "Focus next window") \
 	X(ka_call,                            WINDOW_PREV,                      .f = vix_window_prev,                     "vix-window-prev",                     "Focus previous window") \
+	X(ka_layout,                          WINDOW_LAYOUT_HORIZONTAL,         .i = UI_LAYOUT_HORIZONTAL,                "vix-window-layout-horizontal",        "Use horizontal window layout") \
+	X(ka_layout,                          WINDOW_LAYOUT_VERTICAL,           .i = UI_LAYOUT_VERTICAL,                  "vix-window-layout-vertical",          "Use vertical window layout") \
 	X(ka_count,                           COUNT,                            0,                                        "vix-count",                           "Count specifier") \
 	X(ka_delete,                          DELETE_CHAR_NEXT,                 .i = VIX_MOVE_CHAR_NEXT,                  "vix-delete-char-next",                "Delete the next character") \
 	X(ka_delete,                          DELETE_CHAR_PREV,                 .i = VIX_MOVE_CHAR_PREV,                  "vix-delete-char-prev",                "Delete the previous character") \
@@ -196,6 +198,13 @@ typedef enum { KEY_ACTION_LIST(ENUM) } VixActionKind;
 
 static KEY_ACTION_FN(ka_nop)
 {
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_layout)
+{
+	ui_arrange(&vix->ui, arg->i);
+	vix_draw(vix);
 	return keys;
 }
 
