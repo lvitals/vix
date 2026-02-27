@@ -113,7 +113,11 @@ vix.events.subscribe(vix.events.WIN_STATUS, function(win)
 	local count = vix.count
 	local keys = vix.input_queue
 	if keys ~= '' then
-		table.insert(right_parts, keys)
+		if count then
+			table.insert(right_parts, count .. keys)
+		else
+			table.insert(right_parts, keys)
+		end
 	elseif count then
 		table.insert(right_parts, count)
 	end

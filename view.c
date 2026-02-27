@@ -84,7 +84,11 @@ void window_status_update(Vix *vix, Win *win) {
 	int count = vix->action.count;
 	const char *keys = buffer_content0(&vix->input_queue);
 	if (keys && keys[0]) {
-		snprintf(right_parts[right_count++], sizeof(right_parts[0]), "%s", keys);
+		if (count != VIX_COUNT_UNKNOWN) {
+			snprintf(right_parts[right_count++], sizeof(right_parts[0]), "%d%s", count, keys);
+		} else {
+			snprintf(right_parts[right_count++], sizeof(right_parts[0]), "%s", keys);
+		}
 	} else if (count != VIX_COUNT_UNKNOWN) {
 		snprintf(right_parts[right_count++], sizeof(right_parts[0]), "%d", count);
 	}

@@ -356,20 +356,19 @@ void vix_window_draw(Win *win) {
 	if (win->vix->headless) {
 		return;
 	}
-	if (!view_update(&win->view)) {
-		return;
-	}
-	Vix *vix = win->vix;
-	vix_event_emit(vix, VIX_EVENT_WIN_HIGHLIGHT, win);
+	if (view_update(&win->view)) {
+		Vix *vix = win->vix;
+		vix_event_emit(vix, VIX_EVENT_WIN_HIGHLIGHT, win);
 
-	window_draw_colorcolumn(win);
-	window_draw_cursorline(win);
-	if (!vix->win || vix->win == win || vix->win->parent == win) {
-		window_draw_selections(win);
+		window_draw_colorcolumn(win);
+		window_draw_cursorline(win);
+		if (!vix->win || vix->win == win || vix->win->parent == win) {
+			window_draw_selections(win);
+		}
+		window_draw_eof(win);
 	}
-	window_draw_eof(win);
 
-	vix_event_emit(vix, VIX_EVENT_WIN_STATUS, win);
+	vix_event_emit(win->vix, VIX_EVENT_WIN_STATUS, win);
 }
 
 
