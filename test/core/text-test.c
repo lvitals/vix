@@ -422,5 +422,9 @@ int main(int argc, char *argv[]) {
 
 	text_free(txt);
 
+	unlink("data");
+	unlink("symlink");
+	unlink("hardlink");
+
 	return exit_status();
 }

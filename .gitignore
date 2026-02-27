@@ -5,6 +5,9 @@
 /vix-single
 /vix-single-payload.inc
 /vix-digraph
+/data
+/symlink
+/hardlink
 *.css
 *.gcda
 *.gcno
