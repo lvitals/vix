@@ -33,7 +33,7 @@ static void prompt_hide(Win *win) {
 	/* remove empty entries */
 	Filerange line_range = text_object_line(txt, text_size(txt)-1);
 	char *line = text_bytes_alloc0(txt, line_range.start, text_range_size(&line_range));
-	if (line && (line[0] == '\n' || (strchr(":/?", line[0]) && (line[1] == '\n' || line[1] == '\0')))) {
+	if (line && (line[0] == '\n' || ((strchr)(":/?", line[0]) && (line[1] == '\n' || line[1] == '\0')))) {
 		text_delete_range(txt, &line_range);
 	}
 	free(line);

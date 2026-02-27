@@ -445,7 +445,7 @@ static bool is_file_pattern(const char *pattern) {
 		return true;
 	}
 	for (char special[] = "*?[{$", *s = special; *s; s++) {
-		if (strchr(pattern, *s)) {
+		if ((strchr)(pattern, *s)) {
 			return true;
 		}
 	}
@@ -1077,7 +1077,7 @@ static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 		for (size_t i = 0; i < LENGTH(paths); i++) {
 			text_appendf(vix, txt, "\n %s\n\n", paths_description[i]);
 			for (char *elem = paths[i], *next; elem; elem = next) {
-				if ((next = strstr(elem, ";"))) {
+				if ((next = (strstr)(elem, ";"))) {
 					*next++ = '\0';
 				}
 				if (*elem) {
@@ -1150,7 +1150,7 @@ static bool cmd_langmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Se
 
 static bool cmd_map(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
 	bool mapped = false;
-	bool local = strstr(argv[0], "-") != NULL;
+	bool local = (strstr)(argv[0], "-") != NULL;
 	enum VixMode mode = vix_mode_from(vix, argv[1]);
 
 	if (local && !win) {
@@ -1187,7 +1187,7 @@ err:
 
 static bool cmd_unmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
 	bool unmapped = false;
-	bool local = strstr(argv[0], "-") != NULL;
+	bool local = (strstr)(argv[0], "-") != NULL;
 	enum VixMode mode = vix_mode_from(vix, argv[1]);
 	const char *lhs = argv[2];
 

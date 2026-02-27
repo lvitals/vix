@@ -3426,15 +3426,15 @@ static bool vix_lua_path_strip(Vix *vix) {
 		}
 
 		for (char *elem = copy, *stripped_elem = stripped, *next; elem; elem = next) {
-			if ((next = strstr(elem, ";"))) {
+			if ((next = (strstr)(elem, ";"))) {
 				*next++ = '\0';
 			}
-			if (strstr(elem, "./")) {
+			if ((strstr)(elem, "./")) {
 				continue; /* skip relative path entries */
 			}
 
 			/* skip paths with mismatched lua version */
-			char *ver = strstr(elem, "/lua/");
+			char *ver = (strstr)(elem, "/lua/");
 			if (ver) {
 				ver += 5; // skip "/lua/"
 				/* if it contains a version string, check if it matches ours.

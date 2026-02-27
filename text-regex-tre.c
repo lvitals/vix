@@ -38,7 +38,7 @@ static bool check_literal(const char *s) {
 	if (!s) return false;
 	const char *specials = "^$()[]{}*+?.|\\";
 	while (*s) {
-		if (strchr(specials, *s)) return false;
+		if ((strchr)(specials, *s)) return false;
 		s++;
 	}
 	return true;

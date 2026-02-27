@@ -180,7 +180,7 @@ static void ui_term_backend_restore(Ui *tui) {
 
 int ui_terminal_colors(void) {
 	char *term = getenv("TERM");
-	return (term && strstr(term, "-256color")) ? 256 : 16;
+	return (term && (strstr)(term, "-256color")) ? 256 : 16;
 }
 
 static void ui_term_backend_suspend(Ui *tui) {

@@ -127,11 +127,11 @@ bool ui_style_define(Win *win, int id, const char *style) {
 		while (*option == ' ') {
 			option++;
 		}
-		char *next = strchr(option, ',');
+		char *next = (strchr)(option, ',');
 		if (next) {
 			*next++ = '\0';
 		}
-		char *value = strchr(option, ':');
+		char *value = (strchr)(option, ':');
 		if (value) {
 			for (*value++ = '\0'; *value == ' '; value++);
 		}

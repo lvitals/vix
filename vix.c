@@ -159,7 +159,7 @@ const char *file_name_get(File *file) {
 	if (!getcwd(cwd, sizeof cwd)) {
 		return file->name;
 	}
-	const char *path = strstr(file->name, cwd);
+	const char *path = (strstr)(file->name, cwd);
 	if (path != file->name) {
 		return file->name;
 	}
@@ -1863,7 +1863,7 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 		close(null);
 
 		if (file != NULL && file->name) {
-			const char *name = strrchr(file->name, '/');
+			const char *name = (strrchr)(file->name, '/');
 			setenv("vix_filepath", file->name, 1);
 			setenv("vix_filename", name ? name+1 : file->name, 1);
 		}

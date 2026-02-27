@@ -332,7 +332,7 @@ static bool view_addch(View *view, Cell *cell) {
 		return false;
 	}
 
-	bool ch_breakat = (cell->data[0] != 0) && strstr(view->breakat, cell->data);
+	bool ch_breakat = (cell->data[0] != 0) && (strstr)(view->breakat, cell->data);
 	if (view->prevch_breakat && !ch_breakat) {
 		/* this is a good place to wrap line if needed */
 		view->wrapcol = view->col;

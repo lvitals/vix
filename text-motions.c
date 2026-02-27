@@ -570,7 +570,7 @@ size_t text_bracket_match_symbol(Vix *vix, Text *txt, size_t pos, const char *sy
 	if (!text_iterator_byte_get(&it, &current)) {
 		return pos;
 	}
-	if (symbols && !memchr(symbols, current, strlen(symbols))) {
+	if (symbols && !(memchr)(symbols, current, strlen(symbols))) {
 		return pos;
 	}
 	switch (current) {
@@ -609,7 +609,7 @@ size_t text_bracket_match_symbol(Vix *vix, Text *txt, size_t pos, const char *sy
 			/* if a single or double quote is followed by
 			 * a special character, search backwards */
 			char special[] = " \t\n)}]>.,:;";
-			if (memchr(special, c, sizeof(special))) {
+			if ((memchr)(special, c, sizeof(special))) {
 				direction = -1;
 			}
 		}
