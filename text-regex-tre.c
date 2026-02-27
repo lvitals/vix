@@ -1,100 +1,19 @@
+#include <string.h>
+#include <stdlib.h>
 #include "text-regex.h"
 #include "text-motions.h"
 
 struct Regex {
 	regex_t regex;
-	tre_str_source str_source;
-	Text *text;
-	Iterator it;
-	size_t end;
+	char *pattern;
+	bool is_literal;
 };
 
 size_t text_regex_nsub(Regex *r) {
-       if (!r) {
-               return 0;
-       }
-       return r->regex.re_nsub;
-}
-
-static int str_next_char(tre_char_t *c, unsigned int *pos_add, void *context) {
-	Regex *r = context;
-	Iterator *it = &r->it;
-	if (TRE_WCHAR) {
-		mbstate_t ps = { 0 };
-		bool eof = false;
-		size_t start = it->pos;
-		for (;;) {
-			if (it->pos >= r->end) {
-				eof = true;
-				break;
-			}
-			size_t rem = r->end - it->pos;
-			size_t plen = it->end - it->text;
-			size_t len = rem < plen ? rem : plen;
-			size_t wclen = mbrtowc(c, it->text, len, &ps);
-			if (wclen == (size_t)-1 && errno == EILSEQ) {
-				ps = (mbstate_t){0};
-				*c = L'\0';
-				text_iterator_codepoint_next(it, NULL);
-				break;
-			} else if (wclen == (size_t)-2) {
-				if (!text_iterator_next(it)) {
-					eof = true;
-					break;
-				}
-			} else if (wclen == 0) {
-				text_iterator_byte_next(it, NULL);
-				break;
-			} else {
-				if (wclen < plen) {
-					it->text += wclen;
-					it->pos += wclen;
-				} else {
-					text_iterator_next(it);
-				}
-				break;
-			}
-		}
-
-		if (eof) {
-			*c = L'\0';
-			*pos_add = 1;
-			return 1;
-		} else {
-			*pos_add = it->pos - start;
-			return 0;
-		}
-	} else {
-		*pos_add = 1;
-		if (it->pos < r->end && text_iterator_byte_get(it, (char*)c)) {
-			text_iterator_byte_next(it, NULL);
-			return 0;
-		} else {
-			*c = '\0';
-			return 1;
-		}
+	if (!r) {
+		return 0;
 	}
-}
-
-static void str_rewind(size_t pos, void *context) {
-	Regex *r = context;
-	r->it = text_iterator_get(r->text, pos);
-}
-
-static int str_compare(size_t pos1, size_t pos2, size_t len, void *context) {
-	Regex *r = context;
-	int ret = 1;
-	void *buf1 = malloc(len), *buf2 = malloc(len);
-	if (!buf1 || !buf2) {
-		goto err;
-	}
-	text_bytes_get(r->text, pos1, len, buf1);
-	text_bytes_get(r->text, pos2, len, buf2);
-	ret = memcmp(buf1, buf2, len);
-err:
-	free(buf1);
-	free(buf2);
-	return ret;
+	return r->regex.re_nsub;
 }
 
 Regex *text_regex_new(void) {
@@ -102,12 +21,6 @@ Regex *text_regex_new(void) {
 	if (!r) {
 		return NULL;
 	}
-	r->str_source = (tre_str_source) {
-		.get_next_char = str_next_char,
-		.rewind = str_rewind,
-		.compare = str_compare,
-		.context = r,
-	};
 	tre_regcomp(&r->regex, "\0\0", 0);
 	return r;
 }
@@ -117,11 +30,25 @@ void text_regex_free(Regex *r) {
 		return;
 	}
 	tre_regfree(&r->regex);
+	free(r->pattern);
 	free(r);
+}
+
+static bool check_literal(const char *s) {
+	if (!s) return false;
+	const char *specials = "^$()[]{}*+?.|\\";
+	while (*s) {
+		if (strchr(specials, *s)) return false;
+		s++;
+	}
+	return true;
 }
 
 int text_regex_compile(Regex *regex, const char *string, int cflags) {
 	tre_regfree(&regex->regex);
+	free(regex->pattern);
+	regex->pattern = strdup(string);
+	regex->is_literal = check_literal(string) && !(cflags & REG_ICASE);
 	int r = tre_regcomp(&regex->regex, string, cflags);
 	if (r) {
 		tre_regfree(&regex->regex);
@@ -135,45 +62,138 @@ int text_regex_match(Regex *r, const char *data, int eflags) {
 }
 
 int text_search_range_forward(Text *txt, size_t pos, size_t len, Regex *r, size_t nmatch, RegexMatch pmatch[], int eflags) {
-	r->text = txt;
-	r->it = text_iterator_get(txt, pos);
-	r->end = pos+len;
-
-	regmatch_t match[MAX_REGEX_SUB];
-	int ret = tre_reguexec(&r->regex, &r->str_source, nmatch, match, eflags);
-	if (!ret) {
-		for (size_t i = 0; i < nmatch; i++) {
-			pmatch[i].start = match[i].rm_so == -1 ? EPOS : pos + match[i].rm_so;
-			pmatch[i].end = match[i].rm_eo == -1 ? EPOS : pos + match[i].rm_eo;
-		}
+	int ret = REG_NOMATCH;
+	size_t range_start = pos;
+	size_t range_end = pos + len;
+	size_t chunk_size = 256 * 1024;
+	size_t overlap = 4096;
+	char *buf = malloc(chunk_size);
+	if (!buf) {
+		return REG_ESPACE;
 	}
+
+	size_t patlen = r->is_literal ? strlen(r->pattern) : 0;
+
+	size_t cur_start = range_start;
+	while (cur_start < range_end) {
+		size_t cur_end = (cur_start + chunk_size < range_end) ? cur_start + chunk_size : range_end;
+		size_t cur_len = cur_end - cur_start;
+
+		text_bytes_get(txt, cur_start, cur_len, buf);
+
+		if (r->is_literal) {
+			char *match = memmem(buf, cur_len, r->pattern, patlen);
+			if (match) {
+				if (nmatch > 0) {
+					pmatch[0].start = cur_start + (match - buf);
+					pmatch[0].end = pmatch[0].start + patlen;
+				}
+				for (size_t i = 1; i < nmatch; i++) {
+					pmatch[i].start = pmatch[i].end = EPOS;
+				}
+				free(buf);
+				return 0;
+			}
+		} else {
+			int cur_eflags = eflags;
+			if (cur_start > range_start) cur_eflags |= REG_NOTBOL;
+			if (cur_end < range_end) cur_eflags |= REG_NOTEOL;
+
+			regmatch_t match[MAX_REGEX_SUB];
+			ret = tre_regnexec(&r->regex, buf, cur_len, nmatch, match, cur_eflags);
+			if (!ret) {
+				for (size_t i = 0; i < nmatch; i++) {
+					pmatch[i].start = match[i].rm_so == -1 ? EPOS : cur_start + match[i].rm_so;
+					pmatch[i].end = match[i].rm_eo == -1 ? EPOS : cur_start + match[i].rm_eo;
+				}
+				free(buf);
+				return 0;
+			}
+		}
+
+		if (cur_end == range_end) break;
+		cur_start = cur_end - overlap;
+		if (cur_start < range_start) cur_start = range_start;
+	}
+
+	free(buf);
 	return ret;
 }
 
 int text_search_range_backward(Text *txt, size_t pos, size_t len, Regex *r, size_t nmatch, RegexMatch pmatch[], int eflags) {
 	int ret = REG_NOMATCH;
-	size_t end = pos + len;
-
-	while (pos < end && !text_search_range_forward(txt, pos, len, r, nmatch, pmatch, eflags)) {
-		ret = 0;
-		// FIXME: assumes nmatch >= 1
-		size_t next = pmatch[0].end;
-		if (next == pos) {
-			next = text_line_next(txt, pos);
-			if (next == pos) {
-				break;
-			}
-		}
-		pos = next;
-		len = end - pos;
-
-		char c;
-		if (text_byte_get(txt, pos-1, &c) && c == '\n') {
-			eflags &= ~REG_NOTBOL;
-		} else {
-			eflags |= REG_NOTBOL;
-		}
+	size_t range_start = pos;
+	size_t range_end = pos + len;
+	size_t chunk_size = 256 * 1024;
+	size_t overlap = 4096;
+	char *buf = malloc(chunk_size);
+	if (!buf) {
+		return REG_ESPACE;
 	}
 
+	size_t patlen = r->is_literal ? strlen(r->pattern) : 0;
+
+	size_t cur_end = range_end;
+	while (cur_end > range_start) {
+		size_t cur_start = (cur_end > range_start + chunk_size) ? cur_end - chunk_size : range_start;
+		size_t cur_len = cur_end - cur_start;
+		
+		text_bytes_get(txt, cur_start, cur_len, buf);
+
+		if (r->is_literal) {
+			char *last_match = NULL;
+			char *curr = buf;
+			while (curr <= buf + cur_len - patlen) {
+				char *match = memmem(curr, (buf + cur_len) - curr, r->pattern, patlen);
+				if (!match) break;
+				last_match = match;
+				curr = match + 1;
+			}
+			if (last_match) {
+				if (nmatch > 0) {
+					pmatch[0].start = cur_start + (last_match - buf);
+					pmatch[0].end = pmatch[0].start + patlen;
+				}
+				for (size_t i = 1; i < nmatch; i++) {
+					pmatch[i].start = pmatch[i].end = EPOS;
+				}
+				free(buf);
+				return 0;
+			}
+		} else {
+			bool found_in_chunk = false;
+			RegexMatch last_match[MAX_REGEX_SUB];
+			size_t search_off = 0;
+			int cur_eflags = eflags;
+			if (cur_start > range_start) cur_eflags |= REG_NOTBOL;
+			if (cur_end < range_end) cur_eflags |= REG_NOTEOL;
+
+			regmatch_t match[MAX_REGEX_SUB];
+			while (search_off < cur_len && !tre_regnexec(&r->regex, buf + search_off, cur_len - search_off, nmatch, match, cur_eflags)) {
+				found_in_chunk = true;
+				ret = 0;
+				for (size_t i = 0; i < nmatch; i++) {
+					last_match[i].start = match[i].rm_so == -1 ? EPOS : cur_start + search_off + match[i].rm_so;
+					last_match[i].end = match[i].rm_eo == -1 ? EPOS : cur_start + search_off + match[i].rm_eo;
+				}
+				size_t next_off = search_off + match[0].rm_eo;
+				if (next_off <= search_off) next_off = search_off + 1;
+				search_off = next_off;
+				if (search_off > 0 && buf[search_off-1] == '\n') cur_eflags &= ~REG_NOTBOL;
+				else cur_eflags |= REG_NOTBOL;
+			}
+
+			if (found_in_chunk) {
+				memcpy(pmatch, last_match, nmatch * sizeof(RegexMatch));
+				free(buf);
+				return 0;
+			}
+		}
+
+		if (cur_start == range_start) break;
+		cur_end = cur_start + overlap;
+	}
+
+	free(buf);
 	return ret;
 }
