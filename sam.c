@@ -1036,7 +1036,7 @@ static Command *sam_parse(Vix *vix, const char *cmd, enum SamError *err) {
 	return sel;
 }
 
-static Filerange address_line_evaluate(Address *addr, File *file, Filerange *range, int sign) {
+static Filerange address_line_evaluate(Vix *vix, Address *addr, File *file, Filerange *range, int sign) {
 	Text *txt = file->text;
 	size_t offset = addr->number != EPOS ? addr->number : 1;
 	size_t start = range->start, end = range->end, line;
@@ -1045,16 +1045,16 @@ static Filerange address_line_evaluate(Address *addr, File *file, Filerange *ran
 		if (start < end && text_byte_get(txt, end-1, &c) && c == '\n') {
 			end--;
 		}
-		line = text_lineno_by_pos(txt, end);
-		line = text_pos_by_lineno(txt, line + offset);
+		line = text_lineno_by_pos(vix, txt, end);
+		line = text_pos_by_lineno(vix, txt, line + offset);
 	} else if (sign < 0) {
-		line = text_lineno_by_pos(txt, start);
-		line = offset < line ? text_pos_by_lineno(txt, line - offset) : 0;
+		line = text_lineno_by_pos(vix, txt, start);
+		line = offset < line ? text_pos_by_lineno(vix, txt, line - offset) : 0;
 	} else {
 		if (addr->number == 0) {
 			return text_range_new(0, 0);
 		}
-		line = text_pos_by_lineno(txt, addr->number);
+		line = text_pos_by_lineno(vix, txt, addr->number);
 	}
 
 	if (addr->type == 'g') {
@@ -1064,7 +1064,7 @@ static Filerange address_line_evaluate(Address *addr, File *file, Filerange *ran
 	}
 }
 
-static Filerange address_evaluate(Address *addr, File *file, Selection *sel, Filerange *range, int sign) {
+static Filerange address_evaluate(Vix *vix, Address *addr, File *file, Selection *sel, Filerange *range, int sign) {
 	Filerange ret = text_range_empty();
 
 	do {
@@ -1080,7 +1080,7 @@ static Filerange address_evaluate(Address *addr, File *file, Selection *sel, Fil
 			break;
 		case 'l':
 		case 'g':
-			ret = address_line_evaluate(addr, file, range, sign);
+			ret = address_line_evaluate(vix, addr, file, range, sign);
 			break;
 		case '\'':
 		{
@@ -1116,7 +1116,7 @@ static Filerange address_evaluate(Address *addr, File *file, Selection *sel, Fil
 		case '-':
 			sign = addr->type == '+' ? +1 : -1;
 			if (!addr->right || addr->right->type == '+' || addr->right->type == '-') {
-				ret = address_line_evaluate(addr, file, range, sign);
+				ret = address_line_evaluate(vix, addr, file, range, sign);
 			}
 			break;
 		case ',':
@@ -1124,7 +1124,7 @@ static Filerange address_evaluate(Address *addr, File *file, Selection *sel, Fil
 		{
 			Filerange left, right;
 			if (addr->left) {
-				left = address_evaluate(addr->left, file, sel, range, 0);
+				left = address_evaluate(vix, addr->left, file, sel, range, 0);
 			} else {
 				left = text_range_new(0, 0);
 			}
@@ -1134,7 +1134,7 @@ static Filerange address_evaluate(Address *addr, File *file, Selection *sel, Fil
 			}
 
 			if (addr->right) {
-				right = address_evaluate(addr->right, file, sel, range, 0);
+				right = address_evaluate(vix, addr->right, file, sel, range, 0);
 			} else {
 				size_t size = text_size(file->text);
 				right = text_range_new(size, size);
@@ -1164,7 +1164,7 @@ static bool count_evaluate(Command *cmd) {
 static bool sam_execute(Vix *vix, Win *win, Command *cmd, Selection *sel, Filerange *range) {
 	bool ret = true;
 	if (cmd->address && win) {
-		*range = address_evaluate(cmd->address, win->file, sel, range, 0);
+		*range = address_evaluate(vix, cmd->address, win->file, sel, range, 0);
 	}
 
 	cmd->iteration++;

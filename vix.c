@@ -294,7 +294,7 @@ static void window_draw_cursor_matching(Win *win, Selection *cur) {
 	Line *line_match; int col_match;
 	size_t pos = view_cursors_pos(cur);
 	Filerange limits = VIEW_VIEWPORT_GET(win->view);
-	size_t pos_match = text_bracket_match_symbol(win->file->text, pos, "(){}[]\"'`", &limits);
+	size_t pos_match = text_bracket_match_symbol(win->vix, win->file->text, pos, "(){}[]\"'`", &limits);
 	if (pos == pos_match) {
 		return;
 	}
@@ -353,6 +353,9 @@ static void window_draw_eof(Win *win) {
 }
 
 void vix_window_draw(Win *win) {
+	if (win->vix->headless) {
+		return;
+	}
 	if (!view_update(&win->view)) {
 		return;
 	}
@@ -514,6 +517,9 @@ void vix_draw(Vix *vix) {
 }
 
 void vix_redraw(Vix *vix) {
+	if (vix->headless) {
+		return;
+	}
 	ui_redraw(&vix->ui);
 	ui_draw(&vix->ui);
 }
@@ -640,6 +646,7 @@ bool vix_init(Vix *vix)
 	vix->registers[VIX_REG_NUMBER].type = REGISTER_NUMBER;
 	action_reset(&vix->action);
 	vix->input_queue = (Buffer){0};
+	vix->running = true;
 	if (!(vix->command_file = file_new_internal(vix, NULL))) {
 		goto err;
 	}
@@ -1386,13 +1393,12 @@ bool vix_signal_handler(Vix *vix, int signum, const siginfo_t *siginfo, const vo
 }
 
 int vix_run(Vix *vix) {
-	if (!vix->windows) {
+	if (!vix->running || !vix->windows) {
 		return EXIT_SUCCESS;
 	}
 	if (vix->exit_status != -1) {
 		return vix->exit_status;
 	}
-	vix->running = true;
 
 	if (setjmp(vix->oom_jmp_buf)) {
 		/* TODO: if we run out of memory here we may have files with unsaved changes.
@@ -1413,6 +1419,9 @@ int vix_run(Vix *vix) {
 	sigsetjmp(vix->sigbus_jmpbuf, 1);
 
 	while (vix->running) {
+		if (vix->headless && !vix->input_queue.len) {
+			break;
+		}
 		fd_set fds;
 		FD_ZERO(&fds);
 		FD_SET(STDIN_FILENO, &fds);
@@ -1457,6 +1466,12 @@ int vix_run(Vix *vix) {
 
 		ui_draw(&vix->ui);
 		idle.tv_sec = vix->mode->idle_timeout;
+		
+		if (vix->headless && !vix->input_queue.len) {
+			vix->running = false;
+			break;
+		}
+
 		int r = pselect(vix_process_before_tick(&fds) + 1, &fds, NULL, NULL,
 		                timeout, &emptyset);
 		if (r == -1 && errno == EINTR) {

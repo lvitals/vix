@@ -223,7 +223,6 @@ static void ui_draw_string(Ui *tui, int x, int y, int max_x, const char *str, in
 
 static void ui_window_draw(Win *win) {
 	if (win->vix->headless) {
-		vix_window_draw(win);
 		return;
 	}
 	Ui *ui = &win->vix->ui;

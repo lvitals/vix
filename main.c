@@ -632,10 +632,10 @@ static KEY_ACTION_FN(ka_selections_rotate)
 		*da_push(vix, rotations) = rot;
 
 		if (!line) {
-			line = text_lineno_by_pos(txt, view_cursors_pos(s));
+			line = text_lineno_by_pos(vix, txt, view_cursors_pos(s));
 		}
 		if (next) {
-			line_next = text_lineno_by_pos(txt, view_cursors_pos(next));
+			line_next = text_lineno_by_pos(vix, txt, view_cursors_pos(next));
 		}
 		if (!next || (columns > 1 && line != line_next)) {
 			VixDACount len = rotations->count;
@@ -1424,8 +1424,6 @@ int main(int argc, char *argv[])
 		vix_keymap_add(vix, k[0], k[1]);
 	}
 
-
-	char *cmd = NULL;
 	bool end_of_options = false, win_created = false;
 
 	for (int i = 1; i < argc; i++) {
@@ -1455,28 +1453,24 @@ int main(int argc, char *argv[])
 				continue;
 			}
 		} else if (argv[i][0] == '+' && !end_of_options) {
-			cmd = argv[i] + (argv[i][1] == '/' || argv[i][1] == '?');
+			vix_prompt_cmd(vix, argv[i] + (argv[i][1] == '/' || argv[i][1] == '?'));
 			continue;
 		} else if (!vix_window_new(vix, argv[i])) {
 			vix_die(vix, "Can not load '%s': %s\n", argv[i], strerror(errno));
 		}
 		win_created = true;
-		if (cmd) {
-			vix_prompt_cmd(vix, cmd);
-			cmd = NULL;
-		}
 	}
 
 	if (!vix->win && !win_created) {
 		if (!vix_window_new(vix, NULL)) {
 			vix_die(vix, "Can not create empty buffer\n");
 		}
-		if (cmd) {
-			vix_prompt_cmd(vix, cmd);
-		}
 	}
 
-	int status = vix_run(vix);
+	int status = EXIT_SUCCESS;
+	if (vix->running) {
+		status = vix_run(vix);
+	}
 	vix_cleanup(vix);
 	return status;
 }

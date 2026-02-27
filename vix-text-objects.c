@@ -48,7 +48,7 @@ static Filerange vix_text_object_search_backward(Vix *vix, Text *txt, size_t pos
 	return range;
 }
 
-static Filerange object_unpaired(Text *txt, size_t pos, char obj) {
+static Filerange object_unpaired(Vix *vix, Text *txt, size_t pos, char obj) {
 	char c;
 	bool before = false;
 	Iterator it = text_iterator_get(txt, pos), rit = it;
@@ -74,26 +74,26 @@ static Filerange object_unpaired(Text *txt, size_t pos, char obj) {
 
 	switch (obj) {
 	case '"':
-		return text_object_quote(txt, pos);
+		return text_object_quote(vix, txt, pos);
 	case '\'':
-		return text_object_single_quote(txt, pos);
+		return text_object_single_quote(vix, txt, pos);
 	case '`':
-		return text_object_backtick(txt, pos);
+		return text_object_backtick(vix, txt, pos);
 	default:
 		return text_range_empty();
 	}
 }
 
-static Filerange object_quote(Text *txt, size_t pos) {
-	return object_unpaired(txt, pos, '"');
+static Filerange object_quote(Vix *vix, Text *txt, size_t pos) {
+	return object_unpaired(vix, txt, pos, '"');
 }
 
-static Filerange object_single_quote(Text *txt, size_t pos) {
-	return object_unpaired(txt, pos, '\'');
+static Filerange object_single_quote(Vix *vix, Text *txt, size_t pos) {
+	return object_unpaired(vix, txt, pos, '\'');
 }
 
-static Filerange object_backtick(Text *txt, size_t pos) {
-	return object_unpaired(txt, pos, '`');
+static Filerange object_backtick(Vix *vix, Text *txt, size_t pos) {
+	return object_unpaired(vix, txt, pos, '`');
 }
 
 const TextObject vix_textobjects[] = {
@@ -119,59 +119,59 @@ const TextObject vix_textobjects[] = {
 		.txt = text_object_paragraph_outer,
 	},
 	[VIX_TEXTOBJECT_OUTER_SQUARE_BRACKET] = {
-		.txt = text_object_square_bracket,
+		.vix = text_object_square_bracket,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_SQUARE_BRACKET] = {
-		.txt = text_object_square_bracket,
+		.vix = text_object_square_bracket,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_CURLY_BRACKET] = {
-		.txt = text_object_curly_bracket,
+		.vix = text_object_curly_bracket,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_CURLY_BRACKET] = {
-		.txt = text_object_curly_bracket,
+		.vix = text_object_curly_bracket,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_ANGLE_BRACKET] = {
-		.txt = text_object_angle_bracket,
+		.vix = text_object_angle_bracket,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_ANGLE_BRACKET] = {
-		.txt = text_object_angle_bracket,
+		.vix = text_object_angle_bracket,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_PARENTHESIS] = {
-		.txt = text_object_parenthesis,
+		.vix = text_object_parenthesis,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_PARENTHESIS] = {
-		.txt = text_object_parenthesis,
+		.vix = text_object_parenthesis,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_QUOTE] = {
-		.txt = object_quote,
+		.vix = object_quote,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_QUOTE] = {
-		.txt = object_quote,
+		.vix = object_quote,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_SINGLE_QUOTE] = {
-		.txt = object_single_quote,
+		.vix = object_single_quote,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_SINGLE_QUOTE] = {
-		.txt = object_single_quote,
+		.vix = object_single_quote,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_BACKTICK] = {
-		.txt = object_backtick,
+		.vix = object_backtick,
 		.type = TEXTOBJECT_DELIMITED_OUTER,
 	},
 	[VIX_TEXTOBJECT_INNER_BACKTICK] = {
-		.txt = object_backtick,
+		.vix = object_backtick,
 		.type = TEXTOBJECT_DELIMITED_INNER,
 	},
 	[VIX_TEXTOBJECT_OUTER_LINE] = {

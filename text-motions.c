@@ -493,28 +493,29 @@ size_t text_line_blank_prev(Text *txt, size_t pos) {
 	return it.pos;
 }
 
-size_t text_block_start(Text *txt, size_t pos) {
-	Filerange r = text_object_curly_bracket(txt, pos-1);
-	return text_range_valid(&r) ? r.start-1 : pos;
+size_t text_block_start(Vix *vix, Text *txt, size_t pos) {
+	Filerange r = text_object_curly_bracket(vix, txt, pos-1);
+	return text_range_valid(&r) ? r.start - 1 : pos;
 }
 
-size_t text_block_end(Text *txt, size_t pos) {
-	Filerange r = text_object_curly_bracket(txt, pos+1);
+size_t text_block_end(Vix *vix, Text *txt, size_t pos) {
+	Filerange r = text_object_curly_bracket(vix, txt, pos+1);
 	return text_range_valid(&r) ? r.end : pos;
 }
 
-size_t text_parenthesis_start(Text *txt, size_t pos) {
-	Filerange r = text_object_parenthesis(txt, pos-1);
-	return text_range_valid(&r) ? r.start-1 : pos;
+size_t text_parenthesis_start(Vix *vix, Text *txt, size_t pos) {
+	Filerange r = text_object_parenthesis(vix, txt, pos-1);
+	return text_range_valid(&r) ? r.start - 1 : pos;
 }
 
-size_t text_parenthesis_end(Text *txt, size_t pos) {
-	Filerange r = text_object_parenthesis(txt, pos+1);
+size_t text_parenthesis_end(Vix *vix, Text *txt, size_t pos) {
+	Filerange r = text_object_parenthesis(vix, txt, pos+1);
 	return text_range_valid(&r) ? r.end : pos;
 }
 
-size_t text_bracket_match(Text *txt, size_t pos, const Filerange *limits) {
-	return text_bracket_match_symbol(txt, pos, NULL, limits);
+
+size_t text_bracket_match(Vix *vix, Text *txt, size_t pos, const Filerange *limits) {
+	return text_bracket_match_symbol(vix, txt, pos, NULL, limits);
 }
 
 static size_t match_symbol(Text *txt, size_t pos, char search, int direction, const Filerange *limits) {
@@ -562,7 +563,7 @@ static size_t match_symbol(Text *txt, size_t pos, char search, int direction, co
 	return pos; /* no match found */
 }
 
-size_t text_bracket_match_symbol(Text *txt, size_t pos, const char *symbols, const Filerange *limits) {
+size_t text_bracket_match_symbol(Vix *vix, Text *txt, size_t pos, const char *symbols, const Filerange *limits) {
 	int direction;
 	char search, current, c;
 	Iterator it = text_iterator_get(txt, pos);
@@ -594,9 +595,9 @@ size_t text_bracket_match_symbol(Text *txt, size_t pos, const char *symbols, con
 		if (bw == pos) {
 			return fw;
 		}
-		size_t line = text_lineno_by_pos(txt, pos);
-		size_t line_fw = text_lineno_by_pos(txt, fw);
-		size_t line_bw = text_lineno_by_pos(txt, bw);
+		size_t line = text_lineno_by_pos(vix, txt, pos);
+		size_t line_fw = text_lineno_by_pos(vix, txt, fw);
+		size_t line_bw = text_lineno_by_pos(vix, txt, bw);
 		if (line != line_fw) {
 			return bw;
 		}

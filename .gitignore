@@ -15,4 +15,6 @@
 *.err
 *.rock
 /test/util/keys
+/test/*.log
+/test/*.txt
 config.h

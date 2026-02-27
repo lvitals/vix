@@ -196,7 +196,7 @@ static size_t firstline(Text *txt, size_t pos) {
 
 static size_t line(Vix *vix, Text *txt, size_t pos) {
 	int count = VIX_COUNT_DEFAULT(vix->action.count, 1);
-	return text_line_start(txt, text_pos_by_lineno(txt, count));
+	return text_line_start(txt, text_pos_by_lineno(vix, txt, count));
 }
 
 static size_t lastline(Text *txt, size_t pos) {
@@ -226,8 +226,8 @@ static size_t window_nop(Vix *vix, Win *win, size_t pos) {
 	return pos;
 }
 
-static size_t bracket_match(Text *txt, size_t pos) {
-	size_t hit = text_bracket_match_symbol(txt, pos, "(){}[]<>'\"`", NULL);
+static size_t bracket_match(Vix *vix, Text *txt, size_t pos) {
+	size_t hit = text_bracket_match_symbol(vix, txt, pos, "(){}[]<>'\"`", NULL);
 	if (hit != pos) {
 		return hit;
 	}
@@ -555,23 +555,23 @@ const Movement vix_motions[] = {
 		.type = LINEWISE|JUMP,
 	},
 	[VIX_MOVE_BLOCK_START] = {
-		.txt = text_block_start,
+		.vix = text_block_start,
 		.type = JUMP,
 	},
 	[VIX_MOVE_BLOCK_END] = {
-		.txt = text_block_end,
+		.vix = text_block_end,
 		.type = JUMP,
 	},
 	[VIX_MOVE_PARENTHESIS_START] = {
-		.txt = text_parenthesis_start,
+		.vix = text_parenthesis_start,
 		.type = JUMP,
 	},
 	[VIX_MOVE_PARENTHESIS_END] = {
-		.txt = text_parenthesis_end,
+		.vix = text_parenthesis_end,
 		.type = JUMP,
 	},
 	[VIX_MOVE_BRACKET_MATCH] = {
-		.txt = bracket_match,
+		.vix = bracket_match,
 		.type = INCLUSIVE|JUMP,
 	},
 	[VIX_MOVE_FILE_BEGIN] = {

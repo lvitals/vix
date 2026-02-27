@@ -225,7 +225,7 @@ Filerange text_object_paragraph_outer(Text *txt, size_t pos) {
 	return text_range_union(&p1, &p2);
 }
 
-static Filerange text_object_bracket(Text *txt, size_t pos, char type) {
+static Filerange text_object_bracket(Vix *vix, Text *txt, size_t pos, char type) {
 	char c, open, close;
 	int opened = 1, closed = 1;
 	Filerange r = text_range_empty();
@@ -244,7 +244,7 @@ static Filerange text_object_bracket(Text *txt, size_t pos, char type) {
 	Iterator it = text_iterator_get(txt, pos);
 
 	if (open == close && text_iterator_byte_get(&it, &c) && (c == '"' || c == '`' || c == '\'')) {
-		size_t match = text_bracket_match(txt, pos, NULL);
+		size_t match = text_bracket_match(vix, txt, pos, NULL);
 		r.start = MIN(pos, match) + 1;
 		r.end = MAX(pos, match);
 		return r;
@@ -277,32 +277,32 @@ static Filerange text_object_bracket(Text *txt, size_t pos, char type) {
 	return r;
 }
 
-Filerange text_object_square_bracket(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, ']');
+Filerange text_object_square_bracket(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, ']');
 }
 
-Filerange text_object_curly_bracket(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, '}');
+Filerange text_object_curly_bracket(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, '}');
 }
 
-Filerange text_object_angle_bracket(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, '>');
+Filerange text_object_angle_bracket(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, '>');
 }
 
-Filerange text_object_parenthesis(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, ')');
+Filerange text_object_parenthesis(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, ')');
 }
 
-Filerange text_object_quote(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, '"');
+Filerange text_object_quote(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, '"');
 }
 
-Filerange text_object_single_quote(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, '\'');
+Filerange text_object_single_quote(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, '\'');
 }
 
-Filerange text_object_backtick(Text *txt, size_t pos) {
-	return text_object_bracket(txt, pos, '`');
+Filerange text_object_backtick(Vix *vix, Text *txt, size_t pos) {
+	return text_object_bracket(vix, txt, pos, '`');
 }
 
 Filerange text_object_search_forward(Text *txt, size_t pos, Regex *regex) {

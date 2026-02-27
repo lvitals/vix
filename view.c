@@ -183,7 +183,7 @@ static void view_clear(View *view) {
 
 	view->start_last = view->start;
 	view->topline = view->lines;
-	view->topline->lineno = view->large_file ? 1 : text_lineno_by_pos(view->text, view->start);
+	view->topline->lineno = view->large_file ? 1 : text_lineno_by_pos(view->win->vix, view->text, view->start);
 	view->lastline = view->topline;
 
 	size_t line_size = sizeof(Line) + view->width*sizeof(Cell);
@@ -620,6 +620,7 @@ bool view_init(Win *win, Text *text) {
 	}
 
 	view->text = text;
+	view->win = win;
 	view->tabwidth = 8;
 	view->breakat = strdup("");
 	view->wrapcolumn = 0;
@@ -1102,7 +1103,7 @@ int view_selections_column_count(View *view) {
 	size_t line_prev = 0;
 	for (Selection *sel = view->selections; sel; sel = sel->next) {
 		size_t pos = view_cursors_pos(sel);
-		size_t line = text_lineno_by_pos(txt, pos);
+		size_t line = text_lineno_by_pos(view->win->vix, txt, pos);
 		if (line == line_prev) {
 			cpl++;
 		} else {
@@ -1122,7 +1123,7 @@ static Selection *selections_column_next(View *view, Selection *sel, int column)
 	Text *txt = view->text;
 	if (sel) {
 		size_t pos = view_cursors_pos(sel);
-		line_cur = text_lineno_by_pos(txt, pos);
+		line_cur = text_lineno_by_pos(view->win->vix, txt, pos);
 		column_cur = INT_MIN;
 	} else {
 		sel = view->selections;
@@ -1130,7 +1131,7 @@ static Selection *selections_column_next(View *view, Selection *sel, int column)
 
 	for (; sel; sel = sel->next) {
 		size_t pos = view_cursors_pos(sel);
-		size_t line = text_lineno_by_pos(txt, pos);
+		size_t line = text_lineno_by_pos(view->win->vix, txt, pos);
 		if (line != line_cur) {
 			line_cur = line;
 			column_cur = 0;
@@ -1261,7 +1262,7 @@ size_t view_cursors_pos(Selection *s) {
 
 size_t view_cursors_line(Selection *s) {
 	size_t pos = view_cursors_pos(s);
-	return text_lineno_by_pos(s->view->text, pos);
+	return text_lineno_by_pos(s->view->win->vix, s->view->text, pos);
 }
 
 size_t view_cursors_col(Selection *s) {
@@ -1328,7 +1329,7 @@ void view_cursors_to(Selection *s, size_t pos) {
 
 void view_cursors_place(Selection *s, size_t line, size_t col) {
 	Text *txt = s->view->text;
-	size_t pos = text_pos_by_lineno(txt, line);
+	size_t pos = text_pos_by_lineno(s->view->win->vix, txt, line);
 	pos = text_line_char_set(txt, pos, col > 0 ? col-1 : col);
 	view_cursors_to(s, pos);
 }

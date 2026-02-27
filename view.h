@@ -78,6 +78,7 @@ typedef struct View {
 	int wrapcol;    /* used while drawing view content, column where word wrap might happen */
 	bool prevch_breakat; /* used while drawing view content, previous char is part of breakat */
 	Cell cell_blank;    /* blank cell with default style for this view */
+	struct Win *win;    /* associated window */
 } View;
 
 /**

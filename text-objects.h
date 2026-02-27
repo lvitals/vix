@@ -33,13 +33,13 @@ VIX_INTERNAL Filerange text_object_paragraph_outer(Text*, size_t pos);
 
 /* these are inner text objects i.e. the delimiters themself are not
  * included in the range */
-VIX_INTERNAL Filerange text_object_square_bracket(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_curly_bracket(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_angle_bracket(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_parenthesis(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_quote(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_single_quote(Text*, size_t pos);
-VIX_INTERNAL Filerange text_object_backtick(Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_square_bracket(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_curly_bracket(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_angle_bracket(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_parenthesis(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_quote(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_single_quote(Vix*, Text*, size_t pos);
+VIX_INTERNAL Filerange text_object_backtick(Vix*, Text*, size_t pos);
 /* match a search term in either forward or backward direction */
 VIX_INTERNAL Filerange text_object_search_forward(Text*, size_t pos, Regex*);
 VIX_INTERNAL Filerange text_object_search_backward(Text*, size_t pos, Regex*);

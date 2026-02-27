@@ -197,8 +197,8 @@ VIX_INTERNAL time_t text_state(const Text*);
  * @defgroup lines Line Operations
  * @{
  */
-VIX_INTERNAL size_t text_pos_by_lineno(Text*, size_t lineno);
-VIX_INTERNAL size_t text_lineno_by_pos(Text*, size_t pos);
+VIX_INTERNAL size_t text_pos_by_lineno(Vix*, Text*, size_t lineno);
+VIX_INTERNAL size_t text_lineno_by_pos(Vix*, Text*, size_t pos);
 
 /**
  * @}

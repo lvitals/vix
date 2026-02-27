@@ -103,14 +103,14 @@ VIX_INTERNAL size_t text_paragraph_prev(Text*, size_t pos);
 size_t text_section_next(Text*, size_t pos);
 size_t text_section_prev(Text*, size_t pos);
 */
-VIX_INTERNAL size_t text_block_start(Text*, size_t pos);
-VIX_INTERNAL size_t text_block_end(Text*, size_t pos);
-VIX_INTERNAL size_t text_parenthesis_start(Text*, size_t pos);
-VIX_INTERNAL size_t text_parenthesis_end(Text*, size_t pos);
+VIX_INTERNAL size_t text_block_start(Vix*, Text*, size_t pos);
+VIX_INTERNAL size_t text_block_end(Vix*, Text*, size_t pos);
+VIX_INTERNAL size_t text_parenthesis_start(Vix*, Text*, size_t pos);
+VIX_INTERNAL size_t text_parenthesis_end(Vix*, Text*, size_t pos);
 /* search corresponding '(', ')', '{', '}', '[', ']', '>', '<', '"', ''' */
-VIX_INTERNAL size_t text_bracket_match(Text*, size_t pos, const Filerange *limits);
+VIX_INTERNAL size_t text_bracket_match(Vix*, Text*, size_t pos, const Filerange *limits);
 /* same as above but explicitly specify symbols to match */
-VIX_INTERNAL size_t text_bracket_match_symbol(Text*, size_t pos, const char *symbols, const Filerange *limits);
+VIX_INTERNAL size_t text_bracket_match_symbol(Vix*, Text*, size_t pos, const char *symbols, const Filerange *limits);
 
 /* search the given regex pattern in either forward or backward direction,
  * starting from pos. Does wrap around if no match was found. */

@@ -2994,10 +2994,11 @@ static int file_snapshot(lua_State *L) {
  */
 static int file_lines_iterator_it(lua_State *L);
 static int file_lines_iterator(lua_State *L) {
+	Vix *vix = lua_get_vix(L);
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	size_t line = luaL_optinteger(L, 2, 1);
 	size_t *pos = lua_newuserdata(L, sizeof *pos);
-	*pos = text_pos_by_lineno(file->text, line);
+	*pos = text_pos_by_lineno(vix, file->text, line);
 	lua_pushcclosure(L, file_lines_iterator_it, 2);
 	return 1;
 }
@@ -3112,12 +3113,15 @@ static int file_mark_get(lua_State *L) {
 
 static int file_text_object(lua_State *L) {
 	Filerange range = text_range_empty();
+	Vix *vix = lua_get_vix(L);
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	size_t pos = checkpos(L, 2);
 	size_t idx = lua_tointeger(L, lua_upvalueindex(1));
 	if (idx < LENGTH(vix_textobjects)) {
 		const TextObject *txtobj = &vix_textobjects[idx];
-		if (txtobj->txt) {
+		if (txtobj->vix) {
+			range = txtobj->vix(vix, file->text, pos);
+		} else if (txtobj->txt) {
 			range = txtobj->txt(file->text, pos);
 		}
 	}
@@ -3139,9 +3143,10 @@ static const struct luaL_Reg file_funcs[] = {
 };
 
 static int file_lines_index(lua_State *L) {
+	Vix *vix = lua_get_vix(L);
 	Text *txt = obj_ref_check(L, 1, VIX_LUA_TYPE_TEXT);
 	size_t line = luaL_checkinteger(L, 2);
-	size_t start = text_pos_by_lineno(txt, line);
+	size_t start = text_pos_by_lineno(vix, txt, line);
 	size_t end = text_line_end(txt, start);
 	if (start != EPOS && end != EPOS) {
 		size_t size = end - start;
@@ -3170,7 +3175,7 @@ static int file_lines_newindex(lua_State *L)
 		text_insert(vix, txt, size, "\n", 1);
 		return 0;
 	}
-	size_t start = text_pos_by_lineno(txt, line);
+	size_t start = text_pos_by_lineno(vix, txt, line);
 	size_t end = text_line_end(txt, start);
 	if (start != EPOS && end != EPOS) {
 		text_delete(txt, start, end - start);
@@ -3183,12 +3188,13 @@ static int file_lines_newindex(lua_State *L)
 }
 
 static int file_lines_len(lua_State *L) {
+	Vix *vix = lua_get_vix(L);
 	Text *txt = obj_ref_check(L, 1, VIX_LUA_TYPE_TEXT);
 	size_t lines = 0;
 	char lastchar;
 	size_t size = text_size(txt);
 	if (size > 0) {
-		lines = text_lineno_by_pos(txt, size);
+		lines = text_lineno_by_pos(vix, txt, size);
 	}
 	if (lines > 1 && text_byte_get(txt, size-1, &lastchar) && lastchar == '\n') {
 		lines--;

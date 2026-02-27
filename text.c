@@ -95,6 +95,11 @@ struct Text {
 	Revision *saved_revision;   /* the last revision at the time of the save operation */
 	size_t size;            /* current file content size in bytes */
 	struct stat info;       /* stat as probed at load time */
+	struct {
+		LineCache *data;
+		VixDACount count;
+		VixDACount capacity;
+	} line_checkpoints;
 	LineCache lines;        /* mapping between absolute pos in bytes and logical line breaks */
 };
 
@@ -131,9 +136,9 @@ static void text_change_free(TextChange *c);
 static Revision *revision_alloc(Text *txt);
 static void revision_free(Revision *rev);
 /* logical line counting cache */
-static void lineno_cache_invalidate(LineCache *cache);
-static size_t lines_skip_forward(Text *txt, size_t pos, size_t lines, size_t *lines_skipped);
-static size_t lines_count(Text *txt, size_t pos, size_t len);
+static void lineno_cache_invalidate(Text *txt);
+static size_t lines_skip_forward(Vix *vix, Text *txt, size_t pos, size_t lines, size_t *lines_skipped);
+static size_t lines_count(Vix *vix, Text *txt, size_t pos, size_t len);
 
 /* stores the given data in a block, allocates a new one if necessary. Returns
  * a pointer to the storage location or NULL if allocation failed. */
@@ -464,7 +469,7 @@ bool text_insert(Vix *vix, Text *txt, size_t pos, const char *data, size_t len)
 		return false;
 	}
 	if (pos < txt->lines.pos) {
-		lineno_cache_invalidate(&txt->lines);
+		lineno_cache_invalidate(txt);
 	}
 
 	Location loc = piece_get_intern(txt, pos);
@@ -557,7 +562,7 @@ size_t text_undo(Text *txt) {
 	}
 	pos = revision_undo(txt, txt->history);
 	txt->history = rev;
-	lineno_cache_invalidate(&txt->lines);
+	lineno_cache_invalidate(txt);
 	return pos;
 }
 
@@ -571,7 +576,7 @@ size_t text_redo(Text *txt) {
 	}
 	pos = revision_redo(txt, rev);
 	txt->history = rev;
-	lineno_cache_invalidate(&txt->lines);
+	lineno_cache_invalidate(txt);
 	return pos;
 }
 
@@ -661,7 +666,7 @@ Text *text_loadat_method(Vix *vix, int dirfd, const char *filename, enum TextLoa
 		goto out;
 	}
 	Block *block = 0;
-	lineno_cache_invalidate(&txt->lines);
+	lineno_cache_invalidate(txt);
 	if (filename) {
 		errno = 0;
 		block = block_load(dirfd, filename, method, &txt->info);
@@ -718,7 +723,7 @@ bool text_delete(Text *txt, size_t pos, size_t len) {
 		return false;
 	}
 	if (pos < txt->lines.pos) {
-		lineno_cache_invalidate(&txt->lines);
+		lineno_cache_invalidate(txt);
 	}
 
 	Location loc = piece_get_intern(txt, pos);
@@ -834,6 +839,10 @@ void text_free(Text *txt) {
 		block_free(txt->data[i]);
 	}
 	da_release(txt);
+	
+	if (txt->line_checkpoints.data) {
+		free(txt->line_checkpoints.data);
+	}
 
 	free(txt);
 }
@@ -909,7 +918,7 @@ size_t text_size(const Text *txt) {
 }
 
 /* count the number of new lines '\n' in range [pos, pos+len) */
-static size_t lines_count(Text *txt, size_t pos, size_t len) {
+static size_t lines_count(Vix *vix, Text *txt, size_t pos, size_t len) {
 	size_t lines = 0;
 	for (Iterator it = text_iterator_get(txt, pos);
 	     text_iterator_valid(&it);
@@ -934,9 +943,15 @@ static size_t lines_count(Text *txt, size_t pos, size_t len) {
 	return lines;
 }
 
-/* skip n lines forward and return position afterwards */
-static size_t lines_skip_forward(Text *txt, size_t pos, size_t lines, size_t *lines_skipped) {
+static void lineno_cache_invalidate(Text *txt) {
+	txt->lines.pos = 0;
+	txt->lines.lineno = 1;
+	txt->line_checkpoints.count = 0;
+}
+
+static size_t lines_skip_forward(Vix *vix, Text *txt, size_t pos, size_t lines, size_t *lines_skipped) {
 	size_t lines_old = lines;
+	size_t base_lineno = txt->lines.lineno;
 	for (Iterator it = text_iterator_get(txt, pos);
 	     text_iterator_valid(&it);
 	     text_iterator_next(&it)) {
@@ -951,6 +966,15 @@ static size_t lines_skip_forward(Text *txt, size_t pos, size_t lines, size_t *li
 			pos += end - start + 1;
 			start = end + 1;
 			lines--;
+			size_t cur_lineno = (lines_old - lines) + base_lineno;
+			/* Add checkpoint every 1024 lines */
+			if (cur_lineno % 1024 == 0) {
+				VixDACount count = txt->line_checkpoints.count;
+				if (count == 0 || txt->line_checkpoints.data[count-1].lineno < cur_lineno) {
+					LineCache lc = { .pos = pos, .lineno = cur_lineno };
+					*da_push(vix, &txt->line_checkpoints) = lc;
+				}
+			}
 		}
 
 		if (lines == 0) {
@@ -963,35 +987,33 @@ static size_t lines_skip_forward(Text *txt, size_t pos, size_t lines, size_t *li
 	return pos;
 }
 
-static void lineno_cache_invalidate(LineCache *cache) {
-	cache->pos = 0;
-	cache->lineno = 1;
-}
-
-size_t text_pos_by_lineno(Text *txt, size_t lineno) {
+size_t text_pos_by_lineno(Vix *vix, Text *txt, size_t lineno) {
 	size_t lines_skipped;
 	LineCache *cache = &txt->lines;
 	if (lineno <= 1) {
 		return 0;
 	}
+
+	LineCache closest = { .pos = 0, .lineno = 1 };
+	if (cache->lineno <= lineno) {
+		closest = *cache;
+	}
+	for (VixDACount i = 0; i < txt->line_checkpoints.count; i++) {
+		if (txt->line_checkpoints.data[i].lineno <= lineno && 
+		    txt->line_checkpoints.data[i].lineno > closest.lineno) {
+			closest = txt->line_checkpoints.data[i];
+		}
+	}
+	*cache = closest;
+
 	if (lineno > cache->lineno) {
-		cache->pos = lines_skip_forward(txt, cache->pos, lineno - cache->lineno, &lines_skipped);
+		cache->pos = lines_skip_forward(vix, txt, cache->pos, lineno - cache->lineno, &lines_skipped);
 		cache->lineno += lines_skipped;
-	} else if (lineno < cache->lineno) {
-	#if 0
-		// TODO does it make sense to scan memory backwards here?
-		size_t diff = cache->lineno - lineno;
-		if (diff < lineno) {
-			lines_skip_backward(txt, cache->pos, diff);
-		} else
-	#endif
-		cache->pos = lines_skip_forward(txt, 0, lineno - 1, &lines_skipped);
-		cache->lineno = lines_skipped + 1;
 	}
 	return cache->lineno == lineno ? cache->pos : EPOS;
 }
 
-size_t text_lineno_by_pos(Text *txt, size_t pos) {
+size_t text_lineno_by_pos(Vix *vix, Text *txt, size_t pos) {
 	LineCache *cache = &txt->lines;
 	if (pos > txt->size) {
 		pos = txt->size;
@@ -999,12 +1021,12 @@ size_t text_lineno_by_pos(Text *txt, size_t pos) {
 	if (pos < cache->pos) {
 		size_t diff = cache->pos - pos;
 		if (diff < pos) {
-			cache->lineno -= lines_count(txt, pos, diff);
+			cache->lineno -= lines_count(vix, txt, pos, diff);
 		} else {
-			cache->lineno = lines_count(txt, 0, pos) + 1;
+			cache->lineno = lines_count(vix, txt, 0, pos) + 1;
 		}
 	} else if (pos > cache->pos) {
-		cache->lineno += lines_count(txt, cache->pos, pos - cache->pos);
+		cache->lineno += lines_count(vix, txt, cache->pos, pos - cache->pos);
 	}
 	cache->pos = text_line_begin(txt, pos);
 	return cache->lineno;

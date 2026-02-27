@@ -9,7 +9,7 @@ VIX_PATH     = ${SHAREPREFIX}/vix
 
 # --- Features (0 to disable, 1 to enable) ---
 ENABLE_LUA     ?= 1
-ENABLE_TRE     ?= 0
+ENABLE_TRE     ?= 1
 ENABLE_ACL     ?= 0
 ENABLE_SELINUX ?= 0
 ENABLE_CURSES  ?= 0

@@ -4,7 +4,7 @@
 #include "text-util.h"
 
 bool vix_prompt_cmd(Vix *vix, const char *cmd) {
-	if (!cmd || !cmd[0] || !cmd[1]) {
+	if (!cmd || !cmd[0]) {
 		return true;
 	}
 	switch (cmd[0]) {
@@ -17,7 +17,8 @@ bool vix_prompt_cmd(Vix *vix, const char *cmd) {
 		register_put0(vix, &vix->registers[VIX_REG_COMMAND], cmd+1);
 		return vix_cmd(vix, cmd+1);
 	default:
-		return false;
+		register_put0(vix, &vix->registers[VIX_REG_COMMAND], cmd);
+		return vix_cmd(vix, cmd);
 	}
 }
 
