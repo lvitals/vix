@@ -4,6 +4,7 @@ static Vix vix[1];
 
 #define PAGE      INT_MAX
 #define PAGE_HALF (INT_MAX-1)
+#define WINDOW_RESIZE_STEP 20
 
 /** functions to be called from keybindings */
 /* X(impl, enum, argument, lua_name, help) */
@@ -15,6 +16,9 @@ static Vix vix[1];
 	X(ka_call,                            WINDOW_PREV,                      .f = vix_window_prev,                     "vix-window-prev",                     "Focus previous window") \
 	X(ka_layout,                          WINDOW_LAYOUT_HORIZONTAL,         .i = UI_LAYOUT_HORIZONTAL,                "vix-window-layout-horizontal",        "Use horizontal window layout") \
 	X(ka_layout,                          WINDOW_LAYOUT_VERTICAL,           .i = UI_LAYOUT_VERTICAL,                  "vix-window-layout-vertical",          "Use vertical window layout") \
+	X(ka_window_resize,                   WINDOW_RESIZE_INC,                .i = +10,                                 "vix-window-resize-inc",               "Increase window size") \
+	X(ka_window_resize,                   WINDOW_RESIZE_DEC,                .i = -10,                                 "vix-window-resize-dec",               "Decrease window size") \
+	X(ka_window_resize,                   WINDOW_RESIZE_RESET,              .i = 0,                                   "vix-window-resize-reset",             "Reset window sizes to equal") \
 	X(ka_count,                           COUNT,                            0,                                        "vix-count",                           "Count specifier") \
 	X(ka_delete,                          DELETE_CHAR_NEXT,                 .i = VIX_MOVE_CHAR_NEXT,                  "vix-delete-char-next",                "Delete the next character") \
 	X(ka_delete,                          DELETE_CHAR_PREV,                 .i = VIX_MOVE_CHAR_PREV,                  "vix-delete-char-prev",                "Delete the previous character") \
@@ -204,6 +208,58 @@ static KEY_ACTION_FN(ka_nop)
 static KEY_ACTION_FN(ka_layout)
 {
 	ui_arrange(&vix->ui, arg->i);
+	vix_draw(vix);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_window_resize)
+{
+	if (!vix->win || !vix->windows || !vix->windows->next) {
+		return keys;
+	}
+	int increment = arg->i;
+
+	if (increment == 0) {
+		for (Win *win = vix->windows; win; win = win->next) {
+			win->weight = 100;
+		}
+	} else {
+		/* Apply a more aggressive increment/decrement to ensure visible change */
+		int count = 0;
+		for (Win *win = vix->windows; win; win = win->next) {
+			if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
+				count++;
+			}
+		}
+		
+		if (count > 0) {
+			/* Use defined step size */
+			int push = WINDOW_RESIZE_STEP * 3; 
+			int pull = push / count;
+			if (pull < 1) pull = 1;
+			
+			if (increment > 0) {
+				vix->win->weight += push;
+				for (Win *win = vix->windows; win; win = win->next) {
+					if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
+						win->weight -= pull;
+						if (win->weight < 10) win->weight = 10;
+					}
+				}
+			} else {
+				if (vix->win->weight > 10) {
+					vix->win->weight -= push;
+					if (vix->win->weight < 10) vix->win->weight = 10;
+					for (Win *win = vix->windows; win; win = win->next) {
+						if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
+							win->weight += pull;
+						}
+					}
+				}
+			}
+		}
+	}
+	ui_arrange(&vix->ui, vix->ui.layout);
 	vix_draw(vix);
 	return keys;
 }

@@ -331,37 +331,55 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	debug("ui-arrange\n");
 	tui->layout = layout;
 	int n = 0, m = !!tui->info[0], x = 0, y = 0;
+	long total_weight = 0;
 	for (Win *win = tui->windows; win; win = win->next) {
 		if (win->options & UI_OPTION_ONELINE) {
 			m++;
 		} else {
 			n++;
+			total_weight += MAX(1, win->weight);
 		}
 	}
 	int max_height = tui->height - m;
-	int width = (tui->width / MAX(1, n)) - 1;
-	int height = max_height / MAX(1, n);
+	if (max_height <= 0 || n == 0) return;
+
+	long current_total_weight = total_weight;
 	for (Win *win = tui->windows; win; win = win->next) {
 		if (win->options & UI_OPTION_ONELINE) {
 			continue;
 		}
 		n--;
 		if (layout == UI_LAYOUT_HORIZONTAL) {
-			int h = n ? height : max_height - y;
+			int h = n ? (int)((long)max_height * win->weight / total_weight) : max_height - y;
+			if (h < 1) h = 1;
+			if (y + h > max_height) h = max_height - y;
+
 			ui_window_resize(win, tui->width, h);
 			ui_window_move(win, x, y);
 			y += h;
+			current_total_weight -= win->weight;
 		} else {
-			int w = n ? width : tui->width - x;
+			int w = n ? (int)((long)(tui->width - (tui->width / (tui->width > 0 ? tui->width : 1))) * win->weight / total_weight) : tui->width - x;
+			w = n ? (int)((long)(tui->width - (tui->windows == win->next ? 1 : 0)) * win->weight / total_weight) : tui->width - x;
+			
+			/* Simplest possible proportional width */
+			w = n ? (int)((long)tui->width * win->weight / total_weight) : tui->width - x;
+			if (n && w >= tui->width - x) w = tui->width - x - 1;
+
+			if (w < 1) w = 1;
+			if (x + w > tui->width) w = tui->width - x;
+
 			ui_window_resize(win, w, max_height);
 			ui_window_move(win, x, y);
 			x += w;
-			if (n) {
-				Cell *cells = tui->cells;
+			current_total_weight -= win->weight;
+
+			if (n && x < tui->width) {
+				Cell *row_cells = tui->cells;
 				for (int i = 0; i < max_height; i++) {
-					strcpy(cells[x].data,"│");
-					cells[x].style = tui->styles[UI_STYLE_SEPARATOR];
-					cells += tui->width;
+					strcpy(row_cells[x].data,"│");
+					row_cells[x].style = tui->styles[UI_STYLE_SEPARATOR];
+					row_cells += tui->width;
 				}
 				x++;
 			}

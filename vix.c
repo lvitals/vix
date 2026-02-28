@@ -387,6 +387,7 @@ Win *window_new_file(Vix *vix, File *file, enum UiOption options) {
 	}
 	win->vix = vix;
 	win->file = file;
+	win->weight = 100;
 	if (!view_init(win, file->text)) {
 		free(win);
 		return NULL;
@@ -472,6 +473,7 @@ bool vix_window_split(Win *original) {
 	}
 	win->file = original->file;
 	win_options_set(win, original->options);
+	win->weight = original->weight;
 	view_cursors_to(win->view.selection, view_cursor_get(&original->view));
 	win->vix->ui.doupdate = true;
 	return true;

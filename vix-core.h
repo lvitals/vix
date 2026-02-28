@@ -150,6 +150,7 @@ struct Win {
 	int id;                 /* unique identifier for this window */
 	int width, height;      /* window dimension including status bar */
 	int x, y;               /* window position */
+	int weight;             /* proportional weight for layouting (default 100) */
 	int sidebar_width;      /* width of the sidebar showing line numbers etc. */
 	enum UiOption options;  /* display settings for this window */
 	View view;              /* currently displayed part of underlying text */
