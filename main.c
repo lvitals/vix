@@ -226,28 +226,34 @@ static KEY_ACTION_FN(ka_window_resize)
 		}
 		ui_arrange(&vix->ui, vix->ui.layout);
 	} else {
-		/* Force a visible change by increasing weight until pixels actually move */
+		/* Apply dynamic push to ensure exactly 1 pixel of movement regardless of size */
 		int old_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
 		int old_weight = vix->win->weight;
 		int attempts = 0;
-		while (attempts < 100) { 
-			if (increment > 0) {
-				vix->win->weight += 5;
-			} else {
-				vix->win->weight -= 5;
-				if (vix->win->weight < 5) {
-					vix->win->weight = 5;
-					break;
-				}
+		
+		/* Use a larger limit and adaptive stepping to reach the edges */
+		while (attempts < 2000) { 
+			/* Accelerate weight change if we are not seeing visual results */
+			/* Vertical layout needs more 'push' due to higher column count */
+			int multiplier = (vix->ui.layout == UI_LAYOUT_VERTICAL) ? 4 : 1;
+			int step_size = (attempts < 50) ? 1 : (attempts < 200) ? 10 : 50;
+			int step = (increment > 0) ? (step_size * multiplier) : -(step_size * multiplier);
+			
+			vix->win->weight += step;
+			if (vix->win->weight < 1) {
+				vix->win->weight = 1;
+				break;
 			}
 			ui_arrange(&vix->ui, vix->ui.layout);
 			int new_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
-			if (new_dim != old_dim) break; /* Success: window actually moved! */
+			
+			if (new_dim != old_dim) break; 
 			attempts++;
 		}
-		/* If no visual change was possible after some attempts, revert weight to avoid accumulation */
+		
+		/* Boundary check: if we couldn't even get 1 pixel after many attempts, revert weight */
 		int final_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
-		if (final_dim == old_dim && increment > 0) {
+		if (final_dim == old_dim && increment > 0 && attempts >= 2000) {
 			vix->win->weight = old_weight;
 		}
 	}

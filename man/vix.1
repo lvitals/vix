@@ -85,7 +85,8 @@ It supports a
 .Sq normal ,
 .Sq operator pending ,
 .Sq insert ,
-.Sq replace
+.Sq replace ,
+.Sq window
 and
 .Sq vixual
 (in both line and character wise variants) mode.
@@ -1180,6 +1181,57 @@ set minus
 set complement
 .El
 .
+.Ss Window Mode
+.
+Entering window mode via
+.Aq Ic C-w
+allows for persistent window management using single key commands.
+The following keys are recognized:
+.Pp
+.Bl -tag -width XXXXXXXXXX -compact
+.It Ic + , Ic >
+increase focused window size
+.
+.It Ic - , Ic <
+decrease focused window size
+.
+.It Ic =
+reset all windows to equal size
+.
+.It Ic h , Ic k
+focus previous window
+.
+.It Ic j , Ic l
+focus next window
+.
+.It Ic s
+switch global layout to horizontal (rows)
+.
+.It Ic v
+switch global layout to vertical (columns)
+.
+.It Ic S
+split focused window horizontally
+.
+.It Ic V
+split focused window vertically
+.
+.It Ic n
+open a new empty window
+.
+.It Ic c
+close focused window
+.
+.It Ic o
+close all other windows
+.
+.It Ic w , Ic x
+focus next window
+.
+.It Aq Ic Escape , Ic q
+return to normal mode
+.El
+.
 .Sh VI(M) COMMANDS
 .
 Any unique prefix can be used to abbreviate a command.
@@ -1189,19 +1241,14 @@ Any unique prefix can be used to abbreviate a command.
 A file must be opened in at least one window.
 If the last window displaying a certain file is closed all unsaved changes are
 discarded.
-Windows are equally sized and can be displayed in rows (horizontally)
-or in columns (vertically).
+Windows can be displayed in rows (horizontally) or in columns (vertically).
+The orientation is a global setting.
+Windows can be proportionally resized.
 The
 .Aq Ic C-w
-.Ic h ,
-.Aq Ic C-w
-.Ic j ,
-.Aq Ic C-w
-.Ic k
-and
-.Aq Ic C-w
-.Ic l
-key mappings can be used to switch between windows.
+key mapping enters a dedicated
+.Sq window
+mode for window management and resizing.
 .Bl -tag -width indent
 .It Ic :new
 open an empty window, arranged as a new row (horizontally)
@@ -1262,6 +1309,7 @@ refers to one of
 .Ql normal ,
 .Ql insert ,
 .Ql replace ,
+.Ql window ,
 .Ql vixual ,
 .Ql vixual-line
 or
