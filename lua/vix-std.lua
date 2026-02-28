@@ -90,6 +90,7 @@ local modes = {
 	[vix.modes.VISUAL_LINE] = 'VISUAL-LINE',
 	[vix.modes.INSERT] = 'INSERT',
 	[vix.modes.REPLACE] = 'REPLACE',
+	[vix.modes.WINDOW] = 'WINDOW',
 }
 
 vix.events.subscribe(vix.events.WIN_STATUS, function(win)

@@ -198,25 +198,7 @@ static const KeyBinding bindings_normal[] = {
 	{ "<C-p>",              ACTION(SELECTIONS_REMOVE_LAST)              },
 	{ "<C-r>",              ACTION(REDO)                                },
 	{ "<C-u>",              ACTION(SELECTIONS_PREV)                     },
-	{ "<C-w>c",             ALIAS("<vix-prompt-show>q<Enter>")          },
-	{ "<C-w>h",             ALIAS("<C-w>k")                             },
-	{ "<C-w>j",             ACTION(WINDOW_NEXT)                         },
-	{ "<C-w>k",             ACTION(WINDOW_PREV)                         },
-	{ "<C-w>l",             ALIAS("<C-w>j")                             },
-	{ "<C-w>n",             ALIAS("<vix-prompt-show>open<Enter>")       },
-	{ "<C-w>s",             ALIAS("<vix-prompt-show>split<Enter>")      },
-	{ "<C-w>S",             ACTION(WINDOW_LAYOUT_HORIZONTAL)            },
-	{ "<C-w>v",             ALIAS("<vix-prompt-show>vsplit<Enter>")     },
-	{ "<C-w>V",             ACTION(WINDOW_LAYOUT_VERTICAL)              },
-	{ "<C-w>H",             ACTION(WINDOW_LAYOUT_VERTICAL)              },
-	{ "<C-w>J",             ACTION(WINDOW_LAYOUT_HORIZONTAL)            },
-	{ "<C-w>K",             ACTION(WINDOW_LAYOUT_HORIZONTAL)            },
-	{ "<C-w>L",             ACTION(WINDOW_LAYOUT_VERTICAL)              },
-	{ "<C-w>+",             ACTION(WINDOW_RESIZE_INC)                   },
-	{ "<C-w>-",             ACTION(WINDOW_RESIZE_DEC)                   },
-	{ "<C-w>>",             ACTION(WINDOW_RESIZE_INC)                   },
-	{ "<C-w><",             ACTION(WINDOW_RESIZE_DEC)                   },
-	{ "<C-w>=",             ACTION(WINDOW_RESIZE_RESET)                 },
+	{ "<C-w>",              ACTION(MODE_WINDOW)                         },
 	{ "<C-y>",              ACTION(WINDOW_SLIDE_DOWN)                   },
 	{ "D",                  ALIAS("d$")                                 },
 	{ "<Escape>",           ACTION(MODE_NORMAL_ESCAPE)                  },
@@ -333,6 +315,30 @@ static const KeyBinding bindings_replace[] = {
 	{ 0 /* empty last element, array terminator */                      },
 };
 
+static const KeyBinding bindings_window[] = {
+	{ "+",                  ACTION(WINDOW_RESIZE_INC)                   },
+	{ "-",                  ACTION(WINDOW_RESIZE_DEC)                   },
+	{ ">",                  ACTION(WINDOW_RESIZE_INC)                   },
+	{ "<",                  ACTION(WINDOW_RESIZE_DEC)                   },
+	{ "=",                  ACTION(WINDOW_RESIZE_RESET)                 },
+	{ "h",                  ACTION(WINDOW_PREV)                         },
+	{ "j",                  ACTION(WINDOW_NEXT)                         },
+	{ "k",                  ACTION(WINDOW_PREV)                         },
+	{ "l",                  ACTION(WINDOW_NEXT)                         },
+	{ "v",                  ACTION(WINDOW_LAYOUT_VERTICAL)              },
+	{ "s",                  ACTION(WINDOW_LAYOUT_HORIZONTAL)            },
+	{ "V",                  ALIAS("<vix-prompt-show>vsplit<Enter>")     },
+	{ "S",                  ALIAS("<vix-prompt-show>split<Enter>")      },
+	{ "n",                  ALIAS("<vix-prompt-show>open<Enter>")       },
+	{ "c",                  ALIAS("<vix-prompt-show>q<Enter>")          },
+	{ "o",                  ALIAS("<vix-prompt-show>only<Enter>")       },
+	{ "x",                  ACTION(WINDOW_NEXT)                         },
+	{ "w",                  ACTION(WINDOW_NEXT)                         },
+	{ "<Escape>",           ACTION(MODE_NORMAL)                         },
+	{ "q",                  ACTION(MODE_NORMAL)                         },
+	{ 0 /* empty last element, array terminator */                      },
+};
+
 /* For each mode we list a all key bindings, if a key is bound in more than
  * one array the first definition is used and further ones are ignored. */
 static const KeyBinding **default_bindings[] = {
@@ -372,6 +378,10 @@ static const KeyBinding **default_bindings[] = {
 	},
 	[VIX_MODE_REPLACE] = (const KeyBinding*[]){
 		bindings_replace,
+		NULL,
+	},
+	[VIX_MODE_WINDOW] = (const KeyBinding*[]){
+		bindings_window,
 		NULL,
 	},
 };

@@ -371,6 +371,7 @@ enum VixMode {
 	VIX_MODE_VISUAL_LINE, /**< Sub mode of `VIX_MODE_VISUAL`. */
 	VIX_MODE_INSERT,
 	VIX_MODE_REPLACE, /**< Sub mode of `VIX_MODE_INSERT`. */
+	VIX_MODE_WINDOW,
 	VIX_MODE_INVALID,
 };
 

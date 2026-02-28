@@ -608,14 +608,20 @@ static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	if (!win) {
 		return false;
 	}
+	enum VixMode mode = vix->mode->id;
 	enum UiOption options = win->options;
 	vix->ui.layout = UI_LAYOUT_HORIZONTAL;
+	bool ret;
 	if (!argv[1]) {
-		return vix_window_split(win);
+		ret = vix_window_split(win);
+	} else {
+		ret = openfiles(vix, &argv[1]);
+		if (ret) {
+			win_options_set(vix->win, options);
+		}
 	}
-	bool ret = openfiles(vix, &argv[1]);
-	if (ret) {
-		win_options_set(vix->win, options);
+	if (ret && mode == VIX_MODE_WINDOW) {
+		vix_mode_switch(vix, VIX_MODE_WINDOW);
 	}
 	return ret;
 }
@@ -624,14 +630,20 @@ static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	if (!win) {
 		return false;
 	}
+	enum VixMode mode = vix->mode->id;
 	enum UiOption options = win->options;
 	vix->ui.layout = UI_LAYOUT_VERTICAL;
+	bool ret;
 	if (!argv[1]) {
-		return vix_window_split(win);
+		ret = vix_window_split(win);
+	} else {
+		ret = openfiles(vix, &argv[1]);
+		if (ret) {
+			win_options_set(vix->win, options);
+		}
 	}
-	bool ret = openfiles(vix, &argv[1]);
-	if (ret) {
-		win_options_set(vix->win, options);
+	if (ret && mode == VIX_MODE_WINDOW) {
+		vix_mode_switch(vix, VIX_MODE_WINDOW);
 	}
 	return ret;
 }

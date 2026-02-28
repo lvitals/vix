@@ -319,5 +319,11 @@ Mode vix_modes[] = {
 		.idle = vix_mode_insert_idle,
 		.idle_timeout = 3,
 	},
+	[VIX_MODE_WINDOW] = {
+		.id = VIX_MODE_WINDOW,
+		.name = "WINDOW",
+		.status = "WINDOW",
+		.help = "Window Management Mode",
+	},
 };
 

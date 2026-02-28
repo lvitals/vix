@@ -2128,6 +2128,11 @@ static int window_index(lua_State *L) {
 			return 1;
 		}
 
+		if (strcmp(key, "weight") == 0) {
+			lua_pushinteger(L, win->weight);
+			return 1;
+		}
+
 		if (strcmp(key, "file") == 0) {
 			obj_ref_new(L, win->file, VIX_LUA_TYPE_FILE);
 			return 1;
@@ -2259,6 +2264,11 @@ static int window_newindex(lua_State *L) {
 			if (!vix_window_change_file(win, filename)) {
 				return luaL_argerror(L, 3, "failed to open");
 			}
+			return 0;
+		} else if (strcmp(key, "weight") == 0) {
+			win->weight = luaL_checkinteger(L, 3);
+			ui_arrange(&win->vix->ui, win->vix->ui.layout);
+			vix_draw(win->vix);
 			return 0;
 		}
 	}
@@ -3765,6 +3775,7 @@ static void vix_lua_init(Vix *vix) {
 		{ VIX_MODE_VISUAL_LINE,      "VISUAL_LINE"      },
 		{ VIX_MODE_INSERT,           "INSERT"           },
 		{ VIX_MODE_REPLACE,          "REPLACE"          },
+		{ VIX_MODE_WINDOW,           "WINDOW"           },
 	};
 	for (size_t i = 0; i < LENGTH(modes); i++) {
 		lua_pushinteger(L, modes[i].id);

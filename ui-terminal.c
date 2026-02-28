@@ -343,47 +343,47 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	int max_height = tui->height - m;
 	if (max_height <= 0 || n == 0) return;
 
-	long current_total_weight = total_weight;
+	long weight_left = total_weight;
+	int windows_left = n;
+
 	for (Win *win = tui->windows; win; win = win->next) {
 		if (win->options & UI_OPTION_ONELINE) {
 			continue;
 		}
-		n--;
+		windows_left--;
 		if (layout == UI_LAYOUT_HORIZONTAL) {
-			int h = n ? (int)((long)max_height * win->weight / total_weight) : max_height - y;
+			int h = windows_left ? (int)((long)(max_height - y) * win->weight / weight_left) : max_height - y;
 			if (h < 1) h = 1;
-			if (y + h > max_height) h = max_height - y;
+			if (windows_left > 0 && y + h > max_height - windows_left) h = max_height - windows_left - y;
 
 			ui_window_resize(win, tui->width, h);
 			ui_window_move(win, x, y);
 			y += h;
-			current_total_weight -= win->weight;
+			weight_left -= win->weight;
 		} else {
-			int w = n ? (int)((long)(tui->width - (tui->width / (tui->width > 0 ? tui->width : 1))) * win->weight / total_weight) : tui->width - x;
-			w = n ? (int)((long)(tui->width - (tui->windows == win->next ? 1 : 0)) * win->weight / total_weight) : tui->width - x;
-			
-			/* Simplest possible proportional width */
-			w = n ? (int)((long)tui->width * win->weight / total_weight) : tui->width - x;
-			if (n && w >= tui->width - x) w = tui->width - x - 1;
-
+			int avail_w = tui->width - windows_left - x;
+			int w = windows_left ? (int)((long)avail_w * win->weight / weight_left) : tui->width - x;
 			if (w < 1) w = 1;
-			if (x + w > tui->width) w = tui->width - x;
+			if (windows_left > 0 && x + w > tui->width - windows_left) w = tui->width - windows_left - x;
 
 			ui_window_resize(win, w, max_height);
 			ui_window_move(win, x, y);
 			x += w;
-			current_total_weight -= win->weight;
+			weight_left -= win->weight;
 
-			if (n && x < tui->width) {
+			if (windows_left > 0 && x < tui->width) {
 				Cell *row_cells = tui->cells;
 				for (int i = 0; i < max_height; i++) {
-					strcpy(row_cells[x].data,"│");
-					row_cells[x].style = tui->styles[UI_STYLE_SEPARATOR];
+					if (x < tui->width) {
+						strcpy(row_cells[x].data, "│");
+						row_cells[x].style = tui->styles[UI_STYLE_SEPARATOR];
+					}
 					row_cells += tui->width;
 				}
 				x++;
 			}
 		}
+		if (weight_left <= 0) weight_left = 1;
 	}
 
 	if (layout == UI_LAYOUT_VERTICAL) {

@@ -148,6 +148,7 @@ static Vix vix[1];
 	X(ka_selections_union,                SELECTIONS_UNION,                 0,                                        "vix-selections-union",                "Add selections from mark") \
 	X(ka_suspend,                         EDITOR_SUSPEND,                   0,                                        "vix-suspend",                         "Suspend the editor") \
 	X(ka_switchmode,                      MODE_NORMAL,                      .i = VIX_MODE_NORMAL,                     "vix-mode-normal",                     "Enter normal mode") \
+	X(ka_switchmode,                      MODE_WINDOW,                      .i = VIX_MODE_WINDOW,                     "vix-mode-window",                     "Enter window management mode") \
 	X(ka_switchmode,                      MODE_VISUAL,                      .i = VIX_MODE_VISUAL,                     "vix-mode-visual-charwise",            "Enter characterwise visual mode") \
 	X(ka_switchmode,                      MODE_VISUAL_LINE,                 .i = VIX_MODE_VISUAL_LINE,                "vix-mode-visual-linewise",            "Enter linewise visual mode") \
 	X(ka_text_object,                     TEXT_OBJECT_ANGLE_BRACKET_INNER,  .i = VIX_TEXTOBJECT_INNER_ANGLE_BRACKET,  "vix-textobject-angle-bracket-inner",  "<> block (inner variant)") \
@@ -223,43 +224,33 @@ static KEY_ACTION_FN(ka_window_resize)
 		for (Win *win = vix->windows; win; win = win->next) {
 			win->weight = 100;
 		}
+		ui_arrange(&vix->ui, vix->ui.layout);
 	} else {
-		/* Apply a more aggressive increment/decrement to ensure visible change */
-		int count = 0;
-		for (Win *win = vix->windows; win; win = win->next) {
-			if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
-				count++;
-			}
-		}
-		
-		if (count > 0) {
-			/* Use defined step size */
-			int push = WINDOW_RESIZE_STEP * 3; 
-			int pull = push / count;
-			if (pull < 1) pull = 1;
-			
+		/* Force a visible change by increasing weight until pixels actually move */
+		int old_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
+		int old_weight = vix->win->weight;
+		int attempts = 0;
+		while (attempts < 100) { 
 			if (increment > 0) {
-				vix->win->weight += push;
-				for (Win *win = vix->windows; win; win = win->next) {
-					if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
-						win->weight -= pull;
-						if (win->weight < 10) win->weight = 10;
-					}
-				}
+				vix->win->weight += 5;
 			} else {
-				if (vix->win->weight > 10) {
-					vix->win->weight -= push;
-					if (vix->win->weight < 10) vix->win->weight = 10;
-					for (Win *win = vix->windows; win; win = win->next) {
-						if (win != vix->win && !(win->options & UI_OPTION_ONELINE)) {
-							win->weight += pull;
-						}
-					}
+				vix->win->weight -= 5;
+				if (vix->win->weight < 5) {
+					vix->win->weight = 5;
+					break;
 				}
 			}
+			ui_arrange(&vix->ui, vix->ui.layout);
+			int new_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
+			if (new_dim != old_dim) break; /* Success: window actually moved! */
+			attempts++;
+		}
+		/* If no visual change was possible after some attempts, revert weight to avoid accumulation */
+		int final_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
+		if (final_dim == old_dim && increment > 0) {
+			vix->win->weight = old_weight;
 		}
 	}
-	ui_arrange(&vix->ui, vix->ui.layout);
 	vix_draw(vix);
 	return keys;
 }
