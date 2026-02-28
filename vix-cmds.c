@@ -609,7 +609,7 @@ static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		return false;
 	}
 	enum UiOption options = win->options;
-	ui_arrange(&vix->ui, UI_LAYOUT_HORIZONTAL);
+	vix->ui.layout = UI_LAYOUT_HORIZONTAL;
 	if (!argv[1]) {
 		return vix_window_split(win);
 	}
@@ -625,7 +625,7 @@ static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 		return false;
 	}
 	enum UiOption options = win->options;
-	ui_arrange(&vix->ui, UI_LAYOUT_VERTICAL);
+	vix->ui.layout = UI_LAYOUT_VERTICAL;
 	if (!argv[1]) {
 		return vix_window_split(win);
 	}
