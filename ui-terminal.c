@@ -169,6 +169,9 @@ bool ui_style_define(Win *win, int id, const char *style) {
 		option = next;
 	}
 	tui->styles[win->id * UI_STYLE_MAX + id] = cell_style;
+	if (win->id != 0) {
+		tui->styles[id] = cell_style;
+	}
 	free(style_copy);
 	return true;
 }
@@ -456,6 +459,7 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 static void ui_tab_draw(Ui *ui) {
 	if (!ui->tabpages) return;
 	
+	int win_id = ui->seltab->selwin ? ui->seltab->selwin->id : 0;
 	int x = 0;
 	if (ui->tabview) {
 		/* Show windows of the current TabPage as tabs, ignoring internal oneline windows */
@@ -465,7 +469,7 @@ static void ui_tab_draw(Ui *ui) {
 			const char *filename = win->file->name ? strrchr(win->file->name, '/') : NULL;
 			filename = filename ? filename + 1 : (win->file->name ? win->file->name : "[No Name]");
 			int len = snprintf(name, sizeof(name), " %s ", filename);
-			enum UiStyle style = (win == ui->seltab->selwin) ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
+			enum UiStyle style = (win == ui->seltab->selwin) ? UI_STYLE_TAB_FOCUSED : UI_STYLE_TAB;
 			ui_draw_string(ui, x, 0, ui->width, name, 0, style);
 			x += len;
 			if (x >= ui->width) break;
@@ -480,8 +484,8 @@ static void ui_tab_draw(Ui *ui) {
 				filename = filename ? filename + 1 : tab->selwin->file->name;
 			}
 			int len = snprintf(name, sizeof(name), " %s ", filename);
-			enum UiStyle style = (tab == ui->seltab) ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
-			ui_draw_string(ui, x, 0, ui->width, name, 0, style);
+			enum UiStyle style = (tab == ui->seltab) ? UI_STYLE_TAB_FOCUSED : UI_STYLE_TAB;
+			ui_draw_string(ui, x, 0, ui->width, name, win_id, style);
 			x += len;
 			if (x >= ui->width) break;
 		}
@@ -490,7 +494,7 @@ static void ui_tab_draw(Ui *ui) {
 	}
 
 	if (x < ui->width) {
-		ui_draw_line(ui, x, 0, ' ', UI_STYLE_STATUS);
+		ui_draw_line(ui, x, 0, ' ', UI_STYLE_TAB);
 	}
 }
 
@@ -683,6 +687,8 @@ bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
 	styles[UI_STYLE_COLOR_COLUMN].attr |= CELL_ATTR_REVERSE;
 	styles[UI_STYLE_STATUS].attr |= CELL_ATTR_REVERSE;
 	styles[UI_STYLE_STATUS_FOCUSED].attr |= CELL_ATTR_REVERSE|CELL_ATTR_BOLD;
+	styles[UI_STYLE_TAB].attr |= CELL_ATTR_REVERSE;
+	styles[UI_STYLE_TAB_FOCUSED].attr |= CELL_ATTR_REVERSE|CELL_ATTR_BOLD;
 	styles[UI_STYLE_INFO].attr |= CELL_ATTR_BOLD;
 
 	if (text_size(w->file->text) > UI_LARGE_FILE_SIZE) {
