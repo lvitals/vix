@@ -31,9 +31,7 @@ TESTS_RUN=0
 if [ $# -gt 0 ]; then
 	test_files=$*
 else
-	# Use 'find ... -print' instead of command substitution in case of very long lists
-	# Although command substitution is generally POSIX, this avoids potential issues.
-	test_files="$(find . -type f -name '*.lua' -a ! -name vixrc.lua)"
+	test_files="$(find . -name '*.lua' -a ! -name vixrc.lua)"
 fi
 
 for t in $test_files; do
