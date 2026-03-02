@@ -1,8 +1,17 @@
 #!/bin/bash
 
+# Ensure we are in the project root
+cd "$(dirname "$0")/.."
+
 VIX="./vix"
 TEST_FILE="test/perf_data.txt"
 LOG_FILE="test/perf_results.log"
+
+# Check if vix executable exists
+if [ ! -f "$VIX" ]; then
+    echo "Error: vix executable not found at $VIX. Please run 'make' first."
+    exit 1
+fi
 
 # Ensure test file exists (1M lines ~50MB)
 if [ ! -f "$TEST_FILE" ]; then

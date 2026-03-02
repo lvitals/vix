@@ -102,7 +102,13 @@ vix-digraph: vix-digraph.c
 	${CC} ${CFLAGS} $< ${LDFLAGS} -o $@
 
 test: all
-	@$(MAKE) -C test
+	@$(MAKE) -C test DEBUG=$(DEBUG)
+
+perf: all
+	@$(MAKE) -C test perf
+
+check_leaks: all
+	@$(MAKE) -C test check_leaks
 
 clean:
 	rm -f $(ELF) config.h
@@ -127,4 +133,4 @@ uninstall:
 	@for m in ${MANUALS}; do rm -f ${DESTDIR}${MANPREFIX}/man1/"$$m"; done
 	rm -rf ${DESTDIR}${VIX_PATH}
 
-.PHONY: all clean install uninstall test
+.PHONY: all clean install uninstall test perf check_leaks
