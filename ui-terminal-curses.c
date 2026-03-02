@@ -75,11 +75,12 @@ static void undo_palette(void)
 	fflush(stderr);
 }
 
+static short color_clobber_idx = 0;
+static uint32_t clobbering_colors[MAX_COLOR_CLOBBER];
+
 /* Work out the nearest color from the 256 color set, or perhaps exactly. */
 static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 {
-	static short color_clobber_idx = 0;
-	static uint32_t clobbering_colors[MAX_COLOR_CLOBBER];
 	CursesData *data = ui->backend_data;
 
 	if (!data) {
@@ -313,6 +314,20 @@ static void ui_term_backend_restore(Ui *tui) {
 	if (tui->is_tty) {
 		reset_prog_mode();
 	}
+
+	CursesData *data = tui->backend_data;
+	if (data && data->change_colors) {
+		for (short i = 0; i < color_clobber_idx; ++i) {
+			uint32_t hexrep = clobbering_colors[i];
+			uint8_t r = (hexrep >> 16) & 0xff;
+			uint8_t g = (hexrep >> 8) & 0xff;
+			uint8_t b = hexrep & 0xff;
+			init_color(i + 16, (r * 1000) / 0xff, (g * 1000) / 0xff,
+			           (b * 1000) / 0xff);
+		}
+	}
+
+	redrawwin(stdscr);
 	wclear(stdscr);
 	if (tui->is_tty) {
 		curs_set(0);

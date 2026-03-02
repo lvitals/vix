@@ -176,11 +176,11 @@ bool ui_style_define(Win *win, int id, const char *style) {
 	return true;
 }
 
-static void ui_draw_line(Ui *tui, int x, int y, char c, enum UiStyle style_id) {
+static void ui_draw_line(Ui *tui, int x, int y, char c, int win_id, enum UiStyle style_id) {
 	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
 		return;
 	}
-	CellStyle style = tui->styles[style_id];
+	CellStyle style = tui->styles[win_id * UI_STYLE_MAX + style_id];
 	Cell *cells = tui->cells + y * tui->width;
 	while (x < tui->width) {
 		cells[x].data[0] = c;
@@ -460,7 +460,19 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 static void ui_tab_draw(Ui *ui) {
 	if (!ui->tabpages) return;
 	
-	int win_id = ui->seltab->selwin ? ui->seltab->selwin->id : 0;
+	int win_id = 0;
+	if (ui->seltab->selwin) {
+		Win *w = ui->seltab->selwin;
+		if (w->options & UI_OPTION_ONELINE) {
+			for (Win *win = ui->seltab->windows; win; win = win->next) {
+				if (!(win->options & UI_OPTION_ONELINE)) {
+					w = win;
+					break;
+				}
+			}
+		}
+		win_id = w->id;
+	}
 	int x = 0;
 
 	int n = 0;
@@ -479,7 +491,7 @@ static void ui_tab_draw(Ui *ui) {
 			filename = filename ? filename + 1 : (win->file->name ? win->file->name : "[No Name]");
 			int len = snprintf(name, sizeof(name), " %s ", filename);
 			enum UiStyle style = (win == ui->seltab->selwin) ? UI_STYLE_TAB_FOCUSED : UI_STYLE_TAB;
-			ui_draw_string(ui, x, 0, ui->width, name, 0, style);
+			ui_draw_string(ui, x, 0, ui->width, name, win->id, style);
 			x += len;
 			if (x >= ui->width) break;
 		}
@@ -488,13 +500,15 @@ static void ui_tab_draw(Ui *ui) {
 		for (TabPage *tab = ui->tabpages; tab; tab = tab->next) {
 			char name[64];
 			const char *filename = "[No Name]";
+			int tid = 0;
 			if (tab->selwin && tab->selwin->file->name) {
 				filename = strrchr(tab->selwin->file->name, '/');
 				filename = filename ? filename + 1 : tab->selwin->file->name;
+				tid = tab->selwin->id;
 			}
 			int len = snprintf(name, sizeof(name), " %s ", filename);
 			enum UiStyle style = (tab == ui->seltab) ? UI_STYLE_TAB_FOCUSED : UI_STYLE_TAB;
-			ui_draw_string(ui, x, 0, ui->width, name, win_id, style);
+			ui_draw_string(ui, x, 0, ui->width, name, tid, style);
 			x += len;
 			if (x >= ui->width) break;
 		}
@@ -503,7 +517,7 @@ static void ui_tab_draw(Ui *ui) {
 	}
 
 	if (x < ui->width) {
-		ui_draw_line(ui, x, 0, ' ', UI_STYLE_TAB);
+		ui_draw_line(ui, x, 0, ' ', win_id, UI_STYLE_TAB);
 	}
 }
 
@@ -518,6 +532,7 @@ void ui_draw(Ui *tui) {
 		ui_window_draw(win);
 	}
 	if (tui->info[0]) {
+		ui_draw_line(tui, 0, tui->height-1, ' ', 0, UI_STYLE_INFO);
 		ui_draw_string(tui, 0, tui->height-1, tui->width, tui->info, 0, UI_STYLE_INFO);
 	}
 	vix_event_emit(tui->vix, VIX_EVENT_UI_DRAW);
@@ -711,7 +726,7 @@ bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
 }
 
 void ui_info_show(Ui *tui, const char *msg, va_list ap) {
-	ui_draw_line(tui, 0, tui->height-1, ' ', UI_STYLE_INFO);
+	ui_draw_line(tui, 0, tui->height-1, ' ', 0, UI_STYLE_INFO);
 	vsnprintf(tui->info, sizeof(tui->info), msg, ap);
 }
 

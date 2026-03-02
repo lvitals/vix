@@ -1794,7 +1794,7 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 		return -1;
 	}
 
-	ui_terminal_save(&vix->ui, fullscreen);
+	ui_terminal_save(&vix->ui, fullscreen || interactive);
 	pid_t pid = fork();
 
 	if (pid == -1) {
