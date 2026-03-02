@@ -223,7 +223,7 @@ static KEY_ACTION_FN(ka_layout)
 static KEY_ACTION_FN(ka_tabview_toggle)
 {
 	vix->ui.tabview = !vix->ui.tabview;
-	ui_arrange(&vix->ui, vix->ui.layout);
+	ui_arrange(&vix->ui, vix->ui.seltab->layout);
 	vix_draw(vix);
 	return keys;
 }
@@ -255,12 +255,12 @@ static KEY_ACTION_FN(ka_window_next_max)
 		else m++;
 	}
 	if (n > 1) {
-		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		int total_dim = (vix->ui.seltab->layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
 		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
-		ui_arrange(&vix->ui, vix->ui.layout);
+		ui_arrange(&vix->ui, vix->ui.seltab->layout);
 	}
 	vix_draw(vix);
 	return keys;
@@ -275,12 +275,12 @@ static KEY_ACTION_FN(ka_window_prev_max)
 		else m++;
 	}
 	if (n > 1) {
-		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		int total_dim = (vix->ui.seltab->layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
 		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
-		ui_arrange(&vix->ui, vix->ui.layout);
+		ui_arrange(&vix->ui, vix->ui.seltab->layout);
 	}
 	vix_draw(vix);
 	return keys;
@@ -294,12 +294,12 @@ static KEY_ACTION_FN(ka_window_maximize)
 		else m++;
 	}
 	if (n > 1) {
-		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		int total_dim = (vix->ui.seltab->layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
 		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
-		ui_arrange(&vix->ui, vix->ui.layout);
+		ui_arrange(&vix->ui, vix->ui.seltab->layout);
 	}
 	vix_draw(vix);
 	return keys;
@@ -316,7 +316,7 @@ static KEY_ACTION_FN(ka_window_resize)
 		for (Win *win = vix->windows; win; win = win->next) {
 			win->weight = 100;
 		}
-		ui_arrange(&vix->ui, vix->ui.layout);
+		ui_arrange(&vix->ui, vix->ui.seltab->layout);
 	} else {
 		/* Geometric Weighting: calculate weights based on target pixel dimensions */
 		int n = 0, m = !!vix->ui.info[0];
@@ -326,7 +326,7 @@ static KEY_ACTION_FN(ka_window_resize)
 		}
 		if (n <= 1) return keys;
 
-		int is_horiz = (vix->ui.layout == UI_LAYOUT_HORIZONTAL);
+		int is_horiz = (vix->ui.seltab->layout == UI_LAYOUT_HORIZONTAL);
 		int total_dim = is_horiz ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
 		
 		int current_sizes[64];
@@ -385,7 +385,7 @@ static KEY_ACTION_FN(ka_window_resize)
 			for (int j = 0; j < num_wins; j++) {
 				win_ptr[j]->weight = current_sizes[j] * 100;
 			}
-			ui_arrange(&vix->ui, vix->ui.layout);
+			ui_arrange(&vix->ui, vix->ui.seltab->layout);
 		}
 	}
 	vix_draw(vix);

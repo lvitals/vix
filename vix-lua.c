@@ -2267,7 +2267,7 @@ static int window_newindex(lua_State *L) {
 			return 0;
 		} else if (strcmp(key, "weight") == 0) {
 			win->weight = luaL_checkinteger(L, 3);
-			ui_arrange(&win->vix->ui, win->vix->ui.layout);
+			ui_arrange(&win->vix->ui, win->vix->ui.seltab->layout);
 			vix_draw(win->vix);
 			return 0;
 		}

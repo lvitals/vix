@@ -381,6 +381,7 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 			return false;
 		}
 		ui_arrange(&vix->ui, layout);
+		vix->ui.layout = layout;
 		break;
 	}
 	case OPTION_IGNORECASE:
@@ -611,6 +612,7 @@ static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	enum VixMode mode = vix->mode->id;
 	enum UiOption options = win->options;
 	vix->ui.layout = UI_LAYOUT_HORIZONTAL;
+	ui_arrange(&vix->ui, vix->ui.layout);
 	bool ret;
 	if (!argv[1]) {
 		ret = vix_window_split(win);
@@ -633,6 +635,7 @@ static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	enum VixMode mode = vix->mode->id;
 	enum UiOption options = win->options;
 	vix->ui.layout = UI_LAYOUT_VERTICAL;
+	ui_arrange(&vix->ui, vix->ui.layout);
 	bool ret;
 	if (!argv[1]) {
 		ret = vix_window_split(win);
