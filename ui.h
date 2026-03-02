@@ -137,6 +137,10 @@ VIX_INTERNAL void ui_window_focus(Win *);
 VIX_INTERNAL void ui_window_release(Ui *, Win *);
 VIX_INTERNAL void ui_window_swap(Win *, Win *);
 
+VIX_INTERNAL void ui_tab_new(Ui*);
+VIX_INTERNAL void ui_tab_next(Ui*);
+VIX_INTERNAL void ui_tab_prev(Ui*);
+
 VIX_INTERNAL bool ui_getkey(Ui *, TermKeyKey *);
 
 VIX_INTERNAL bool ui_style_define(Win *win, int id, const char *style);

@@ -1724,6 +1724,11 @@ static int vix_index(lua_State *L) {
 static int vix_options_assign(Vix *vix, lua_State *L, const char *key, int next) {
 	if (strcmp(key, "autoindent") == 0 || strcmp(key, "ai") == 0) {
 		vix->autoindent = lua_toboolean(L, next);
+	} else if (strcmp(key, "opentab") == 0) {
+		vix->opentab = lua_toboolean(L, next);
+		if (vix->opentab) {
+			vix->ui.tabview = true;
+		}
 	} else if (strcmp(key, "changecolors") == 0) {
 		vix->change_colors = lua_toboolean(L, next);
 	} else if (strcmp(key, "escdelay") == 0) {
@@ -1889,6 +1894,9 @@ static int vix_options_index(lua_State *L) {
 		const char *key = lua_tostring(L, 2);
 		if (strcmp(key, "autoindent") == 0 || strcmp(key, "ai") == 0) {
 			lua_pushboolean(L, vix->autoindent);
+			return 1;
+		} else if (strcmp(key, "opentab") == 0) {
+			lua_pushboolean(L, vix->opentab);
 			return 1;
 		} else if (strcmp(key, "changecolors") == 0) {
 			lua_pushboolean(L, vix->change_colors);

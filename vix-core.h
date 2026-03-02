@@ -196,6 +196,7 @@ struct Vix {
 	int search_direction;                /* used for `n` and `N` */
 	enum TextLoadMethod load_method;     /* how existing files should be loaded */
 	bool autoindent;                     /* whether indentation should be copied from previous line on newline */
+	bool opentab;                        /* whether to open new files in a new tab */
 	bool change_colors;                  /* whether to adjust 256 color palette for true colors */
 	bool ignorecase;                     /* whether to ignore case when searching */
 	bool keymap_disabled;                /* ignore key map for next key press, gets automatically re-enabled */

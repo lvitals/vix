@@ -279,6 +279,12 @@ static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Select
 	case OPTION_AUTOINDENT:
 		vix->autoindent = toggle ? !vix->autoindent : arg.b;
 		break;
+	case OPTION_OPENTAB:
+		vix->opentab = toggle ? !vix->opentab : arg.b;
+		if (vix->opentab) {
+			vix->ui.tabview = true;
+		}
+		break;
 	case OPTION_TABWIDTH:
 		view_tabwidth_set(&vix->win->view, arg.i);
 		break;
@@ -496,16 +502,28 @@ static bool openfiles(Vix *vix, const char **files) {
 			return false;
 		}
 		errno = 0;
-		if (!vix_window_new(vix, file)) {
-			vix_info_show(vix, "Could not open `%s' %s", file,
-			                 errno ? strerror(errno) : "");
-			return false;
+		if (vix->opentab) {
+			vix->ui.tabview = true;
+			if (!vix_window_new(vix, file)) {
+				vix_info_show(vix, "Could not open `%s' %s", file,
+				                 errno ? strerror(errno) : "");
+				return false;
+			}
+		} else {
+			if (!vix_window_new(vix, file)) {
+				vix_info_show(vix, "Could not open `%s' %s", file,
+				                 errno ? strerror(errno) : "");
+				return false;
+			}
 		}
 	}
 	return true;
 }
 
 static bool cmd_open(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+	if (vix->opentab) {
+		vix->ui.tabview = true;
+	}
 	if (!argv[1]) {
 		return vix_window_new(vix, NULL);
 	}
@@ -517,6 +535,9 @@ static void info_unsaved_changes(Vix *vix) {
 }
 
 static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+	if (vix->opentab) {
+		vix->ui.tabview = true;
+	}
 	if (argv[2]) {
 		vix_info_show(vix, "Only 1 filename allowed");
 		return false;
@@ -852,6 +873,9 @@ void vix_print_option_value(Vix *vix, const char *name, Buffer *buf) {
 		break;
 	case OPTION_AUTOINDENT:
 		buffer_append0(buf, vix->autoindent ? "on" : "off");
+		break;
+	case OPTION_OPENTAB:
+		buffer_append0(buf, vix->opentab ? "on" : "off");
 		break;
 	case OPTION_TABWIDTH:
 		if (win) {

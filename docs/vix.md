@@ -1490,6 +1490,10 @@ The part in square brackets is the default value of the option.
 
 	Automatically indent new lines by copying white space from previous line.
 
+**opentab** [**off**]
+
+	Whether to open new files in a new tab when using **:edit** or **:open**.
+
 **expandtab**, **et** [**off**]
 
 	Whether

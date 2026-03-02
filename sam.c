@@ -279,6 +279,7 @@ enum {
 	OPTION_IGNORECASE,
 	OPTION_BREAKAT,
 	OPTION_WRAP_COLUMN,
+	OPTION_OPENTAB,
 };
 
 static const OptionDef options[] = {
@@ -386,6 +387,11 @@ static const OptionDef options[] = {
 		{ "wrapcolumn", "wc" },
 		VIX_OPTION_TYPE_NUMBER|VIX_OPTION_NEED_WINDOW,
 		VIX_HELP("Wrap lines at minimum of window width and wrapcolumn")
+	},
+	[OPTION_OPENTAB] = {
+		{ "opentab" },
+		VIX_OPTION_TYPE_BOOL,
+		VIX_HELP("Whether to open new files in a new tab")
 	},
 };
 
