@@ -73,10 +73,11 @@ struct CommandDef {
 		CMD_SHELL         = 1 << 11, /* command needs a shell command as argument */
 		CMD_FORCE         = 1 << 12, /* can the command be forced with ! */
 		CMD_ARGV          = 1 << 13, /* whether shell like argument splitting is desired */
-		CMD_ONCE          = 1 << 14, /* command should only be executed once, not for every selection */
-		CMD_LOOP          = 1 << 15, /* a looping construct like `x`, `y` */
-		CMD_GROUP         = 1 << 16, /* a command group { ... } */
-		CMD_DESTRUCTIVE   = 1 << 17, /* command potentially destroys window */
+		CMD_SINGLE_ARG    = 1 << 14, /* take rest of line as a single argument */
+		CMD_ONCE          = 1 << 15, /* command should only be executed once, not for every selection */
+		CMD_LOOP          = 1 << 16, /* a looping construct like `x`, `y` */
+		CMD_GROUP         = 1 << 17, /* a command group { ... } */
+		CMD_DESTRUCTIVE   = 1 << 18, /* command potentially destroys window */
 	} flags;
 	const char *defcmd;                  /* name of a default target command */
 	bool (*func)(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*); /* command implementation */
@@ -183,7 +184,7 @@ static const CommandDef cmds[] = {
 		CMD_NONE, NULL, NULL
 	}, {
 		"e",            VIX_HELP("Edit file")
-		CMD_ARGV|CMD_FORCE|CMD_ONCE|CMD_ADDRESS_NONE|CMD_DESTRUCTIVE, NULL, cmd_edit
+		CMD_SINGLE_ARG|CMD_FORCE|CMD_ONCE|CMD_ADDRESS_NONE|CMD_DESTRUCTIVE, NULL, cmd_edit
 	}, {
 		"q",            VIX_HELP("Quit the current window")
 		CMD_ARGV|CMD_FORCE|CMD_ONCE|CMD_ADDRESS_NONE|CMD_DESTRUCTIVE, NULL, cmd_quit
@@ -215,7 +216,7 @@ static const CommandDef cmds[] = {
 		CMD_ARGV|CMD_ONCE|CMD_ADDRESS_NONE, NULL, cmd_new
 	}, {
 		"open",         VIX_HELP("Open file")
-		CMD_ARGV|CMD_ONCE|CMD_ADDRESS_NONE, NULL, cmd_open
+		CMD_SINGLE_ARG|CMD_ONCE|CMD_ADDRESS_NONE, NULL, cmd_open
 	}, {
 		"qall",         VIX_HELP("Exit vix")
 		CMD_ARGV|CMD_FORCE|CMD_ONCE|CMD_ADDRESS_NONE|CMD_DESTRUCTIVE, NULL, cmd_qall
@@ -977,6 +978,12 @@ static Command *command_parse(Vix *vix, const char **s, enum SamError *err) {
 	if (cmddef->flags & CMD_TEXT && !(cmd->argv[1] = parse_text(s, &cmd->count))) {
 		*err = SAM_ERR_TEXT;
 		goto fail;
+	}
+
+	if (cmddef->flags & CMD_SINGLE_ARG) {
+		skip_spaces(s);
+		cmd->argv[1] = parse_until(s, "\n", NULL, false);
+		cmd->argv[2] = NULL;
 	}
 
 	if (cmddef->flags & CMD_ARGV) {

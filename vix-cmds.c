@@ -451,7 +451,7 @@ static bool is_file_pattern(const char *pattern) {
 	if (pattern[0] == '~') {
 		return true;
 	}
-	for (char special[] = "*?[{$", *s = special; *s; s++) {
+	for (char special[] = "*?[{$ ", *s = special; *s; s++) {
 		if ((strchr)(pattern, *s)) {
 			return true;
 		}
@@ -467,15 +467,11 @@ static const char *file_open_dialog(Vix *vix, const char *pattern) {
 		return pattern;
 	}
 
-	Buffer bufcmd = {0}, bufout = {0}, buferr = {0};
-
-	if (!buffer_put0(&bufcmd, VIX_OPEN " ") || !buffer_append0(&bufcmd, pattern ? pattern : "")) {
-		return NULL;
-	}
+	Buffer bufout = {0}, buferr = {0};
 
 	Filerange empty = text_range_new(0,0);
 	int status = vix_pipe(vix, vix->win->file, &empty,
-		(const char*[]){ buffer_content0(&bufcmd), NULL },
+		(const char*[]){ VIX_OPEN, pattern ? pattern : "", NULL },
 		&bufout, read_into_buffer, &buferr, read_into_buffer, false);
 
 	if (status == 0) {
@@ -484,7 +480,6 @@ static const char *file_open_dialog(Vix *vix, const char *pattern) {
 		vix_info_show(vix, "Command failed %s", buffer_content0(&buferr));
 	}
 
-	buffer_release(&bufcmd);
 	buffer_release(&bufout);
 	buffer_release(&buferr);
 
