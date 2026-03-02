@@ -14,6 +14,9 @@ static Vix vix[1];
 	X(ka_call,                            REDRAW,                           .f = vix_redraw,                          "vix-redraw",                          "Redraw current editor content") \
 	X(ka_call,                            WINDOW_NEXT,                      .f = vix_window_next,                     "vix-window-next",                     "Focus next window") \
 	X(ka_call,                            WINDOW_PREV,                      .f = vix_window_prev,                     "vix-window-prev",                     "Focus previous window") \
+	X(ka_window_next_max,                 WINDOW_NEXT_MAX,                  0,                                        "vix-window-next-max",                 "Focus next window and maximize it") \
+	X(ka_window_prev_max,                 WINDOW_PREV_MAX,                  0,                                        "vix-window-prev-max",                 "Focus previous window and maximize it") \
+	X(ka_window_maximize,                 WINDOW_MAXIMIZE,                  0,                                        "vix-window-maximize",                 "Maximize current window") \
 	X(ka_layout,                          WINDOW_LAYOUT_HORIZONTAL,         .i = UI_LAYOUT_HORIZONTAL,                "vix-window-layout-horizontal",        "Use horizontal window layout") \
 	X(ka_layout,                          WINDOW_LAYOUT_VERTICAL,           .i = UI_LAYOUT_VERTICAL,                  "vix-window-layout-vertical",          "Use vertical window layout") \
 	X(ka_window_resize,                   WINDOW_RESIZE_INC,                .i = +10,                                 "vix-window-resize-inc",               "Increase window size") \
@@ -213,6 +216,65 @@ static KEY_ACTION_FN(ka_layout)
 	return keys;
 }
 
+static KEY_ACTION_FN(ka_window_next_max)
+{
+	vix_window_next(vix);
+	int n = 0, m = !!vix->ui.info[0];
+	for (Win *w = vix->ui.windows; w; w = w->next) {
+		if (!(w->options & UI_OPTION_ONELINE)) n++;
+		else m++;
+	}
+	if (n > 1) {
+		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		for (Win *w = vix->ui.windows; w; w = w->next) {
+			if (w->options & UI_OPTION_ONELINE) continue;
+			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
+		}
+		ui_arrange(&vix->ui, vix->ui.layout);
+	}
+	vix_draw(vix);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_window_prev_max)
+{
+	vix_window_prev(vix);
+	int n = 0, m = !!vix->ui.info[0];
+	for (Win *w = vix->ui.windows; w; w = w->next) {
+		if (!(w->options & UI_OPTION_ONELINE)) n++;
+		else m++;
+	}
+	if (n > 1) {
+		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		for (Win *w = vix->ui.windows; w; w = w->next) {
+			if (w->options & UI_OPTION_ONELINE) continue;
+			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
+		}
+		ui_arrange(&vix->ui, vix->ui.layout);
+	}
+	vix_draw(vix);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_window_maximize)
+{
+	int n = 0, m = !!vix->ui.info[0];
+	for (Win *w = vix->ui.windows; w; w = w->next) {
+		if (!(w->options & UI_OPTION_ONELINE)) n++;
+		else m++;
+	}
+	if (n > 1) {
+		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
+		for (Win *w = vix->ui.windows; w; w = w->next) {
+			if (w->options & UI_OPTION_ONELINE) continue;
+			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
+		}
+		ui_arrange(&vix->ui, vix->ui.layout);
+	}
+	vix_draw(vix);
+	return keys;
+}
+
 static KEY_ACTION_FN(ka_window_resize)
 {
 	if (!vix->win || !vix->windows || !vix->windows->next) {
@@ -226,35 +288,74 @@ static KEY_ACTION_FN(ka_window_resize)
 		}
 		ui_arrange(&vix->ui, vix->ui.layout);
 	} else {
-		/* Apply dynamic push to ensure exactly 1 pixel of movement regardless of size */
-		int old_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
-		int old_weight = vix->win->weight;
-		int attempts = 0;
+		/* Geometric Weighting: calculate weights based on target pixel dimensions */
+		int n = 0, m = !!vix->ui.info[0];
+		for (Win *w = vix->ui.windows; w; w = w->next) {
+			if (!(w->options & UI_OPTION_ONELINE)) n++;
+			else m++;
+		}
+		if (n <= 1) return keys;
+
+		int is_horiz = (vix->ui.layout == UI_LAYOUT_HORIZONTAL);
+		int total_dim = is_horiz ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
 		
-		/* Use a larger limit and adaptive stepping to reach the edges */
-		while (attempts < 2000) { 
-			/* Accelerate weight change if we are not seeing visual results */
-			/* Vertical layout needs more 'push' due to higher column count */
-			int multiplier = (vix->ui.layout == UI_LAYOUT_VERTICAL) ? 4 : 1;
-			int step_size = (attempts < 50) ? 1 : (attempts < 200) ? 10 : 50;
-			int step = (increment > 0) ? (step_size * multiplier) : -(step_size * multiplier);
+		int current_sizes[64];
+		Win *win_ptr[64];
+		int focus_idx = -1;
+		int num_wins = 0;
+		
+		for (Win *w = vix->ui.windows; w; w = w->next) {
+			if (w->options & UI_OPTION_ONELINE) continue;
+			if (num_wins < 64) {
+				win_ptr[num_wins] = w;
+				current_sizes[num_wins] = is_horiz ? w->height : w->width;
+				if (w == vix->win) focus_idx = num_wins;
+				num_wins++;
+			}
+		}
+		if (focus_idx == -1) return keys;
+
+		int old_s = current_sizes[focus_idx];
+		int new_s = old_s + (increment > 0 ? 1 : -1);
+		int max_s = total_dim - (num_wins - 1);
+		if (new_s < 1) new_s = 1;
+		if (new_s > max_s) new_s = max_s;
+		
+		if (new_s != old_s) {
+			int delta = new_s - old_s;
+			current_sizes[focus_idx] = new_s;
 			
-			vix->win->weight += step;
-			if (vix->win->weight < 1) {
-				vix->win->weight = 1;
-				break;
+			if (delta > 0) {
+				/* Growing: take pixels from others */
+				while (delta > 0) {
+					bool changed = false;
+					for (int j = 0; j < num_wins; j++) {
+						if (j != focus_idx && current_sizes[j] > 1) {
+							current_sizes[j]--;
+							delta--;
+							changed = true;
+							if (delta == 0) break;
+						}
+					}
+					if (!changed) break;
+				}
+			} else {
+				/* Shrinking: give pixels to others */
+				while (delta < 0) {
+					for (int j = 0; j < num_wins; j++) {
+						if (j != focus_idx) {
+							current_sizes[j]++;
+							delta++;
+							if (delta == 0) break;
+						}
+					}
+				}
+			}
+
+			for (int j = 0; j < num_wins; j++) {
+				win_ptr[j]->weight = current_sizes[j] * 100;
 			}
 			ui_arrange(&vix->ui, vix->ui.layout);
-			int new_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
-			
-			if (new_dim != old_dim) break; 
-			attempts++;
-		}
-		
-		/* Boundary check: if we couldn't even get 1 pixel after many attempts, revert weight */
-		int final_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? vix->win->height : vix->win->width;
-		if (final_dim == old_dim && increment > 0 && attempts >= 2000) {
-			vix->win->weight = old_weight;
 		}
 	}
 	vix_draw(vix);

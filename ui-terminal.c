@@ -51,7 +51,9 @@ static void ui_window_resize(Win *win, int width, int height) {
 	bool status = win->options & UI_OPTION_STATUSBAR;
 	win->width  = width;
 	win->height = height;
-	view_resize(&win->view, width - win->sidebar_width, status ? height - 1 : height);
+	if (!win->vix->ui.layout_only) {
+		view_resize(&win->view, width - win->sidebar_width, status ? height - 1 : height);
+	}
 }
 
 static void ui_window_move(Win *win, int x, int y) {
