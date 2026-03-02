@@ -38,7 +38,7 @@ description = {
       export MANPATH="$HOME/.luarocks/share/man:$MANPATH"
    ]],
    homepage = "https://github.com/lvitals/vix",
-   license = "ISC"
+   license = "MIT"
 }
 dependencies = {
    "lua >= 5.1",
