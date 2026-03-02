@@ -99,8 +99,8 @@ static void ui_term_backend_blit(Ui *tui) {
 	CellColor fg = CELL_COLOR_DEFAULT, bg = CELL_COLOR_DEFAULT;
 	int w = tui->width, h = tui->height;
 	Cell *cell = tui->cells;
-	/* reposition cursor, erase screen, reset attributes */
-	buffer_append0(buf, "\x1b[H" "\x1b[J" "\x1b[0m");
+	/* reposition cursor, reset attributes */
+	buffer_append0(buf, "\x1b[H" "\x1b[0m");
 	for (int y = 0; y < h; y++) {
 		buffer_appendf(buf, "\x1b[%d;1H", y + 1);
 		for (int x = 0; x < w; x++) {
