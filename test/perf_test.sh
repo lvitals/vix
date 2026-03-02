@@ -42,4 +42,9 @@ run_bench "Backward Search (near start)" "?100:"
 run_bench "Forward Search (NOT FOUND - Worst Case)" "/NOMATCH_STRING_XYZ/"
 run_bench "Backward Search (NOT FOUND - Worst Case)" "?NOMATCH_STRING_XYZ?"
 
+# Multi-Tab performance tests
+echo "Testing with opentab enabled..."
+run_bench "Open 10 Tabs (opentab on)" ":set opentab on :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE"
+run_bench "Search across 10 Tabs" ":set opentab on :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE :o $TEST_FILE /999990:"
+
 echo "Benchmark finished. See details in $LOG_FILE"
