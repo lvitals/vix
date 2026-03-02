@@ -11,13 +11,14 @@ fatal() {
 }
 
 usage() {
-	fatal "Usage: $(basename "$0") [-f] [-p prompt] [--] [file-pattern]
+	fatal "Usage: $(basename "$0") [-f] [-p prompt] [-s] [--] [file-pattern]
 
 Interactively select a file to open
 
 Options:
     -f            always present given arguments, even when there is only one
     -p            use prompt as prompt string
+    -s            internal: indicate the item was explicitly selected from a menu
     file-pattern  list of filenames and directories"
 }
 
@@ -25,25 +26,31 @@ Options:
 wrap_dirs() {
 	while read -r filename
 	do
-		if [ -d "$filename" ]; then
-			printf '%s/\n' "$filename"
+		if [ -z "$filename" ]; then continue; fi
+		# Remove trailing slash for directory check if present
+		clean_name="${filename%/}"
+		if [ -d "$clean_name" ]; then
+			printf '%s/\n' "$clean_name"
 		else
-			printf '%s\n' "$filename"
+			printf '%s\n' "$clean_name"
 		fi
 	done
 }
 
 VIX_OPEN_LINES="${VIX_OPEN_LINES:-0}"
 VIX_MENU_PROMPT=''
-ALLOW_AUTO_SELECT='1'
+IS_SELECTED=''
 
-while getopts fhp: opt; do
+while getopts fhp:s opt; do
 	case "$opt" in
 	f)
-		ALLOW_AUTO_SELECT=''
+		# Legacy flag, now mostly handled by logic
 		;;
 	p)
 		VIX_MENU_PROMPT="$OPTARG"
+		;;
+	s)
+		IS_SELECTED='1'
 		;;
 	*)
 		usage
@@ -52,38 +59,40 @@ while getopts fhp: opt; do
 done
 shift "$((OPTIND - 1))"
 
-# At this point, all the remaining arguments should be the expansion of
-# any globs that were passed on the command line.
-
-if [ "$#" -eq 1 ] && [ "$ALLOW_AUTO_SELECT" = '1' ]; then
-	# If there were globs on the command-line, they've expanded to
-	# a single item, so we can just process it.
-
+# If we have a single argument, check if it's a directory or a selected file
+if [ "$#" -eq 1 ]; then
 	if [ -d "$1" ]; then
-		# Recurse and show the contents of the named directory,
-		# We pass -f to force the next iteration to present the
-		# full list, even if it's just an empty directory.
+		# It's a directory: always expand and show its contents in a menu
 		cd "$1"
-		IFS="$NL"  # Don't split ls output on tabs or spaces.
-		exec "$0" -p "$VIX_MENU_PROMPT" -f "$(ls -1)"
-	else
-		# We've found a single item, and it's not a directory,
-		# so it must be a filename (or file-like thing) to open,
-		# unless the parent directory does not exist.
-		parentdir="$(dirname -- "$1")"
+		IFS="$NL"
+		# Recursively call without -s to show the menu for the new directory
+		exec "$0" -p "$VIX_MENU_PROMPT" -- "$(ls -1)"
+		exit 0
+	elif [ "$IS_SELECTED" = '1' ]; then
+		# User explicitly picked this file from the menu!
+		# Return absolute path and exit.
+		filename="${1%/}" # strip trailing slash if directory-style
+		parentdir="$(dirname -- "$filename")"
 		if [ -d "$parentdir" ]; then
 			cd "$parentdir"
-			printf '%s/%s\n' "$(pwd -P)" "$(basename -- "${1%\*}")"
+			printf '%s/%s\n' "$(pwd -P)" "$(basename -- "$filename")"
 			exit 0
 		else
-			exit 1
+			# Fallback for non-existent files typed by user
+			printf '%s\n' "$1"
+			exit 0
 		fi
 	fi
+	# If it's a file but NOT selected (initial glob match), fall through to show menu
 fi
 
-# At this point, we have a bunch of options we need to present to the
-# user so they can pick one.
+# At this point, we show the menu to the user.
+# We include ".." for navigation and all arguments passed.
 CHOICE="$(printf '%s\n' '..' "$@" | wrap_dirs | vix-menu -b -l "$VIX_OPEN_LINES" -p "$VIX_MENU_PROMPT")"
 
-# Did they pick a file or directory? Who knows, let's let the next iteration figure it out.
-exec "$0" -p "$VIX_MENU_PROMPT" -- "$CHOICE"
+if [ -z "$CHOICE" ]; then
+	exit 1
+fi
+
+# Recurse with -s to indicate that this item was explicitly chosen
+exec "$0" -p "$VIX_MENU_PROMPT" -s -- "$CHOICE"

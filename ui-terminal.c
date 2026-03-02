@@ -356,11 +356,6 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	tab->layout = layout;
 	
 	int n = 0, m = !!tui->info[0], x = 0, y = 0;
-	bool show_tabs = tui->tabview || (tui->tabpages && tui->tabpages->next);
-	if (show_tabs) {
-		y = 1; /* Reserve first line for tabs */
-		m++;
-	}
 
 	long total_weight = 0;
 	for (Win *win = tab->windows; win; win = win->next) {
@@ -370,6 +365,12 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 			n++;
 			total_weight += MAX(1, win->weight);
 		}
+	}
+
+	bool show_tabs = (tui->tabview && n > 1) || (!tui->tabview && tui->tabpages && tui->tabpages->next);
+	if (show_tabs) {
+		y = 1; /* Reserve first line for tabs */
+		m++;
 	}
 
 	if (tui->tabview && tab->selwin) {
@@ -461,7 +462,15 @@ static void ui_tab_draw(Ui *ui) {
 	
 	int win_id = ui->seltab->selwin ? ui->seltab->selwin->id : 0;
 	int x = 0;
+
+	int n = 0;
 	if (ui->tabview) {
+		for (Win *win = ui->seltab->windows; win; win = win->next) {
+			if (!(win->options & UI_OPTION_ONELINE)) n++;
+		}
+	}
+
+	if (ui->tabview && n > 1) {
 		/* Show windows of the current TabPage as tabs, ignoring internal oneline windows */
 		for (Win *win = ui->seltab->windows; win; win = win->next) {
 			if (win->options & UI_OPTION_ONELINE) continue;
@@ -474,7 +483,7 @@ static void ui_tab_draw(Ui *ui) {
 			x += len;
 			if (x >= ui->width) break;
 		}
-	} else if (ui->tabpages->next) {
+	} else if (!ui->tabview && ui->tabpages->next) {
 		/* Show TabPages as tabs */
 		for (TabPage *tab = ui->tabpages; tab; tab = tab->next) {
 			char name[64];
