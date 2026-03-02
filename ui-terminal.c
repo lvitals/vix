@@ -247,16 +247,20 @@ static void ui_window_draw(Win *win) {
 	char buf[(sizeof(size_t) * CHAR_BIT + 2) / 3 + 1 + 1];
 	int x = win->x, y = win->y;
 	int view_width = view->width;
-	Cell *cells = ui->cells + y * ui->width;
+	
 	if (x + sidebar_width + view_width > ui->width) {
 		view_width = ui->width - x - sidebar_width;
 	}
+	if (view_width < 0) view_width = 0;
+
 	int max_y = win->y + height;
 	if (status) {
 		max_y--;
 	}
 
 	for (const Line *l = line; l && y < max_y; l = l->next, y++) {
+		if (y < 0 || y >= ui->height) continue;
+		
 		if (sidebar) {
 			if (!l->lineno || !l->len || l->lineno == prev_lineno) {
 				memset(buf, ' ', sizeof(buf));
@@ -278,9 +282,22 @@ static void ui_window_draw(Win *win) {
 				                                      UI_STYLE_LINENUMBER);
 			prev_lineno = l->lineno;
 		}
-		debug("draw-window: [%d][%d] ... cells[%d][%d]\n", y, x+sidebar_width, y, view_width);
-		memcpy(cells + x + sidebar_width, l->cells, sizeof(Cell) * view_width);
-		cells += ui->width;
+		
+		if (x + sidebar_width < ui->width && view_width > 0) {
+			int draw_x = x + sidebar_width;
+			int draw_w = view_width;
+			if (draw_x < 0) {
+				draw_w += draw_x;
+				draw_x = 0;
+			}
+			if (draw_x + draw_w > ui->width) {
+				draw_w = ui->width - draw_x;
+			}
+			if (draw_w > 0) {
+				Cell *dest = ui->cells + y * ui->width + draw_x;
+				memcpy(dest, l->cells, sizeof(Cell) * draw_w);
+			}
+		}
 	}
 }
 
