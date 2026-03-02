@@ -342,16 +342,25 @@ void ui_window_status(Win *win, const char *status) {
 		return;
 	}
 	Ui *ui = &win->vix->ui;
-	enum UiStyle style = ui->selwin == win ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
+	enum UiStyle style = (ui->seltab && ui->seltab->selwin == win) ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
 	ui_draw_string(ui, win->x, win->y + win->height - 1, win->x + win->width, status, win->id, style);
 }
 
 void ui_arrange(Ui *tui, enum UiLayout layout) {
 	debug("ui-arrange\n");
-	tui->layout = layout;
+	if (!tui->seltab) return;
+	TabPage *tab = tui->seltab;
+	tab->layout = layout;
+	
 	int n = 0, m = !!tui->info[0], x = 0, y = 0;
+	bool show_tabs = tui->tabview || (tui->tabpages && tui->tabpages->next);
+	if (show_tabs) {
+		y = 1; /* Reserve first line for tabs */
+		m++;
+	}
+
 	long total_weight = 0;
-	for (Win *win = tui->windows; win; win = win->next) {
+	for (Win *win = tab->windows; win; win = win->next) {
 		if (win->options & UI_OPTION_ONELINE) {
 			m++;
 		} else {
@@ -359,57 +368,83 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 			total_weight += MAX(1, win->weight);
 		}
 	}
+
+	if (tui->tabview && tab->selwin) {
+		for (Win *win = tab->windows; win; win = win->next) {
+			if (win == tab->selwin) {
+				ui_window_resize(win, tui->width, tui->height - m);
+				ui_window_move(win, 0, y);
+			} else {
+				ui_window_resize(win, 0, 0);
+				ui_window_move(win, -1, -1);
+			}
+		}
+		y = tui->height - m + (show_tabs ? 1 : 0);
+		for (Win *win = tab->windows; win; win = win->next) {
+			if (win->options & UI_OPTION_ONELINE) {
+				ui_window_resize(win, tui->width, 1);
+				ui_window_move(win, 0, y++);
+			}
+		}
+		return;
+	}
+
 	int max_height = tui->height - m;
 	if (max_height <= 0 || n == 0) return;
 
-	long weight_left = total_weight;
 	int windows_left = n;
+	int total_dim = (layout == UI_LAYOUT_HORIZONTAL) ? max_height : (tui->width - (n > 1 ? n - 1 : 0));
+	int allocated_dim = 0;
 
-	for (Win *win = tui->windows; win; win = win->next) {
+	for (Win *win = tab->windows; win; win = win->next) {
 		if (win->options & UI_OPTION_ONELINE) {
 			continue;
 		}
 		windows_left--;
-		if (layout == UI_LAYOUT_HORIZONTAL) {
-			int h = windows_left ? (int)((long)(max_height - y) * win->weight / weight_left) : max_height - y;
-			if (h < 1) h = 1;
-			if (windows_left > 0 && y + h > max_height - windows_left) h = max_height - windows_left - y;
 
-			ui_window_resize(win, tui->width, h);
-			ui_window_move(win, x, y);
-			y += h;
-			weight_left -= win->weight;
+		int size;
+		if (windows_left == 0) {
+			size = total_dim - allocated_dim;
 		} else {
-			int avail_w = tui->width - windows_left - x;
-			int w = windows_left ? (int)((long)avail_w * win->weight / weight_left) : tui->width - x;
-			if (w < 1) w = 1;
-			if (windows_left > 0 && x + w > tui->width - windows_left) w = tui->width - windows_left - x;
+			size = (int)((long)total_dim * win->weight / total_weight);
+			if (size < 1) size = 1;
+			int remaining_room = total_dim - allocated_dim - windows_left;
+			if (size > remaining_room) size = remaining_room;
+		}
+		if (size < 1) size = 1;
+		allocated_dim += size;
 
-			ui_window_resize(win, w, max_height);
+		if (layout == UI_LAYOUT_HORIZONTAL) {
+			ui_window_resize(win, tui->width, size);
 			ui_window_move(win, x, y);
-			x += w;
-			weight_left -= win->weight;
+			y += size;
+		} else {
+			ui_window_resize(win, size, max_height);
+			ui_window_move(win, x, y);
+			x += size;
 
-			if (windows_left > 0 && x < tui->width) {
-				Cell *row_cells = tui->cells;
-				for (int i = 0; i < max_height; i++) {
-					if (x < tui->width) {
-						strcpy(row_cells[x].data, "│");
-						row_cells[x].style = tui->styles[UI_STYLE_SEPARATOR];
+			if (windows_left > 0 && x >= 0 && x < tui->width) {
+				for (int i = y; i < y + max_height; i++) {
+					if (i >= 0 && i < tui->height) {
+						int idx = i * tui->width + x;
+						if (idx >= 0 && idx < tui->width * tui->height) {
+							Cell *cell = &tui->cells[idx];
+							memcpy(cell->data, "│", 3);
+							cell->data[3] = '\0';
+							cell->style = tui->styles[UI_STYLE_SEPARATOR];
+						}
 					}
-					row_cells += tui->width;
 				}
 				x++;
 			}
 		}
-		if (weight_left <= 0) weight_left = 1;
 	}
 
 	if (layout == UI_LAYOUT_VERTICAL) {
-		y = max_height;
+		y = tui->height - m + (show_tabs ? 1 : 0);
 	}
 
-	for (Win *win = tui->windows; win; win = win->next) {
+	for (Win *win = tab->windows; win; win = win->next) {
 		if (!(win->options & UI_OPTION_ONELINE)) {
 			continue;
 		}
@@ -418,13 +453,55 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	}
 }
 
+static void ui_tab_draw(Ui *ui) {
+	if (!ui->tabpages) return;
+	
+	int x = 0;
+	if (ui->tabview) {
+		/* Show windows of the current TabPage as tabs, ignoring internal oneline windows */
+		for (Win *win = ui->seltab->windows; win; win = win->next) {
+			if (win->options & UI_OPTION_ONELINE) continue;
+			char name[64];
+			const char *filename = win->file->name ? strrchr(win->file->name, '/') : NULL;
+			filename = filename ? filename + 1 : (win->file->name ? win->file->name : "[No Name]");
+			int len = snprintf(name, sizeof(name), " %s ", filename);
+			enum UiStyle style = (win == ui->seltab->selwin) ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
+			ui_draw_string(ui, x, 0, ui->width, name, 0, style);
+			x += len;
+			if (x >= ui->width) break;
+		}
+	} else if (ui->tabpages->next) {
+		/* Show TabPages as tabs */
+		for (TabPage *tab = ui->tabpages; tab; tab = tab->next) {
+			char name[64];
+			const char *filename = "[No Name]";
+			if (tab->selwin && tab->selwin->file->name) {
+				filename = strrchr(tab->selwin->file->name, '/');
+				filename = filename ? filename + 1 : tab->selwin->file->name;
+			}
+			int len = snprintf(name, sizeof(name), " %s ", filename);
+			enum UiStyle style = (tab == ui->seltab) ? UI_STYLE_STATUS_FOCUSED : UI_STYLE_STATUS;
+			ui_draw_string(ui, x, 0, ui->width, name, 0, style);
+			x += len;
+			if (x >= ui->width) break;
+		}
+	} else {
+		return;
+	}
+
+	if (x < ui->width) {
+		ui_draw_line(ui, x, 0, ' ', UI_STYLE_STATUS);
+	}
+}
+
 void ui_draw(Ui *tui) {
-	if (tui->vix->headless) {
+	if (tui->vix->headless || !tui->seltab) {
 		return;
 	}
 	debug("ui-draw\n");
-	ui_arrange(tui, tui->layout);
-	for (Win *win = tui->windows; win; win = win->next) {
+	ui_arrange(tui, tui->seltab->layout);
+	ui_tab_draw(tui);
+	for (Win *win = tui->seltab->windows; win; win = win->next) {
 		ui_window_draw(win);
 	}
 	if (tui->info[0]) {
@@ -435,8 +512,9 @@ void ui_draw(Ui *tui) {
 }
 
 void ui_redraw(Ui *tui) {
+	if (!tui->seltab) return;
 	ui_term_backend_clear(tui);
-	for (Win *win = tui->windows; win; win = win->next) {
+	for (Win *win = tui->seltab->windows; win; win = win->next) {
 		win->view.need_update = true;
 	}
 }
@@ -475,11 +553,12 @@ void ui_resize(Ui *tui) {
 }
 
 void ui_window_release(Ui *tui, Win *win) {
-	if (!win) {
+	if (!win || !tui->seltab) {
 		return;
 	}
-	if (tui->windows == win) {
-		tui->windows = win->next;
+	TabPage *tab = tui->seltab;
+	if (tab->windows == win) {
+		tab->windows = win->next;
 		tui->vix->windows = win->next;
 	}
 	if (win->next) {
@@ -488,16 +567,33 @@ void ui_window_release(Ui *tui, Win *win) {
 	if (win->prev) {
 		win->prev->next = win->next;
 	}
-	if (tui->selwin == win) {
-		tui->selwin = NULL;
+	if (tab->selwin == win) {
+		tab->selwin = win->next ? win->next : win->prev;
+		tui->vix->win = tab->selwin;
 	}
 	tui->ids &= ~(1UL << win->id);
+
+	/* If this was the last window in the tab, close the tab */
+	if (!tab->windows && (tui->tabpages->next)) {
+		if (tab->prev) tab->prev->next = tab->next;
+		if (tab->next) tab->next->prev = tab->prev;
+		if (tui->tabpages == tab) tui->tabpages = tab->next;
+		
+		TabPage *target = tab->prev ? tab->prev : tab->next;
+		tui->seltab = target;
+		tui->vix->windows = target->windows;
+		tui->vix->win = target->selwin;
+		
+		free(tab);
+		ui_draw(tui);
+	}
 }
 
 void ui_window_focus(Win *new) {
-	Win *old = new->vix->ui.selwin;
+	if (!new->vix->ui.seltab) return;
+	Win *old = new->vix->ui.seltab->selwin;
 	if ((new->options & UI_OPTION_STATUSBAR) || (new->options & UI_OPTION_ONELINE)) {
-		new->vix->ui.selwin = new;
+		new->vix->ui.seltab->selwin = new;
 	}
 	if (old) {
 		old->view.need_update = true;
@@ -510,9 +606,10 @@ void ui_window_options_set(Win *win, enum UiOption options) {
 	if (options & UI_OPTION_ONELINE) {
 		/* move the new window to the end of the list */
 		Ui *tui = &win->vix->ui;
-		if (win->next) {
-			if (tui->windows == win) {
-				tui->windows = win->next;
+		if (tui->seltab && win->next) {
+			TabPage *tab = tui->seltab;
+			if (tab->windows == win) {
+				tab->windows = win->next;
 			}
 			if (win->prev) {
 				win->prev->next = win->next;
@@ -520,7 +617,7 @@ void ui_window_options_set(Win *win, enum UiOption options) {
 			if (win->next) {
 				win->next->prev = win->prev;
 			}
-			Win *last = tui->windows;
+			Win *last = tab->windows;
 			while (last->next) {
 				last = last->next;
 			}
@@ -533,18 +630,19 @@ void ui_window_options_set(Win *win, enum UiOption options) {
 }
 
 void ui_window_swap(Win *a, Win *b) {
-	if (a == b || !a || !b) {
+	if (a == b || !a || !b || !a->vix->ui.seltab) {
 		return;
 	}
 	Ui *tui = &a->vix->ui;
-	if (tui->windows == a) {
-		tui->windows = b;
-	} else if (tui->windows == b) {
-		tui->windows = a;
+	TabPage *tab = tui->seltab;
+	if (tab->windows == a) {
+		tab->windows = b;
+	} else if (tab->windows == b) {
+		tab->windows = a;
 	}
-	if (tui->selwin == a) {
+	if (tab->selwin == a) {
 		ui_window_focus(b);
-	} else if (tui->selwin == b) {
+	} else if (tab->selwin == b) {
 		ui_window_focus(a);
 	}
 }
@@ -706,6 +804,13 @@ bool ui_init(Ui *tui, Vix *vix) {
 		goto err;
 	}
 	ui_resize(tui);
+
+	/* Initialize the first tab page */
+	TabPage *tab = calloc(1, sizeof(TabPage));
+	if (!tab) goto err;
+	tab->layout = UI_LAYOUT_HORIZONTAL;
+	tui->tabpages = tui->seltab = tab;
+	
 	return true;
 err:
 	ui_die_msg(tui, "Failed to start curses interface: %s\n", errno != 0 ? strerror(errno) : "");
@@ -730,12 +835,86 @@ bool ui_terminal_init(Ui *tui) {
 	return true;
 }
 
+void ui_tab_new(Ui *ui) {
+	TabPage *new_tab = calloc(1, sizeof(TabPage));
+	if (!new_tab) return;
+	new_tab->layout = ui->layout;
+	
+	/* Link new tab */
+	new_tab->next = ui->seltab->next;
+	new_tab->prev = ui->seltab;
+	if (ui->seltab->next) ui->seltab->next->prev = new_tab;
+	ui->seltab->next = new_tab;
+	
+	/* Save current state */
+	ui->seltab->selwin = ui->vix->win;
+	ui->seltab->windows = ui->vix->windows;
+	
+	/* Switch to new tab */
+	ui->seltab = new_tab;
+	
+	/* Create a default window in the new tab */
+	Win *old_win = ui->vix->win;
+	Win *new_win = window_new_file(ui->vix, old_win ? old_win->file : NULL, UI_OPTION_STATUSBAR);
+	if (new_win) {
+		ui->seltab->windows = ui->vix->windows = new_win;
+		ui->seltab->selwin = ui->vix->win = new_win;
+	}
+	
+	ui_draw(ui);
+}
+
+void ui_tab_next(Ui *ui) {
+	if (!ui->tabpages || !ui->seltab) return;
+	TabPage *next = ui->seltab->next ? ui->seltab->next : ui->tabpages;
+	if (next == ui->seltab) return;
+	
+	/* Save current state */
+	ui->seltab->selwin = ui->vix->win;
+	ui->seltab->windows = ui->vix->windows;
+	
+	/* Switch to next tab */
+	ui->seltab = next;
+	ui->vix->win = next->selwin;
+	ui->vix->windows = next->windows;
+	
+	ui_draw(ui);
+}
+
+void ui_tab_prev(Ui *ui) {
+	if (!ui->tabpages || !ui->seltab) return;
+	TabPage *prev = ui->seltab->prev;
+	if (!prev) {
+		prev = ui->tabpages;
+		while (prev->next) prev = prev->next;
+	}
+	if (prev == ui->seltab) return;
+	
+	/* Save current state */
+	ui->seltab->selwin = ui->vix->win;
+	ui->seltab->windows = ui->vix->windows;
+	
+	/* Switch to prev tab */
+	ui->seltab = prev;
+	ui->vix->win = prev->selwin;
+	ui->vix->windows = prev->windows;
+	
+	ui_draw(ui);
+}
+
 void ui_terminal_free(Ui *tui) {
 	if (!tui) {
 		return;
 	}
-	while (tui->windows) {
-		ui_window_release(tui, tui->windows);
+	TabPage *tab = tui->tabpages;
+	while (tab) {
+		TabPage *next = tab->next;
+		tui->seltab = tab;
+		while (tab->windows) {
+			ui_window_release(tui, tab->windows);
+		}
+		free(tab);
+		tab = next;
 	}
 	ui_term_backend_free(tui);
 	if (tui->termkey) {

@@ -14,6 +14,10 @@ static Vix vix[1];
 	X(ka_call,                            REDRAW,                           .f = vix_redraw,                          "vix-redraw",                          "Redraw current editor content") \
 	X(ka_call,                            WINDOW_NEXT,                      .f = vix_window_next,                     "vix-window-next",                     "Focus next window") \
 	X(ka_call,                            WINDOW_PREV,                      .f = vix_window_prev,                     "vix-window-prev",                     "Focus previous window") \
+	X(ka_tab_new,                         TAB_NEW,                          0,                                        "vix-tab-new",                         "Create a new tab") \
+	X(ka_tabview_toggle,                  TAB_VIEW_TOGGLE,                  0,                                        "vix-tabview-toggle",                  "Toggle between tabbed and split view") \
+	X(ka_tab_next,                        TAB_NEXT,                         0,                                        "vix-tab-next",                        "Switch to next tab") \
+	X(ka_tab_prev,                        TAB_PREV,                         0,                                        "vix-tab-prev",                        "Switch to previous tab") \
 	X(ka_window_next_max,                 WINDOW_NEXT_MAX,                  0,                                        "vix-window-next-max",                 "Focus next window and maximize it") \
 	X(ka_window_prev_max,                 WINDOW_PREV_MAX,                  0,                                        "vix-window-prev-max",                 "Focus previous window and maximize it") \
 	X(ka_window_maximize,                 WINDOW_MAXIMIZE,                  0,                                        "vix-window-maximize",                 "Maximize current window") \
@@ -216,17 +220,43 @@ static KEY_ACTION_FN(ka_layout)
 	return keys;
 }
 
+static KEY_ACTION_FN(ka_tabview_toggle)
+{
+	vix->ui.tabview = !vix->ui.tabview;
+	ui_arrange(&vix->ui, vix->ui.layout);
+	vix_draw(vix);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_tab_new)
+{
+	ui_tab_new(&vix->ui);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_tab_next)
+{
+	ui_tab_next(&vix->ui);
+	return keys;
+}
+
+static KEY_ACTION_FN(ka_tab_prev)
+{
+	ui_tab_prev(&vix->ui);
+	return keys;
+}
+
 static KEY_ACTION_FN(ka_window_next_max)
 {
 	vix_window_next(vix);
 	int n = 0, m = !!vix->ui.info[0];
-	for (Win *w = vix->ui.windows; w; w = w->next) {
+	for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 		if (!(w->options & UI_OPTION_ONELINE)) n++;
 		else m++;
 	}
 	if (n > 1) {
 		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
-		for (Win *w = vix->ui.windows; w; w = w->next) {
+		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
@@ -240,13 +270,13 @@ static KEY_ACTION_FN(ka_window_prev_max)
 {
 	vix_window_prev(vix);
 	int n = 0, m = !!vix->ui.info[0];
-	for (Win *w = vix->ui.windows; w; w = w->next) {
+	for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 		if (!(w->options & UI_OPTION_ONELINE)) n++;
 		else m++;
 	}
 	if (n > 1) {
 		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
-		for (Win *w = vix->ui.windows; w; w = w->next) {
+		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
@@ -259,13 +289,13 @@ static KEY_ACTION_FN(ka_window_prev_max)
 static KEY_ACTION_FN(ka_window_maximize)
 {
 	int n = 0, m = !!vix->ui.info[0];
-	for (Win *w = vix->ui.windows; w; w = w->next) {
+	for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 		if (!(w->options & UI_OPTION_ONELINE)) n++;
 		else m++;
 	}
 	if (n > 1) {
 		int total_dim = (vix->ui.layout == UI_LAYOUT_HORIZONTAL) ? (vix->ui.height - m) : (vix->ui.width - (n - 1));
-		for (Win *w = vix->ui.windows; w; w = w->next) {
+		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			w->weight = (w == vix->win) ? MAX(1, total_dim - (n - 1)) * 100 : 100;
 		}
@@ -290,7 +320,7 @@ static KEY_ACTION_FN(ka_window_resize)
 	} else {
 		/* Geometric Weighting: calculate weights based on target pixel dimensions */
 		int n = 0, m = !!vix->ui.info[0];
-		for (Win *w = vix->ui.windows; w; w = w->next) {
+		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (!(w->options & UI_OPTION_ONELINE)) n++;
 			else m++;
 		}
@@ -304,7 +334,7 @@ static KEY_ACTION_FN(ka_window_resize)
 		int focus_idx = -1;
 		int num_wins = 0;
 		
-		for (Win *w = vix->ui.windows; w; w = w->next) {
+		for (Win *w = vix->ui.seltab->windows; w; w = w->next) {
 			if (w->options & UI_OPTION_ONELINE) continue;
 			if (num_wins < 64) {
 				win_ptr[num_wins] = w;

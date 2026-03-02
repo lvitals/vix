@@ -78,13 +78,22 @@ typedef struct {
 
 struct Win;
 struct Vix;
+
+typedef struct TabPage TabPage;
+struct TabPage {
+	struct Win *windows;      /* windows belonging to this tab */
+	struct Win *selwin;       /* focused window in this tab */
+	enum UiLayout layout;     /* layout for this tab's windows */
+	TabPage *next, *prev;     /* linked list pointers */
+};
+
 typedef struct {
 	struct Vix *vix;          /* editor instance to which this ui belongs */
-	struct Win *windows;      /* all windows managed by this ui */
-	struct Win *selwin;       /* the currently selected layout */
+	TabPage *tabpages;        /* all tab pages managed by this ui */
+	TabPage *seltab;          /* the currently active tab page */
 	char info[UI_MAX_WIDTH];  /* info message displayed at the bottom of the screen */
 	int width, height;        /* terminal dimensions available for all windows */
-	enum UiLayout layout;     /* whether windows are displayed horizontally or vertically */
+	enum UiLayout layout;     /* default layout for new tabs */
 	TermKey *termkey;         /* libtermkey instance to handle keyboard input (stdin or /dev/tty) */
 	size_t ids;               /* bit mask of in use window ids */
 	size_t styles_size;       /* #bytes allocated for styles array */
@@ -95,6 +104,7 @@ typedef struct {
 	void *ctx;                /* Any additional data needed by the backend */
 	void *backend_data;       /* Any additional persistent data needed by the backend */
 	bool layout_only;         /* Whether to skip expensive view operations during arrangement */
+	bool tabview;             /* Whether to show only the focused window (tabbed mode) */
 	bool is_tty;              /* Whether the input is a TTY */
 } Ui;
 

@@ -413,7 +413,7 @@ Win *window_new_file(Vix *vix, File *file, enum UiOption options) {
 		last->next = win;
 		win->prev = last;
 	}
-	vix->ui.windows = vix->windows;
+	if (vix->ui.seltab) vix->ui.seltab->windows = vix->windows;
 
 	vix->win = win;
 	ui_window_focus(win);
