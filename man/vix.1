@@ -1,4 +1,4 @@
-.Dd February 27, 2026
+.Dd March 2, 2026
 .Dt VIX 1
 .Os Vix VERSION
 .
@@ -11,6 +11,7 @@
 .
 .Nm
 .Op Fl v
+.Op Fl headless
 .Op Cm + Ns Ar command
 .Op Fl -
 .Op Ar files ...
@@ -32,6 +33,9 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl v
 Print version information and exit.
+.It Fl headless
+Run in non-interactive mode. Useful for scripting and automated testing.
+No UI is initialized.
 .It Cm + Ns Ar command
 Execute
 .Ar command
@@ -88,9 +92,9 @@ It supports a
 .Sq replace ,
 .Sq window
 and
-.Sq vixual
+.Sq visual
 (in both line and character wise variants) mode.
-The vixual block and ex modes are deliberately not implemented,
+The visual block and ex modes are deliberately not implemented,
 instead
 .Nm
 has built in support for multiple selections and an
@@ -149,7 +153,7 @@ Available marks are:
 .It Ic ''
 default mark
 .It Ic '^
-active selections when leaving vixual mode
+active selections when leaving visual mode
 .It Ic 'a Ns \(en Ns Ic 'z
 general purpose marks
 .El
@@ -168,6 +172,17 @@ jump backward
 jump forward
 .It Ic gs
 save currently active selections
+.El
+.
+.Ss Tab Pages
+.
+.Nm
+supports multiple tab pages, each containing its own window layout.
+.Bl -tag -width indent
+.It Ic gt
+go to the next tab page
+.It Ic gT
+go to the previous tab page
 .El
 .
 .Ss Registers
@@ -481,7 +496,7 @@ and
 .Ic wq
 always apply to the whole file.
 Commands are executed once for every selection.
-In vixual mode the commands are applied to every selection
+In visual mode the commands are applied to every selection
 as if an implicit
 .Ic x
 command, matching the existing selections, was present.
@@ -491,13 +506,13 @@ In the description,
 .Dq range
 is used to represent whatever address is supplied.
 .Pp
-Many commands create new selections as a side effect when issued from a vixual
+Many commands create new selections as a side effect when issued from a visual
 mode.
 If so, it is always to the “result” of the change: the new text for an
 insertion, the empty string for a deletion, the command output of a filter etc.
 If after a successful command execution no selections remain,
 the editor will switch to normal mode, otherwise it remains in
-vixual mode.
+visual mode.
 This allows
 .Em interactive
 refinements of ranges.
@@ -907,6 +922,12 @@ last non-blank of line
 .It Ic gm
 middle of display line
 .
+.It Ic gt
+next tab page
+.
+.It Ic gT
+previous tab page
+.
 .It Ic g\&|
 goto column
 .
@@ -1046,12 +1067,24 @@ current line
 .
 .It Ic il
 current line without leading and trailing white spaces
+.
+.It Ic i Ns Aq Ic Tab
+inner indentation level
+.
+.It Ic a Ns Aq Ic Tab
+indentation level with surrounding lines
+.
+.It Ic ii
+inner lexer token or item
+.
+.It Ic ai
+outer lexer token or item
 .El
 .
 .Ss Multiple Selections
 .
 .Nm
-supports multiple selections with immediate vixual feedback.
+supports multiple selections with immediate visual feedback.
 There always exists one primary selection located within the current
 view port.
 Additional selections can be created as needed.
@@ -1076,7 +1109,7 @@ create count new selections on the lines below the last selection
 remove primary selection
 .
 .It Aq Ic C-n
-select word the selection is currently over, switch to vixual mode
+select word the selection is currently over, switch to visual mode
 .
 .It Aq Ic C-u
 make the count previous selection primary
@@ -1097,7 +1130,7 @@ try to align all selections on the same column
 dispose all but the primary selection
 .El
 .Pp
-The vixual modes were enhanced to recognize:
+The visual modes were enhanced to recognize:
 .Pp
 .Bl -tag -width XXXXXXXXXX -compact
 .It Ic I
@@ -1225,6 +1258,12 @@ close focused window
 .It Ic o
 close all other windows
 .
+.It Ic t
+toggle tabview mode (maximized window viewing)
+.
+.It Ic T
+move current window to a new tab page
+.
 .It Ic w , Ic x
 focus next window
 .
@@ -1256,13 +1295,13 @@ open an empty window, arranged as a new row (horizontally)
 .It Ic :vnew
 open an empty window, arranged as a new column (vertically)
 .
-.It Ic :open Ns Oo Cm \&! Oc Op Ar file name
+.It Ic :open Ns Oo Cm \&! Oc Op Pa file name
 open a new window, displaying file name if given
 .
-.It Ic :split Op Ar file name
+.It Ic :split Op Pa file name
 split window into rows (horizontally)
 .
-.It Ic :vsplit Op Ar file name
+.It Ic :vsplit Op Pa file name
 split window into columns (vertically)
 .
 .It Ic :q Ns Oo Cm \&! Oc Op Ar exit code
@@ -1310,8 +1349,8 @@ refers to one of
 .Ql insert ,
 .Ql replace ,
 .Ql window ,
-.Ql vixual ,
-.Ql vixual-line
+.Ql visual ,
+.Ql visual-line
 or
 .Ql operator-pending ;
 .Ar lhs
@@ -1517,7 +1556,7 @@ enlarges the window, giving access to the command history.
 .Aq Ic Enter
 inserts a literal new line thus enabling multiline commands.
 .Aq Ic Enter
-executes the vixual selection if present, or else everything in the
+executes the visual selection if present, or else everything in the
 region spawned by the selection position and the delimiting prompt symbols
 at the start of adjacent lines.
 .
@@ -1669,7 +1708,7 @@ by
 by
 .An Rob Pike
 .Pp
-.Lk http://pubs.opengroup.org/onlinepubs/9699919799/utilities/vi.html "vi - screen-oriented (vixual) display editor"
+.Lk http://pubs.opengroup.org/onlinepubs/9699919799/utilities/vi.html "vi - screen-oriented (visual) display editor"
 .St -p1003.1
 .
 .Sh STANDARDS

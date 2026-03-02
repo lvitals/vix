@@ -8,6 +8,7 @@ VIX(1) - General Commands Manual
 
 **vix**
 \[**-v**]
+\[**-headless**]
 \[**+**&zwnj;*command*]
 \[**--**]
 \[*files&nbsp;...*]
@@ -29,6 +30,11 @@ The following options are available:
 **-v**
 
 > Print version information and exit.
+
+**-headless**
+
+> Run in non-interactive mode. Useful for scripting and automated testing.
+> No UI is initialized.
 
 **+**&zwnj;*command*
 
@@ -84,11 +90,12 @@ It supports a
 'normal',
 'operator pending',
 'insert',
-'replace'
+'replace',
+'window'
 and
-'vixual'
+'visual'
 (in both line and character wise variants) mode.
-The vixual block and ex modes are deliberately not implemented,
+The visual block and ex modes are deliberately not implemented,
 instead
 **vix**
 has built in support for multiple selections and an
@@ -150,7 +157,7 @@ Available marks are:
 
 **'^**
 
-> active selections when leaving vixual mode
+> active selections when leaving visual mode
 
 **'a**&#8211;**'z**
 
@@ -175,6 +182,19 @@ A per window, fixed sized file local jump list exists which stores marks
 **gs**
 
 > save currently active selections
+
+## Tab Pages
+
+**vix**
+supports multiple tab pages, each containing its own window layout.
+
+**gt**
+
+> go to the next tab page
+
+**gT**
+
+> go to the previous tab page
 
 ## Registers
 
@@ -517,7 +537,7 @@ and
 **wq**
 always apply to the whole file.
 Commands are executed once for every selection.
-In vixual mode the commands are applied to every selection
+In visual mode the commands are applied to every selection
 as if an implicit
 **x**
 command, matching the existing selections, was present.
@@ -526,13 +546,13 @@ In the description,
 "range"
 is used to represent whatever address is supplied.
 
-Many commands create new selections as a side effect when issued from a vixual
+Many commands create new selections as a side effect when issued from a visual
 mode.
 If so, it is always to the &#8220;result&#8221; of the change: the new text for an
 insertion, the empty string for a deletion, the command output of a filter etc.
 If after a successful command execution no selections remain,
 the editor will switch to normal mode, otherwise it remains in
-vixual mode.
+visual mode.
 This allows
 *interactive*
 refinements of ranges.
@@ -959,6 +979,14 @@ thereby defining a range.
 
 > middle of display line
 
+**gt**
+
+> next tab page
+
+**gT**
+
+> previous tab page
+
 **g|**
 
 > goto column
@@ -1129,10 +1157,26 @@ Further available text objects include:
 
 > current line without leading and trailing white spaces
 
+**i**&lt;**Tab**&gt;
+
+> inner indentation level
+
+**a**&lt;**Tab**&gt;
+
+> indentation level with surrounding lines
+
+**ii**
+
+> inner lexer token or item
+
+**ai**
+
+> outer lexer token or item
+
 ## Multiple Selections
 
 **vix**
-supports multiple selections with immediate vixual feedback.
+supports multiple selections with immediate visual feedback.
 There always exists one primary selection located within the current
 view port.
 Additional selections can be created as needed.
@@ -1162,7 +1206,7 @@ To manipulate selections use in normal mode:
 
 &lt;**C-n**&gt;
 
-> select word the selection is currently over, switch to vixual mode
+> select word the selection is currently over, switch to visual mode
 
 &lt;**C-u**&gt;
 
@@ -1188,7 +1232,7 @@ To manipulate selections use in normal mode:
 
 > dispose all but the primary selection
 
-The vixual modes were enhanced to recognize:
+The visual modes were enhanced to recognize:
 
 **I**
 
@@ -1291,6 +1335,77 @@ the first operand.
 
 > set complement
 
+## Window Mode
+
+Entering window mode via
+&lt;**C-w**&gt;
+allows for persistent window management using single key commands.
+The following keys are recognized:
+
+**+**, **&gt;**
+
+> increase focused window size
+
+**-**, **&lt;**
+
+> decrease focused window size
+
+**=**
+
+> reset all windows to equal size
+
+**h**, **k**
+
+> focus previous window
+
+**j**, **l**
+
+> focus next window
+
+**s**
+
+> switch global layout to horizontal (rows)
+
+**v**
+
+> switch global layout to vertical (columns)
+
+**S**
+
+> split focused window horizontally
+
+**V**
+
+> split focused window vertically
+
+**n**
+
+> open a new empty window
+
+**c**
+
+> close focused window
+
+**o**
+
+> close all other windows
+
+**t**
+
+> toggle tabview mode (maximized window viewing)
+
+**T**
+
+> move current window to a new tab page
+
+**w**, **x**
+
+> focus next window
+
+&lt;**Escape**, **q**&gt;
+
+> return to normal mode
+
 # VI(M) COMMANDS
 
 Any unique prefix can be used to abbreviate a command.
@@ -1300,19 +1415,14 @@ Any unique prefix can be used to abbreviate a command.
 A file must be opened in at least one window.
 If the last window displaying a certain file is closed all unsaved changes are
 discarded.
-Windows are equally sized and can be displayed in rows (horizontally)
-or in columns (vertically).
+Windows can be displayed in rows (horizontally) or in columns (vertically).
+The orientation is a global setting.
+Windows can be proportionally resized.
 The
 &lt;**C-w**&gt;
-**h**,
-&lt;**C-w**&gt;
-**j**,
-&lt;**C-w**&gt;
-**k**
-and
-&lt;**C-w**&gt;
-**l**
-key mappings can be used to switch between windows.
+key mapping enters a dedicated
+'window'
+mode for window management and resizing.
 
 **:new**
 
@@ -1383,8 +1493,9 @@ refers to one of
 '`normal`',
 '`insert`',
 '`replace`',
-'`vixual`',
-'`vixual-line`'
+'`window`',
+'`visual`',
+'`visual-line`'
 or
 '`operator-pending`';
 *lhs*
@@ -1492,7 +1603,10 @@ The part in square brackets is the default value of the option.
 
 **opentab** [**off**]
 
-	Whether to open new files in a new tab when using **:edit** or **:open**.
+	Whether to open new files in a new tab when using
+	**:edit**
+	or
+	**:open**.
 
 **expandtab**, **et** [**off**]
 
@@ -1614,7 +1728,7 @@ enlarges the window, giving access to the command history.
 <**Enter**>
 inserts a literal new line thus enabling multiline commands.
 <**Enter**>
-executes the vixual selection if present, or else everything in the
+executes the visual selection if present, or else everything in the
 region spawned by the selection position and the delimiting prompt symbols
 at the start of adjacent lines.
 
@@ -1778,7 +1892,7 @@ Rob Pike
 by
 Rob Pike
 
-[vi - screen-oriented (vixual) display editor](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/vi.html)
+[vi - screen-oriented (visual) display editor](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/vi.html)
 IEEE Std 1003.1 ("POSIX.1")
 
 # STANDARDS
@@ -1802,4 +1916,4 @@ On some systems there already exists a
 **vix**
 binary, thus causing a name conflict.
 
-Vix VERSION - February 27, 2026
+Vix VERSION - March 2, 2026
