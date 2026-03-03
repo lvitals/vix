@@ -1,8 +1,8 @@
 package = "vix"
-version = "0.1-4"
+version = "0.1-5"
 source = {
    url = "git+https://github.com/lvitals/vix.git",
-   tag = "v0.1.4"
+   tag = "v0.1.5"
 }
 
 local post_install_message = [[
