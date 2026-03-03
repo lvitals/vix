@@ -406,7 +406,6 @@ static KEY_ACTION_FN(ka_macro_record)
 		vix_macro_record(vix, reg);
 		keys++;
 	}
-	vix_draw(vix);
 	return keys;
 }
 

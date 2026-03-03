@@ -3483,10 +3483,10 @@ static bool vix_lua_path_strip(Vix *vix) {
 }
 
 bool vix_lua_path_add(Vix *vix, const char *path) {
-	lua_State *L = vix->lua;
-	if (!L || !path) {
+	if (!path) {
 		return false;
 	}
+	lua_State *L = vix->lua;
 	lua_getglobal(L, "package");
 	lua_pushstring(L, path);
 	lua_pushstring(L, "/?.lua;");
@@ -3500,10 +3500,10 @@ bool vix_lua_path_add(Vix *vix, const char *path) {
 }
 
 bool vix_lua_cpath_add(Vix *vix, const char *path) {
-	lua_State *L = vix->lua;
-	if (!L || !path) {
+	if (!path) {
 		return false;
 	}
+	lua_State *L = vix->lua;
 	lua_getglobal(L, "package");
 	lua_pushstring(L, path);
 	lua_pushstring(L, "/?.so;");
@@ -3516,9 +3516,6 @@ bool vix_lua_cpath_add(Vix *vix, const char *path) {
 
 bool vix_lua_paths_get(Vix *vix, char **lpath, char **cpath) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return false;
-	}
 	const char *s;
 	lua_getglobal(L, "package");
 	lua_getfield(L, -1, "path");
@@ -3571,14 +3568,15 @@ static void *alloc_lua(void *ud, void *ptr, size_t osize, size_t nsize) {
  * @function init
  */
 static void vix_lua_init(Vix *vix) {
-	lua_State *L =
+	lua_State *L;
 #if LUA_VERSION_NUM >= 505
-		lua_newstate(alloc_lua, vix, luaL_makeseed(NULL));
+	L = lua_newstate(alloc_lua, vix, luaL_makeseed(0));
 #else
-		lua_newstate(alloc_lua, vix);
+	L = lua_newstate(alloc_lua, vix);
 #endif
+
 	if (!L) {
-		return;
+		vix_die(vix, "Failed to start Lua\n");
 	}
 	vix->lua = L;
 	lua_atpanic(L, &panic_handler);
@@ -3822,9 +3820,6 @@ static void vix_lua_start(Vix *vix) {
  * @function quit
  */
 static void vix_lua_quit(Vix *vix) {
-	if (!vix->lua) {
-		return;
-	}
 	vix_lua_event_call(vix, "quit");
 	lua_close(vix->lua);
 	vix->lua = NULL;
@@ -3837,11 +3832,11 @@ static void vix_lua_quit(Vix *vix) {
  * @treturn bool whether the key was consumed or not
  */
 static bool vix_lua_input(Vix *vix, const char *key, size_t len) {
-	lua_State *L = vix->lua;
-	if (!L || !vix->win || vix->win->file->internal) {
+	if (!vix->win || vix->win->file->internal) {
 		return false;
 	}
 	bool ret = false;
+	lua_State *L = vix->lua;
 	vix_lua_event_get(L, "input");
 	if (lua_isfunction(L, -1)) {
 		lua_pushlstring(L, key, len);
@@ -3874,9 +3869,6 @@ void vix_event_mode_replace_input(Vix *vix, const char *key, size_t len) {
 static void vix_lua_file_open(Vix *vix, File *file) {
 	debug("event: file-open: %s %p %p\n", file->name ? file->name : "unnamed", (void*)file, (void*)file->text);
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "file_open");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3895,9 +3887,6 @@ static void vix_lua_file_open(Vix *vix, File *file) {
  */
 static bool vix_lua_file_save_pre(Vix *vix, File *file, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return true;
-	}
 	vix_lua_event_get(L, "file_save_pre");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3920,9 +3909,6 @@ static bool vix_lua_file_save_pre(Vix *vix, File *file, const char *path) {
  */
 static void vix_lua_file_save_post(Vix *vix, File *file, const char *path) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "file_save_post");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3941,9 +3927,6 @@ static void vix_lua_file_save_post(Vix *vix, File *file, const char *path) {
 static void vix_lua_file_close(Vix *vix, File *file) {
 	debug("event: file-close: %s %p %p\n", file->name ? file->name : "unnamed", (void*)file, (void*)file->text);
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "file_close");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, file, VIX_LUA_TYPE_FILE);
@@ -3964,9 +3947,6 @@ static void vix_lua_file_close(Vix *vix, File *file) {
 static void vix_lua_win_open(Vix *vix, Win *win) {
 	debug("event: win-open: %s %p %p\n", win->file->name ? win->file->name : "unnamed", (void*)win, (void*)win->view);
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "win_open");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -3984,9 +3964,6 @@ static void vix_lua_win_open(Vix *vix, Win *win) {
 static void vix_lua_win_close(Vix *vix, Win *win) {
 	debug("event: win-close: %s %p %p\n", win->file->name ? win->file->name : "unnamed", (void*)win, (void*)win->view);
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "win_close");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -4006,9 +3983,6 @@ static void vix_lua_win_close(Vix *vix, Win *win) {
  */
 static void vix_lua_win_highlight(Vix *vix, Win *win) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "win_highlight");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -4024,11 +3998,11 @@ static void vix_lua_win_highlight(Vix *vix, Win *win) {
  * @see status
  */
 static void vix_lua_win_status(Vix *vix, Win *win) {
-	lua_State *L = vix->lua;
-	if (!L || win->file->internal) {
+	if (win->file->internal) {
 		window_status_update(vix, win);
 		return;
 	}
+	lua_State *L = vix->lua;
 	vix_lua_event_get(L, "win_status");
 	if (lua_isfunction(L, -1)) {
 		obj_ref_new(L, win, VIX_LUA_TYPE_WINDOW);
@@ -4046,9 +4020,6 @@ static void vix_lua_win_status(Vix *vix, Win *win) {
  */
 static void vix_lua_term_csi(Vix *vix, const long *csi) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "term_csi");
 	if (lua_isfunction(L, -1)) {
 		int nargs = csi[1];
@@ -4071,9 +4042,6 @@ static void vix_lua_term_csi(Vix *vix, const long *csi) {
 void vix_lua_process_response(Vix *vix, const char *name,
                               char *buffer, size_t len, ResponseType rtype) {
 	lua_State *L = vix->lua;
-	if (!L) {
-		return;
-	}
 	vix_lua_event_get(L, "process_response");
 	if (lua_isfunction(L, -1)) {
 		lua_pushstring(L, name);
@@ -4144,13 +4112,15 @@ bool vix_event_emit(Vix *vix, enum VixEvents id, ...) {
 		}
 		break;
 	}
+	case VIX_EVENT_WIN_STATUS: {
+		vix_lua_win_status(vix, va_arg(ap, Win*));
+	} break;
 	case VIX_EVENT_WIN_OPEN:
 	case VIX_EVENT_WIN_CLOSE:
 	case VIX_EVENT_WIN_HIGHLIGHT:
-	case VIX_EVENT_WIN_STATUS:
 	{
 		Win *win = va_arg(ap, Win*);
-		if (win->file->internal && id != VIX_EVENT_WIN_STATUS) {
+		if (win->file->internal) {
 			break;
 		}
 		if (id == VIX_EVENT_WIN_OPEN) {
@@ -4159,8 +4129,6 @@ bool vix_event_emit(Vix *vix, enum VixEvents id, ...) {
 			vix_lua_win_close(vix, win);
 		} else if (id == VIX_EVENT_WIN_HIGHLIGHT) {
 			vix_lua_win_highlight(vix, win);
-		} else if (id == VIX_EVENT_WIN_STATUS) {
-			vix_lua_win_status(vix, win);
 		}
 		break;
 	}

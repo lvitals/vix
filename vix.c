@@ -368,7 +368,9 @@ void vix_window_draw(Win *win) {
 		window_draw_eof(win);
 	}
 
-	vix_event_emit(win->vix, VIX_EVENT_WIN_STATUS, win);
+	if (win->options & UI_OPTION_STATUSBAR) {
+		vix_event_emit(win->vix, VIX_EVENT_WIN_STATUS, win);
+	}
 }
 
 
@@ -694,11 +696,13 @@ void vix_cleanup(Vix *vix)
 	while (vix->windows) {
 		vix_window_close(vix->windows);
 	}
-	vix_event_emit(vix, VIX_EVENT_QUIT);
 	vix_process_waitall(vix);
 	file_free(vix, vix->command_file);
 	file_free(vix, vix->search_file);
 	file_free(vix, vix->error_file);
+
+	vix_event_emit(vix, VIX_EVENT_QUIT);
+
 	for (int i = 0; i < LENGTH(vix->registers); i++) {
 		for (VixDACount j = 0; j < vix->registers[i].count; j++) {
 			buffer_release(vix->registers[i].data + j);
@@ -1548,7 +1552,6 @@ bool vix_macro_record(Vix *vix, enum VixRegister id) {
 		macro->len = 0;
 	}
 	vix->recording = macro;
-	vix_event_emit(vix, VIX_EVENT_WIN_STATUS, vix->win);
 	return true;
 }
 
@@ -1564,7 +1567,6 @@ bool vix_macro_record_stop(Vix *vix) {
 	}
 	vix->last_recording = vix->recording;
 	vix->recording = NULL;
-	vix_event_emit(vix, VIX_EVENT_WIN_STATUS, vix->win);
 	return true;
 }
 
