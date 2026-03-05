@@ -4,12 +4,13 @@
 
 if not package.searchpath then
 	package.searchpath = function(name, path)
+		local name_with_slashes = name:gsub("%.", "/")
 		local errmsg = ""
 		for part in path:gmatch('[^;]+') do
 			local filename = ""
 			local s, e = part:find('?')
 			if s then
-				filename = part:sub(1, s-1) .. name .. part:sub(e+1)
+				filename = part:sub(1, s-1) .. name_with_slashes .. part:sub(e+1)
 			else
 				filename = part
 			end
