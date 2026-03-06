@@ -1,8 +1,8 @@
 package = "vix"
-version = "0.1-5"
+version = "0.1-6"
 source = {
    url = "git+https://github.com/lvitals/vix.git",
-   tag = "v0.1.5"
+   tag = "v0.1.6"
 }
 
 description = {
