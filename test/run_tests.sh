@@ -31,6 +31,9 @@ echo -e "${BOLD}${MAGENTA}======================================================
 echo -e "OS: $(uname -s) | Date: $(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
+# Ensure we are in the test directory
+cd "$(dirname "$0")" || exit 1
+
 # Spinner Function
 show_spinner() {
     local pid=$1
