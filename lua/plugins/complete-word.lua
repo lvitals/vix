@@ -24,7 +24,7 @@ vix:map(vix.modes.INSERT, "<C-n>", function()
 	if #candidates == 1 and candidates[1] == "\n" then return end
 	candidates = table.concat(candidates, "\n")
 
-	local status, out, err = vix:pipe(candidates, "sort -u | vix-menu")
+	local status, out, err = vix:pipe(candidates, "sort -u | vix-menu -b")
 	if status ~= 0 or not out then
 		if err then vix:info(err) end
 		return
