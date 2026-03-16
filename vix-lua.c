@@ -1969,6 +1969,14 @@ static int ui_index(lua_State *L) {
 			lua_pushinteger(L, ui->layout);
 			return 1;
 		}
+		if (strcmp(key, "cur_row") == 0) {
+			lua_pushinteger(L, ui->cur_row);
+			return 1;
+		}
+		if (strcmp(key, "cur_col") == 0) {
+			lua_pushinteger(L, ui->cur_col);
+			return 1;
+		}
 	}
 
 	return index_common(L);

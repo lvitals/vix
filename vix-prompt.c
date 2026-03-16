@@ -37,6 +37,10 @@ static void prompt_hide(Win *win) {
 		text_delete_range(txt, &line_range);
 	}
 	free(line);
+	win->vix->prompt_state = PROMPTSTATE_NONE;
+	if (win->vix->ui.seltab) {
+		win->vix->ui.seltab->selwin = win->parent;
+	}
 	vix_window_close(win);
 }
 
@@ -107,8 +111,12 @@ static const char *prompt_enter(Vix *vix, const char *keys, const Arg *arg) {
 	bool lastline = (range.end == text_size(txt));
 
 	prompt_restore(prompt);
+	vix->prompt_state = PROMPTSTATE_COMMAND;
+	vix_redraw(vix);
 	if (vix_prompt_cmd(vix, cmd)) {
 		prompt_hide(prompt);
+		/* hide cursor in case it was made visible */
+		fprintf(stderr, "\x1b[?25l");
 		if (!lastline) {
 			text_delete(txt, range.start, text_range_size(&range));
 			text_appendf(vix, txt, "%s\n", cmd);
@@ -136,6 +144,7 @@ static const char *prompt_esc(Vix *vix, const char *keys, const Arg *arg) {
 static const char *prompt_up(Vix *vix, const char *keys, const Arg *arg) {
 	vix_motion(vix, VIX_MOVE_LINE_UP);
 	vix_motion(vix, VIX_MOVE_LINE_END);
+	vix->prompt_state = PROMPTSTATE_MULTILINE;
 	return keys;
 }
 
@@ -259,6 +268,10 @@ void vix_prompt_show(Vix *vix, const char *title) {
 		vix_window_mode_map(prompt, VIX_MODE_INSERT, true, "<Tab>", &prompt_tab_binding);
 	}
 	vix_mode_switch(vix, VIX_MODE_INSERT);
+	vix->prompt_state = PROMPTSTATE_ONELINE;
+	if (vix->ui.seltab) {
+		vix->ui.seltab->selwin = prompt;
+	}
 }
 
 void vix_info_show(Vix *vix, const char *msg, ...) {

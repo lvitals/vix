@@ -271,6 +271,7 @@ static void ui_term_backend_blit(Ui *tui) {
 			mvaddstr(y, start_x, buf);
 		}
 	}
+	move(tui->cur_row, tui->cur_col);
 	wnoutrefresh(stdscr);
 	if (tui->doupdate) {
 		doupdate();
@@ -295,9 +296,6 @@ static bool ui_term_backend_resize(Ui *tui, int width, int height) {
 static void ui_term_backend_save(Ui *tui, bool fscr) {
 	if (tui->vix->headless) {
 		return;
-	}
-	if (tui->is_tty) {
-		curs_set(1);
 	}
 	if (fscr) {
 		def_prog_mode();
@@ -329,9 +327,6 @@ static void ui_term_backend_restore(Ui *tui) {
 
 	redrawwin(stdscr);
 	wclear(stdscr);
-	if (tui->is_tty) {
-		curs_set(0);
-	}
 }
 
 int ui_terminal_colors(void) {
@@ -374,6 +369,9 @@ static void ui_term_backend_suspend(Ui *term) {
 	CursesData *data = term->backend_data;
 	if (data && data->change_colors == 1) {
 		undo_palette();
+	}
+	if (term->is_tty) {
+		curs_set(1);
 	}
 }
 

@@ -95,6 +95,7 @@ typedef struct {
 	TabPage *seltab;          /* the currently active tab page */
 	char info[UI_MAX_WIDTH];  /* info message displayed at the bottom of the screen */
 	int width, height;        /* terminal dimensions available for all windows */
+	int cur_row, cur_col;     /* active cursor's (0-based) position on the terminal */
 	enum UiLayout layout;     /* default layout for new tabs */
 	TermKey *termkey;         /* libtermkey instance to handle keyboard input (stdin or /dev/tty) */
 	size_t ids;               /* bit mask of in use window ids */
