@@ -40,7 +40,9 @@ static void file_free(Vix *vix, File *file) {
 		--file->refcount;
 		return;
 	}
-	vix_event_emit(vix, VIX_EVENT_FILE_CLOSE, file);
+	if (!file->internal) {
+		vix_event_emit(vix, VIX_EVENT_FILE_CLOSE, file);
+	}
 	for (size_t i = 0; i < LENGTH(file->marks); i++) {
 		da_release(file->marks + i);
 	}
@@ -697,11 +699,16 @@ void vix_cleanup(Vix *vix)
 		vix_window_close(vix->windows);
 	}
 	vix_process_waitall(vix);
+
+	/* NOTE: it is possible for a plugin to call a lua function
+	 * such as vix:message() in QUIT which requires the existence
+	 * of vix' internal files. This must be emitted prior to
+	 * the release of those files. */
+	vix_event_emit(vix, VIX_EVENT_QUIT);
+
 	file_free(vix, vix->command_file);
 	file_free(vix, vix->search_file);
 	file_free(vix, vix->error_file);
-
-	vix_event_emit(vix, VIX_EVENT_QUIT);
 
 	for (int i = 0; i < LENGTH(vix->registers); i++) {
 		for (VixDACount j = 0; j < vix->registers[i].count; j++) {
