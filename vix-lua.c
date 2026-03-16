@@ -3859,12 +3859,18 @@ static bool vix_lua_input(Vix *vix, const char *key, size_t len) {
 
 void vix_event_mode_insert_input(Vix *vix, const char *key, size_t len) {
 	if (!vix_lua_input(vix, key, len)) {
+		if (len > 2 && key[0] == '<' && key[len-1] == '>') {
+			return;
+		}
 		vix_insert_key(vix, key, len);
 	}
 }
 
 void vix_event_mode_replace_input(Vix *vix, const char *key, size_t len) {
 	if (!vix_lua_input(vix, key, len)) {
+		if (len > 2 && key[0] == '<' && key[len-1] == '>') {
+			return;
+		}
 		vix_replace_key(vix, key, len);
 	}
 }
