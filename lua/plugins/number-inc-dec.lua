@@ -18,17 +18,30 @@ local change = function(delta)
 	for selection in win:selections_iterator() do
 		local pos = selection.pos
 		if pos then
-			local word = file:text_object_word(pos);
-			if word then
-				local data = file:content(word.start, 1024)
+			local range = file:text_object_line(pos)
+			if range then
+				local data = file:content(range.start, range.finish - range.start)
 				if data then
-					local s, e = pattern:match(data)
-					if s then
+					local relative_pos = pos - range.start + 1
+					local best_s, best_e
+					local current_pos = 1
+					while current_pos <= #data do
+						local s, e = pattern:match(data, current_pos)
+						if not s then break end
+						if e - 1 >= relative_pos then
+							best_s, best_e = s, e
+							break
+						end
+						current_pos = e
+					end
+
+					if best_s then
+						local s, e = best_s, best_e
 						data = string.sub(data, s, e-1)
 						if #data > 0 then
 							-- align start and end for fileindex
-							s = word.start + s - 1
-							e = word.start + e - 1
+							s = range.start + s - 1
+							e = range.start + e - 1
 							local base, format, padding = 10, 'd', 0
 							if lexer.oct_num:match(data) then
 								base = 8

@@ -3694,6 +3694,8 @@ static void vix_lua_init(Vix *vix) {
 	} textobjects[] = {
 		{ VIX_TEXTOBJECT_INNER_WORD, "text_object_word" },
 		{ VIX_TEXTOBJECT_INNER_LONGWORD, "text_object_longword" },
+		{ VIX_TEXTOBJECT_OUTER_LINE, "text_object_line" },
+		{ VIX_TEXTOBJECT_INNER_LINE, "text_object_line_inner" },
 	};
 
 	for (size_t i = 0; i < LENGTH(textobjects); i++) {
