@@ -457,9 +457,163 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 	}
 }
 
+static int win_tab_width(Win *win) {
+	char name[64];
+	const char *filename = win->file->name ? strrchr(win->file->name, '/') : NULL;
+	filename = filename ? filename + 1 : (win->file->name ? win->file->name : "[No Name]");
+	return snprintf(name, sizeof(name), " %s ", filename);
+}
+
+static int tab_page_width(TabPage *tab) {
+	char name[64];
+	const char *filename = "[No Name]";
+	if (tab->selwin && tab->selwin->file->name) {
+		filename = strrchr(tab->selwin->file->name, '/');
+		filename = filename ? filename + 1 : tab->selwin->file->name;
+	}
+	return snprintf(name, sizeof(name), " %s ", filename);
+}
+
+static void ui_tab_scroll_to_visible(Ui *ui) {
+	if (ui->tabview) {
+		int n = 0;
+		for (Win *win = ui->seltab->windows; win; win = win->next) {
+			if (!(win->options & UI_OPTION_ONELINE)) n++;
+		}
+		if (n <= 1) return;
+
+		Win *sel = ui->seltab->selwin;
+		if (!sel || (sel->options & UI_OPTION_ONELINE)) {
+			for (Win *win = ui->seltab->windows; win; win = win->next) {
+				if (!(win->options & UI_OPTION_ONELINE)) {
+					sel = win;
+					break;
+				}
+			}
+		}
+		if (!sel) return;
+
+		if (!ui->win_view_offset) ui->win_view_offset = ui->seltab->windows;
+		
+		/* ensure win_view_offset is valid and not oneline */
+		bool found = false;
+		if (ui->win_view_offset) {
+			for (Win *win = ui->seltab->windows; win; win = win->next) {
+				if (win == ui->win_view_offset) { found = true; break; }
+			}
+		}
+		if (!found || (ui->win_view_offset && (ui->win_view_offset->options & UI_OPTION_ONELINE))) {
+			for (Win *win = ui->seltab->windows; win; win = win->next) {
+				if (!(win->options & UI_OPTION_ONELINE)) {
+					ui->win_view_offset = win;
+					break;
+				}
+			}
+		}
+
+		if (!ui->win_view_offset) return;
+
+		/* check if sel is before offset */
+		bool before = true;
+		for (Win *win = ui->win_view_offset; win; win = win->next) {
+			if (win == sel) { before = false; break; }
+		}
+		if (before) {
+			ui->win_view_offset = sel;
+		} else {
+			/* check if sel is visible */
+			int x = 0;
+			bool visible = false;
+			for (Win *win = ui->win_view_offset; win; win = win->next) {
+				if (win->options & UI_OPTION_ONELINE) continue;
+				int len = win_tab_width(win);
+				if (x + len > ui->width && x > 0) break;
+				if (win == sel) { visible = true; break; }
+				x += len;
+			}
+			if (!visible) {
+				/* Scroll forward until sel is visible */
+				while (ui->win_view_offset && ui->win_view_offset != sel) {
+					ui->win_view_offset = ui->win_view_offset->next;
+					while (ui->win_view_offset && (ui->win_view_offset->options & UI_OPTION_ONELINE))
+						ui->win_view_offset = ui->win_view_offset->next;
+					if (!ui->win_view_offset) {
+						ui->win_view_offset = sel;
+						break;
+					}
+					x = 0;
+					visible = false;
+					for (Win *win = ui->win_view_offset; win; win = win->next) {
+						if (win->options & UI_OPTION_ONELINE) continue;
+						int len = win_tab_width(win);
+						if (x + len > ui->width && x > 0) break;
+						if (win == sel) { visible = true; break; }
+						x += len;
+					}
+					if (visible) break;
+				}
+			}
+		}
+	} else {
+		if (!ui->tabpages || !ui->tabpages->next) return;
+		if (!ui->tab_view_offset) ui->tab_view_offset = ui->tabpages;
+
+		/* ensure tab_view_offset is valid */
+		bool found = false;
+		if (ui->tab_view_offset) {
+			for (TabPage *tab = ui->tabpages; tab; tab = tab->next) {
+				if (tab == ui->tab_view_offset) { found = true; break; }
+			}
+		}
+		if (!found) ui->tab_view_offset = ui->tabpages;
+
+		if (!ui->tab_view_offset) return;
+
+		/* check if seltab is before offset */
+		bool before = true;
+		for (TabPage *tab = ui->tab_view_offset; tab; tab = tab->next) {
+			if (tab == ui->seltab) { before = false; break; }
+		}
+		if (before) {
+			ui->tab_view_offset = ui->seltab;
+		} else {
+			/* check if seltab is visible */
+			int x = 0;
+			bool visible = false;
+			for (TabPage *tab = ui->tab_view_offset; tab; tab = tab->next) {
+				int len = tab_page_width(tab);
+				if (x + len > ui->width && x > 0) break;
+				if (tab == ui->seltab) { visible = true; break; }
+				x += len;
+			}
+			if (!visible) {
+				/* Scroll forward until seltab is visible */
+				while (ui->tab_view_offset && ui->tab_view_offset != ui->seltab) {
+					ui->tab_view_offset = ui->tab_view_offset->next;
+					if (!ui->tab_view_offset) {
+						ui->tab_view_offset = ui->seltab;
+						break;
+					}
+					x = 0;
+					visible = false;
+					for (TabPage *tab = ui->tab_view_offset; tab; tab = tab->next) {
+						int len = tab_page_width(tab);
+						if (x + len > ui->width && x > 0) break;
+						if (tab == ui->seltab) { visible = true; break; }
+						x += len;
+					}
+					if (visible) break;
+				}
+			}
+		}
+	}
+}
+
 static void ui_tab_draw(Ui *ui) {
 	if (!ui->tabpages) return;
 	
+	ui_tab_scroll_to_visible(ui);
+
 	int win_id = 0;
 	if (ui->seltab->selwin) {
 		Win *w = ui->seltab->selwin;
@@ -484,7 +638,7 @@ static void ui_tab_draw(Ui *ui) {
 
 	if (ui->tabview && n > 1) {
 		/* Show windows of the current TabPage as tabs, ignoring internal oneline windows */
-		for (Win *win = ui->seltab->windows; win; win = win->next) {
+		for (Win *win = ui->win_view_offset; win; win = win->next) {
 			if (win->options & UI_OPTION_ONELINE) continue;
 			char name[64];
 			const char *filename = win->file->name ? strrchr(win->file->name, '/') : NULL;
@@ -497,7 +651,7 @@ static void ui_tab_draw(Ui *ui) {
 		}
 	} else if (!ui->tabview && ui->tabpages->next) {
 		/* Show TabPages as tabs */
-		for (TabPage *tab = ui->tabpages; tab; tab = tab->next) {
+		for (TabPage *tab = ui->tab_view_offset; tab; tab = tab->next) {
 			char name[64];
 			const char *filename = "[No Name]";
 			int tid = 0;
@@ -632,6 +786,9 @@ void ui_window_release(Ui *tui, Win *win) {
 		tab->selwin = win->next ? win->next : win->prev;
 		tui->vix->win = tab->selwin;
 	}
+	if (tui->win_view_offset == win) {
+		tui->win_view_offset = win->next ? win->next : win->prev;
+	}
 	tui->ids &= ~(1UL << win->id);
 
 	/* If this was the last window in the tab, close the tab */
@@ -639,6 +796,7 @@ void ui_window_release(Ui *tui, Win *win) {
 		if (tab->prev) tab->prev->next = tab->next;
 		if (tab->next) tab->next->prev = tab->prev;
 		if (tui->tabpages == tab) tui->tabpages = tab->next;
+		if (tui->tab_view_offset == tab) tui->tab_view_offset = tab->next ? tab->next : tab->prev;
 		
 		TabPage *target = tab->prev ? tab->prev : tab->next;
 		tui->seltab = target;
@@ -872,7 +1030,8 @@ bool ui_init(Ui *tui, Vix *vix) {
 	TabPage *tab = calloc(1, sizeof(TabPage));
 	if (!tab) goto err;
 	tab->layout = UI_LAYOUT_HORIZONTAL;
-	tui->tabpages = tui->seltab = tab;
+	tui->tabpages = tui->seltab = tui->tab_view_offset = tab;
+	tui->win_view_offset = NULL;
 	
 	return true;
 err:
@@ -916,6 +1075,9 @@ void ui_tab_new(Ui *ui) {
 	/* Switch to new tab */
 	ui->seltab = new_tab;
 	
+	/* Reset view offsets to ensure scroll is recalculated */
+	ui->win_view_offset = NULL;
+	
 	/* Create a default window in the new tab */
 	Win *old_win = ui->vix->win;
 	Win *new_win = window_new_file(ui->vix, old_win ? old_win->file : NULL, UI_OPTION_STATUSBAR);
@@ -941,6 +1103,9 @@ void ui_tab_next(Ui *ui) {
 	ui->vix->win = next->selwin;
 	ui->vix->windows = next->windows;
 	
+	/* Reset view offsets to ensure scroll is recalculated */
+	ui->win_view_offset = NULL;
+	
 	ui_draw(ui);
 }
 
@@ -961,6 +1126,9 @@ void ui_tab_prev(Ui *ui) {
 	ui->seltab = prev;
 	ui->vix->win = prev->selwin;
 	ui->vix->windows = prev->windows;
+
+	/* Reset view offsets to ensure scroll is recalculated */
+	ui->win_view_offset = NULL;
 	
 	ui_draw(ui);
 }

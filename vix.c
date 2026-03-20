@@ -497,7 +497,11 @@ void vix_window_next(Vix *vix) {
 	if (!sel) {
 		return;
 	}
-	vix_window_focus(sel->next ? sel->next : vix->windows);
+	Win *next = sel->next ? sel->next : vix->windows;
+	while (next != sel && (next->options & UI_OPTION_ONELINE)) {
+		next = next->next ? next->next : vix->windows;
+	}
+	vix_window_focus(next);
 }
 
 void vix_window_prev(Vix *vix) {
@@ -505,11 +509,17 @@ void vix_window_prev(Vix *vix) {
 	if (!sel) {
 		return;
 	}
-	sel = sel->prev;
-	if (!sel) {
-		for (sel = vix->windows; sel->next; sel = sel->next);
+	Win *prev = sel->prev;
+	if (!prev) {
+		for (prev = vix->windows; prev->next; prev = prev->next);
 	}
-	vix_window_focus(sel);
+	while (prev != sel && (prev->options & UI_OPTION_ONELINE)) {
+		prev = prev->prev;
+		if (!prev) {
+			for (prev = vix->windows; prev->next; prev = prev->next);
+		}
+	}
+	vix_window_focus(prev);
 }
 
 void vix_draw(Vix *vix) {

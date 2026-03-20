@@ -108,6 +108,8 @@ typedef struct {
 	void *backend_data;       /* Any additional persistent data needed by the backend */
 	bool layout_only;         /* Whether to skip expensive view operations during arrangement */
 	bool tabview;             /* Whether to show only the focused window (tabbed mode) */
+	TabPage *tab_view_offset; /* first visible tab in tab bar */
+	Win *win_view_offset;     /* first visible window in tab bar */
 	bool is_tty;              /* Whether the input is a TTY */
 } Ui;
 
