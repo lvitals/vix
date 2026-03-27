@@ -1,3 +1,5 @@
+print("Lua version: " .. _VERSION)
+
 ---
 -- Vix Lua plugin API standard library
 -- @module vix
