@@ -207,15 +207,6 @@ static void view_clear(View *view) {
 	view->col = 0;
 	view->wrapcol = 0;
 	view->prevch_breakat = false;
-
-	Win *win = (Win *)((char *)view - offsetof(Win, view));
-	if (win->vix->headless) {
-		return;
-	}
-
-	/* FIXME: awful garbage that only exists because every
-	 * struct in this program is an interdependent hellscape */
-	ui_window_style_set(&win->vix->ui, win->id, &view->cell_blank, UI_STYLE_DEFAULT, false);
 }
 
 static int view_max_text_width(const View *view) {
@@ -223,6 +214,15 @@ static int view_max_text_width(const View *view) {
 		return MIN(view->wrapcolumn, view->width);
 	}
 	return view->width;
+}
+
+static Cell view_blank_cell(View *view) {
+	Win *win = (Win *)((char *)view - offsetof(Win, view));
+	Cell result = { .data = " ", .style = {0} };
+	if (win->vix->ui.styles) {
+		result.style = win->vix->ui.styles[win->id * UI_STYLE_MAX + UI_STYLE_DEFAULT];
+	}
+	return result;
 }
 
 static void view_wrap_line(View *view) {
@@ -246,12 +246,13 @@ static void view_wrap_line(View *view) {
 	}
 
 	/* clear remaining cells on line */
+	Cell blank = view_blank_cell(view);
 	for (int i = wrapcol; i < view->width; ++i) {
 		if (i < col) {
 			wrapped_line->width -= wrapped_line->cells[i].width;
 			wrapped_line->len -= wrapped_line->cells[i].len;
 		}
-		wrapped_line->cells[i] = view->cell_blank;
+		wrapped_line->cells[i] = blank;
 	}
 }
 
@@ -342,7 +343,7 @@ static bool view_addch(View *view, Cell *cell) {
 		view->wrapcol = view->col;
 	}
 	view->prevch_breakat = ch_breakat;
-	cell->style = view->cell_blank.style;
+	cell->style = view_blank_cell(view).style;
 
 	unsigned char ch = (unsigned char)cell->data[0];
 	switch (ch) {
@@ -532,10 +533,11 @@ void view_draw(View *view) {
 		view->lastline = view->bottomline;
 	}
 
+	Cell blank = view_blank_cell(view);
 	/* clear remaining of line, important to show cursor at end of file */
 	if (view->line) {
 		for (int x = view->col; x < view->width; x++) {
-			view->line->cells[x] = view->cell_blank;
+			view->line->cells[x] = blank;
 		}
 	}
 
@@ -557,9 +559,10 @@ bool view_update(View *view) {
 	if (!view->need_update) {
 		return false;
 	}
+	Cell blank = view_blank_cell(view);
 	for (Line *l = view->lastline->next; l; l = l->next) {
 		for (int x = 0; x < view->width; x++) {
-			l->cells[x] = view->cell_blank;
+			l->cells[x] = blank;
 		}
 	}
 	view->need_update = false;
@@ -627,7 +630,6 @@ bool view_init(Win *win, Text *text) {
 	view->tabwidth = 8;
 	view->breakat = strdup("");
 	view->wrapcolumn = 0;
-	view->cell_blank = (Cell){ .width = 0, .len = 0, .data = " ", };
 	win_options_set(win, 0);
 
 	if (!view->breakat ||
