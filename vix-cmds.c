@@ -141,7 +141,7 @@ bool vix_option_unregister(Vix *vix, const char *name) {
 	return true;
 }
 
-static bool cmd_user(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_user(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	CmdUser *user = map_get(vix->usercmds, argv[0]);
 	return user && user->func(vix, win, user->data, cmd->flags == '!', argv, sel, range);
 }
@@ -174,7 +174,7 @@ static bool parse_bool(const char *s, bool *outval) {
 	return false;
 }
 
-static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_set(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 
 	if (!argv[1] || !argv[1][0] || argv[3]) {
 		vix_info_show(vix, "Expecting: set option [value]");
@@ -469,10 +469,9 @@ static const char *file_open_dialog(Vix *vix, const char *pattern) {
 
 	Buffer bufout = {0}, buferr = {0};
 
-	Filerange empty = text_range_new(0,0);
-	int status = vix_pipe(vix, vix->win->file, &empty,
-		(const char*[]){ VIX_OPEN, pattern ? pattern : "", NULL },
-		&bufout, read_into_buffer, &buferr, read_into_buffer, false);
+	int status = vix_pipe(vix, vix->win->file, text_range_new(0, 0),
+	                      (const char*[]){ VIX_OPEN, pattern ? pattern : "", NULL },
+	                      &bufout, read_into_buffer, &buferr, read_into_buffer, false);
 
 	if (status == 0) {
 		strncpy(name, buffer_content0(&bufout), sizeof(name)-1);
@@ -515,7 +514,7 @@ static bool openfiles(Vix *vix, const char **files) {
 	return true;
 }
 
-static bool cmd_open(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_open(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (vix->opentab) {
 		vix->ui.tabview = true;
 	}
@@ -529,7 +528,7 @@ static void info_unsaved_changes(Vix *vix) {
 	vix_info_show(vix, "No write since last change (add ! to override)");
 }
 
-static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (vix->opentab) {
 		vix->ui.tabview = true;
 	}
@@ -564,7 +563,7 @@ static bool cmd_edit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	return vix->win != oldwin;
 }
 
-static bool cmd_read(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_read(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	bool ret = false;
 	const size_t first_file = 3;
 	const char *args[MAX_ARGV] = { argv[0], "cat", "--" };
@@ -593,7 +592,7 @@ static bool has_windows(Vix *vix) {
 	return false;
 }
 
-static bool cmd_quit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_quit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (cmd->flags != '!' && !vix_window_closable(win)) {
 		info_unsaved_changes(vix);
 		return false;
@@ -605,7 +604,7 @@ static bool cmd_quit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	return true;
 }
 
-static bool cmd_qall(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_qall(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	for (Win *next, *win = vix->windows; win; win = next) {
 		next = win->next;
 		if (!win->file->internal && (!text_modified(win->file->text) || cmd->flags == '!')) {
@@ -621,7 +620,7 @@ static bool cmd_qall(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	}
 }
 
-static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -644,7 +643,7 @@ static bool cmd_split(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	return ret;
 }
 
-static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -667,17 +666,17 @@ static bool cmd_vsplit(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	return ret;
 }
 
-static bool cmd_new(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_new(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	ui_arrange(&vix->ui, UI_LAYOUT_HORIZONTAL);
 	return vix_window_new(vix, NULL);
 }
 
-static bool cmd_vnew(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_vnew(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	ui_arrange(&vix->ui, UI_LAYOUT_VERTICAL);
 	return vix_window_new(vix, NULL);
 }
 
-static bool cmd_wq(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_wq(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -689,7 +688,7 @@ static bool cmd_wq(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 	return false;
 }
 
-static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_earlier_later(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -1045,7 +1044,7 @@ static void print_symbolic_keys(Vix *vix, Text *txt)
 	}
 }
 
-static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!vix_window_new(vix, NULL)) {
 		return false;
 	}
@@ -1149,7 +1148,7 @@ static bool cmd_help(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 	return true;
 }
 
-static bool cmd_langmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_langmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	const char *nonlatin = argv[1];
 	const char *latin = argv[2];
 	bool mapped = true;
@@ -1182,7 +1181,7 @@ static bool cmd_langmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Se
 	return mapped;
 }
 
-static bool cmd_map(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_map(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	bool mapped = false;
 	bool local = (strstr)(argv[0], "-") != NULL;
 	enum VixMode mode = vix_mode_from(vix, argv[1]);
@@ -1219,7 +1218,7 @@ err:
 	return mapped;
 }
 
-static bool cmd_unmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_unmap(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	bool unmapped = false;
 	bool local = (strstr)(argv[0], "-") != NULL;
 	enum VixMode mode = vix_mode_from(vix, argv[1]);

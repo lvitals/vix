@@ -47,10 +47,10 @@ VIX_INTERNAL Filerange text_object_search_backward(Text*, size_t pos, Regex*);
 VIX_INTERNAL Filerange text_object_indentation(Text*, size_t pos);
 
 /* extend a range to cover whole lines */
-VIX_INTERNAL Filerange text_range_linewise(Text*, Filerange*);
+VIX_INTERNAL Filerange text_range_linewise(Text*, Filerange);
 /* trim leading and trailing white spaces from range */
-VIX_INTERNAL Filerange text_range_inner(Text*, Filerange*);
+VIX_INTERNAL Filerange text_range_inner(Text*, Filerange);
 /* test whether a given range covers whole lines */
-VIX_INTERNAL bool text_range_is_linewise(Text*, Filerange*);
+VIX_INTERNAL bool text_range_is_linewise(Text*, Filerange);
 
 #endif

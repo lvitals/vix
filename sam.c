@@ -80,44 +80,44 @@ struct CommandDef {
 		CMD_DESTRUCTIVE   = 1 << 18, /* command potentially destroys window */
 	} flags;
 	const char *defcmd;                  /* name of a default target command */
-	bool (*func)(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*); /* command implementation */
+	bool (*func)(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange); /* command implementation */
 };
 
 /* sam commands */
-static bool cmd_insert(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_append(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_change(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_delete(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_guard(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_extract(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_select(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_print(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_files(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_pipein(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_pipeout(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_filter(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_launch(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_substitute(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_write(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_read(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_edit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_quit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_cd(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
+static bool cmd_insert(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_append(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_change(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_delete(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_guard(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_extract(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_select(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_print(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_files(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_pipein(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_pipeout(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_filter(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_launch(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_substitute(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_write(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_read(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_edit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_quit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_cd(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
 /* vi(m) commands */
-static bool cmd_set(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_open(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_qall(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_split(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_vsplit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_new(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_vnew(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_wq(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_earlier_later(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_help(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_map(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_unmap(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_langmap(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
-static bool cmd_user(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange*);
+static bool cmd_set(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_open(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_qall(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_split(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_vsplit(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_new(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_vnew(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_wq(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_earlier_later(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_help(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_map(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_unmap(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_langmap(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
+static bool cmd_user(Vix*, Win*, Command*, const char *argv[], Selection*, Filerange);
 
 static const CommandDef cmds[] = {
 	//      name            help
@@ -450,30 +450,30 @@ static void sam_change_free(SamChange *c) {
 	free(c);
 }
 
-static SamChange *sam_change_new(Transcript *t, enum SamChangeType type, Filerange *range, Win *win, Selection *sel) {
+static SamChange *sam_change_new(Transcript *t, enum SamChangeType type, Filerange range, Win *win, Selection *sel) {
 	if (!text_range_valid(range)) {
 		return NULL;
 	}
 	SamChange **prev, *next;
-	if (t->latest && t->latest->range.end <= range->start) {
+	if (t->latest && t->latest->range.end <= range.start) {
 		prev = &t->latest->next;
 		next = t->latest->next;
 	} else {
 		prev = &t->changes;
 		next = t->changes;
 	}
-	while (next && next->range.end <= range->start) {
+	while (next && next->range.end <= range.start) {
 		prev = &next->next;
 		next = next->next;
 	}
-	if (next && next->range.start < range->end) {
+	if (next && next->range.start < range.end) {
 		t->error = SAM_ERR_CONFLICT;
 		return NULL;
 	}
 	SamChange *new = calloc(1, sizeof *new);
 	if (new) {
 		new->type = type;
-		new->range = *range;
+		new->range = range;
 		new->sel = sel;
 		new->win = win;
 		new->next = next;
@@ -503,7 +503,7 @@ static void sam_transcript_free(Transcript *t) {
 
 static bool sam_insert(Win *win, Selection *sel, size_t pos, const char *data, size_t len, int count) {
 	Filerange range = text_range_new(pos, pos);
-	SamChange *c = sam_change_new(&win->file->transcript, TRANSCRIPT_INSERT, &range, win, sel);
+	SamChange *c = sam_change_new(&win->file->transcript, TRANSCRIPT_INSERT, range, win, sel);
 	if (c) {
 		c->data = data;
 		c->len = len;
@@ -512,11 +512,11 @@ static bool sam_insert(Win *win, Selection *sel, size_t pos, const char *data, s
 	return c;
 }
 
-static bool sam_delete(Win *win, Selection *sel, Filerange *range) {
+static bool sam_delete(Win *win, Selection *sel, Filerange range) {
 	return sam_change_new(&win->file->transcript, TRANSCRIPT_DELETE, range, win, sel);
 }
 
-static bool sam_change(Win *win, Selection *sel, Filerange *range, const char *data, size_t len, int count) {
+static bool sam_change(Win *win, Selection *sel, Filerange range, const char *data, size_t len, int count) {
 	SamChange *c = sam_change_new(&win->file->transcript, TRANSCRIPT_CHANGE, range, win, sel);
 	if (c) {
 		c->data = data;
@@ -1153,12 +1153,12 @@ static Filerange address_evaluate(Vix *vix, Address *addr, File *file, Selection
 				right = text_range_new(size, size);
 			}
 			/* TODO: enforce strict ordering? */
-			return text_range_union(&left, &right);
+			return text_range_union(left, right);
 		}
 		case '%':
 			return text_range_new(0, text_size(file->text));
 		}
-		if (text_range_valid(&ret)) {
+		if (text_range_valid(ret)) {
 			range = &ret;
 		}
 	} while ((addr = addr->right));
@@ -1174,10 +1174,10 @@ static bool count_evaluate(Command *cmd) {
 	return count->start <= cmd->iteration && cmd->iteration <= count->end;
 }
 
-static bool sam_execute(Vix *vix, Win *win, Command *cmd, Selection *sel, Filerange *range) {
+static bool sam_execute(Vix *vix, Win *win, Command *cmd, Selection *sel, Filerange range) {
 	bool ret = true;
 	if (cmd->address && win) {
-		*range = address_evaluate(vix, cmd->address, win->file, sel, range, 0);
+		range = address_evaluate(vix, cmd->address, win->file, sel, &range, 0);
 	}
 
 	cmd->iteration++;
@@ -1282,7 +1282,7 @@ enum SamError sam_cmd(Vix *vix, const char *s) {
 	bool visual = vix->mode->visual;
 	size_t primary_pos = vix->win ? view_cursor_get(&vix->win->view) : EPOS;
 	Filerange range = text_range_empty();
-	sam_execute(vix, vix->win, cmd, NULL, &range);
+	sam_execute(vix, vix->win, cmd, NULL, range);
 
 	for (File *file = vix->files; file; file = file->next) {
 		if (file->internal) {
@@ -1300,8 +1300,8 @@ enum SamError sam_cmd(Vix *vix, const char *s) {
 			c->range.start += delta;
 			c->range.end += delta;
 			if (c->type & TRANSCRIPT_DELETE) {
-				text_delete_range(file->text, &c->range);
-				delta -= text_range_size(&c->range);
+				text_delete_range(file->text, c->range);
+				delta -= text_range_size(c->range);
 				if (c->sel && c->type == TRANSCRIPT_DELETE) {
 					if (visual) {
 						view_selections_dispose_force(c->sel);
@@ -1319,7 +1319,7 @@ enum SamError sam_cmd(Vix *vix, const char *s) {
 				                             c->range.start + c->len * c->count);
 				if (c->sel) {
 					if (visual) {
-						view_selections_set(c->sel, &r);
+						view_selections_set(c->sel, r);
 						c->sel->anchored = true;
 					} else {
 						if ((memchr)(c->data, '\n', c->len)) {
@@ -1331,7 +1331,7 @@ enum SamError sam_cmd(Vix *vix, const char *s) {
 				} else if (visual) {
 					Selection *sel = view_selections_new(&c->win->view, r.start);
 					if (sel) {
-						view_selections_set(sel, &r);
+						view_selections_set(sel, r);
 						sel->anchored = true;
 					}
 				}
@@ -1401,31 +1401,31 @@ out:
 	return buf;
 }
 
-static bool cmd_insert(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_insert(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
 	Buffer buf = text(vix, argv[1]);
-	bool ret = sam_insert(win, sel, range->start, buf.data, buf.len, cmd->count.start);
+	bool ret = sam_insert(win, sel, range.start, buf.data, buf.len, cmd->count.start);
 	if (!ret) {
 		free(buf.data);
 	}
 	return ret;
 }
 
-static bool cmd_append(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_append(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
 	Buffer buf = text(vix, argv[1]);
-	bool ret = sam_insert(win, sel, range->end, buf.data, buf.len, cmd->count.start);
+	bool ret = sam_insert(win, sel, range.end, buf.data, buf.len, cmd->count.start);
 	if (!ret) {
 		free(buf.data);
 	}
 	return ret;
 }
 
-static bool cmd_change(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_change(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -1437,11 +1437,11 @@ static bool cmd_change(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	return ret;
 }
 
-static bool cmd_delete(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_delete(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	return win && sam_delete(win, sel, range);
 }
 
-static bool cmd_guard(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_guard(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -1450,8 +1450,8 @@ static bool cmd_guard(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	size_t len = text_range_size(range);
 	if (!cmd->regex) {
 		match = true;
-	} else if (!text_search_range_forward(win->file->text, range->start, len, cmd->regex, 1, captures, 0)) {
-		match = captures[0].start < range->end;
+	} else if (!text_search_range_forward(win->file->text, range.start, len, cmd->regex, 1, captures, 0)) {
+		match = captures[0].start < range.end;
 	}
 	if ((count_evaluate(cmd) && match) ^ (argv[0][0] == 'v')) {
 		return sam_execute(vix, win, cmd->cmd, sel, range);
@@ -1460,13 +1460,13 @@ static bool cmd_guard(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	return true;
 }
 
-static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range, bool simulate) {
+static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range, bool simulate) {
 	bool ret = true;
 	int count = 0;
 	Text *txt = win->file->text;
 
 	if (cmd->regex) {
-		size_t start = range->start, end = range->end;
+		size_t start = range.start, end = range.end;
 		size_t last_start = argv[0][0] == 'x' ? EPOS : start;
 		size_t nsub = 1 + text_regex_nsub(cmd->regex);
 		if (nsub > MAX_REGEX_SUB) {
@@ -1475,7 +1475,7 @@ static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 		RegexMatch match[MAX_REGEX_SUB];
 		while (start <= end) {
 			char c;
-			int flags = start > range->start &&
+			int flags = start > range.start &&
 			            text_byte_get(txt, start - 1, &c) && c != '\n' ?
 			            REG_NOTBOL : 0;
 			bool found = !text_search_range_forward(txt, start, end - start,
@@ -1498,7 +1498,7 @@ static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 					 * matches the zero-length string immediately after a
 					 * newline. Try filtering out the last such match at EOF.
 					 */
-					if (end == match[0].start && start > range->start &&
+					if (end == match[0].start && start > range.start &&
 					    text_byte_get(txt, end-1, &c) && c == '\n') {
 						break;
 					}
@@ -1513,11 +1513,11 @@ static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 				start = end + 1;
 			}
 
-			if (text_range_valid(&r)) {
+			if (text_range_valid(r)) {
 				if (found) {
 					for (size_t i = 0; i < nsub; i++) {
 						Register *reg = &vix->registers[VIX_REG_AMPERSAND+i];
-						register_put_range(vix, reg, txt, &match[i]);
+						register_put_range(vix, reg, txt, match[i]);
 					}
 					last_start = match[0].end;
 				} else {
@@ -1526,25 +1526,25 @@ static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 				if (simulate) {
 					count++;
 				} else {
-					ret &= sam_execute(vix, win, cmd->cmd, NULL, &r);
+					ret &= sam_execute(vix, win, cmd->cmd, NULL, r);
 				}
 			}
 		}
 	} else {
-		size_t start = range->start, end = range->end;
+		size_t start = range.start, end = range.end;
 		while (start < end) {
 			size_t next = text_line_next(txt, start);
 			if (next > end) {
 				next = end;
 			}
 			Filerange r = text_range_new(start, next);
-			if (start == next || !text_range_valid(&r)) {
+			if (start == next || !text_range_valid(r)) {
 				break;
 			}
 			if (simulate) {
 				count++;
 			} else {
-				ret &= sam_execute(vix, win, cmd->cmd, NULL, &r);
+				ret &= sam_execute(vix, win, cmd->cmd, NULL, r);
 			}
 			start = next;
 		}
@@ -1556,7 +1556,7 @@ static int extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selecti
 	return simulate ? count : ret;
 }
 
-static bool cmd_extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win || !text_range_valid(range)) {
 		return false;
 	}
@@ -1568,10 +1568,10 @@ static bool cmd_extract(Vix *vix, Win *win, Command *cmd, const char *argv[], Se
 	return extract(vix, win, cmd, argv, sel, range, false);
 }
 
-static bool cmd_select(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_select(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	Filerange r = text_range_empty();
 	if (!win) {
-		return sam_execute(vix, NULL, cmd->cmd, NULL, &r);
+		return sam_execute(vix, NULL, cmd->cmd, NULL, r);
 	}
 	bool ret = true;
 	View *view = &win->view;
@@ -1619,10 +1619,10 @@ static bool cmd_select(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 		} else {
 			r = text_range_new(pos, text_char_next(txt, pos));
 		}
-		if (!text_range_valid(&r)) {
+		if (!text_range_valid(r)) {
 			r = text_range_new(0, 0);
 		}
-		ret &= sam_execute(vix, win, cmd->cmd, s, &r);
+		ret &= sam_execute(vix, win, cmd->cmd, s, r);
 		if (cmd->cmd->cmddef->flags & CMD_ONCE) {
 			break;
 		}
@@ -1634,27 +1634,27 @@ static bool cmd_select(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	return ret;
 }
 
-static bool cmd_print(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_print(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win || !text_range_valid(range)) {
 		return false;
 	}
 	if (!sel) {
-		sel = view_selections_new_force(&win->view, range->start);
+		sel = view_selections_new_force(&win->view, range.start);
 	}
 	if (!sel) {
 		return false;
 	}
-	if (range->start != range->end) {
+	if (range.start != range.end) {
 		view_selections_set(sel, range);
 		sel->anchored = true;
 	} else {
-		view_cursors_to(sel, range->start);
+		view_cursors_to(sel, range.start);
 		view_selection_clear(sel);
 	}
 	return true;
 }
 
-static bool cmd_files(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_files(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	bool ret = true;
 	for (Win *wn, *w = vix->windows; w; w = wn) {
 		/* w can get freed by sam_execute() so store w->next early */
@@ -1666,13 +1666,13 @@ static bool cmd_files(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		             (w->file->name && text_regex_match(cmd->regex, w->file->name, 0) == 0);
 		if (match ^ (argv[0][0] == 'Y')) {
 			Filerange def = text_range_new(0, 0);
-			ret &= sam_execute(vix, w, cmd->cmd, NULL, &def);
+			ret &= sam_execute(vix, w, cmd->cmd, NULL, def);
 		}
 	}
 	return ret;
 }
 
-static bool cmd_substitute(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_substitute(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	vix_info_show(vix, "Use :x/pattern/ c/replacement/ instead");
 	return false;
 }
@@ -1681,11 +1681,10 @@ static bool cmd_substitute(Vix *vix, Win *win, Command *cmd, const char *argv[],
  * If the range r covers the whole file, it is updated to account for
  * potential file's text mutation by a FILE_SAVE_PRE callback.
  */
-static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *r) {
+static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange r) {
 	if (!win) {
 		return false;
 	}
-
 	File *file = win->file;
 	if (sam_transcript_error(&file->transcript, SAM_ERR_WRITE_CONFLICT)) {
 		return false;
@@ -1693,7 +1692,7 @@ static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 
 	Text *text = file->text;
 	Filerange range_all = text_range_new(0, text_size(text));
-	bool write_entire_file = text_range_equal(r, &range_all);
+	bool write_entire_file = text_range_equal(r, range_all);
 
 	const char *filename = argv[1];
 	if (!filename) {
@@ -1715,15 +1714,15 @@ static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		}
 		/* a pre-save hook may have changed the text; need to re-take the range */
 		if (write_entire_file) {
-			*r = text_range_new(0, text_size(text));
+			r = text_range_new(0, text_size(text));
 		}
 
 		bool visual = vix->mode->visual;
 
 		for (Selection *s = view_selections(&win->view); s; s = view_selections_next(s)) {
-			Filerange range = visual ? view_selections_get(s) : *r;
-			ssize_t written = text_write_range(text, &range, file->fd);
-			if (written == -1 || (size_t)written != text_range_size(&range)) {
+			Filerange range = visual ? view_selections_get(s) : r;
+			ssize_t written = text_write_range(text, range, file->fd);
+			if (written == -1 || (size_t)written != text_range_size(range)) {
 				vix_info_show(vix, "Can not write to stdout");
 				return false;
 			}
@@ -1789,7 +1788,7 @@ static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		}
 		/* a pre-save hook may have changed the text; need to re-take the range */
 		if (write_entire_file) {
-			*r = text_range_new(0, text_size(text));
+			r = text_range_new(0, text_size(text));
 		}
 
 		TextSave ctx = text_save_default(.txt = text, .method = file->save_method, .filename = path);
@@ -1803,9 +1802,9 @@ static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 		bool visual = vix->mode->visual;
 
 		for (Selection *s = view_selections(&win->view); s; s = view_selections_next(s)) {
-			Filerange range = visual ? view_selections_get(s) : *r;
-			ssize_t written = text_save_write_range(&ctx, &range);
-			failure = (written == -1 || (size_t)written != text_range_size(&range));
+			Filerange range = visual ? view_selections_get(s) : r;
+			ssize_t written = text_save_write_range(&ctx, range);
+			failure = (written == -1 || (size_t)written != text_range_size(range));
 			if (failure || !visual) {
 				break;
 			}
@@ -1840,7 +1839,7 @@ static bool cmd_write(Vix *vix, Win *win, Command *cmd, const char *argv[], Sele
 	return true;
 }
 
-static bool cmd_filter(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_filter(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -1868,24 +1867,24 @@ static bool cmd_filter(Vix *vix, Win *win, Command *cmd, const char *argv[], Sel
 	return !vix->interrupted && status == 0;
 }
 
-static bool cmd_launch(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
-	Filerange invalid = text_range_new(sel ? view_cursors_pos(sel) : range->start, EPOS);
-	return cmd_filter(vix, win, cmd, argv, sel, &invalid);
+static bool cmd_launch(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
+	Filerange invalid = text_range_new(sel ? view_cursors_pos(sel) : range.start, EPOS);
+	return cmd_filter(vix, win, cmd, argv, sel, invalid);
 }
 
-static bool cmd_pipein(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_pipein(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
-	Filerange filter_range = text_range_new(range->end, range->end);
-	bool ret = cmd_filter(vix, win, cmd, argv, sel, &filter_range);
+	Filerange filter_range = text_range_new(range.end, range.end);
+	bool ret = cmd_filter(vix, win, cmd, argv, sel, filter_range);
 	if (ret) {
 		ret = sam_delete(win, NULL, range);
 	}
 	return ret;
 }
 
-static bool cmd_pipeout(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_pipeout(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	if (!win) {
 		return false;
 	}
@@ -1905,7 +1904,7 @@ static bool cmd_pipeout(Vix *vix, Win *win, Command *cmd, const char *argv[], Se
 	return !vix->interrupted && status == 0;
 }
 
-static bool cmd_cd(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange *range) {
+static bool cmd_cd(Vix *vix, Win *win, Command *cmd, const char *argv[], Selection *sel, Filerange range) {
 	const char *dir = argv[1];
 	if (!dir) {
 		dir = getenv("HOME");

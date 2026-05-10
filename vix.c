@@ -262,7 +262,7 @@ static void window_draw_cursorline(Win *win) {
 static void window_draw_selection(Win *win, Selection *cur) {
 	View *view = &win->view;
 	Filerange sel = view_selections_get(cur);
-	if (!text_range_valid(&sel)) {
+	if (!text_range_valid(sel)) {
 		return;
 	}
 	Line *start_line; int start_col;
@@ -296,7 +296,7 @@ static void window_draw_cursor_matching(Win *win, Selection *cur) {
 	Line *line_match; int col_match;
 	size_t pos = view_cursors_pos(cur);
 	Filerange limits = VIEW_VIEWPORT_GET(win->view);
-	size_t pos_match = text_bracket_match_symbol(win->vix, win->file->text, pos, "(){}[]\"'`", &limits);
+	size_t pos_match = text_bracket_match_symbol(win->vix, win->file->text, pos, "(){}[]\"'`", limits);
 	if (pos == pos_match) {
 		return;
 	}
@@ -954,7 +954,7 @@ void vix_do(Vix *vix) {
 				} else if (a->textobj->user) {
 					r = a->textobj->user(vix, win, a->textobj->data, pos);
 				}
-				if (!text_range_valid(&r)) {
+				if (!text_range_valid(r)) {
 					break;
 				}
 				if (a->textobj->type & TEXTOBJECT_DELIMITED_OUTER) {
@@ -966,7 +966,7 @@ void vix_do(Vix *vix) {
 				}
 
 				if (vix->mode->visual || (i > 0 && !(a->textobj->type & TEXTOBJECT_NON_CONTIGUOUS))) {
-					c.range = text_range_union(&c.range, &r);
+					c.range = text_range_union(c.range, r);
 				} else {
 					c.range = r;
 				}
@@ -987,16 +987,16 @@ void vix_do(Vix *vix) {
 			}
 		} else if (vix->mode->visual) {
 			c.range = view_selections_get(sel);
-			if (!text_range_valid(&c.range)) {
+			if (!text_range_valid(c.range)) {
 				c.range.start = c.range.end = pos;
 			}
 		}
 
 		if (linewise && vix->mode != &vix_modes[VIX_MODE_VISUAL]) {
-			c.range = text_range_linewise(txt, &c.range);
+			c.range = text_range_linewise(txt, c.range);
 		}
 		if (vix->mode->visual) {
-			view_selections_set(sel, &c.range);
+			view_selections_set(sel, c.range);
 			sel->anchored = true;
 		}
 
@@ -1784,7 +1784,7 @@ Regex *vix_regex(Vix *vix, const char *pattern) {
 	return regex;
 }
 
-static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, const char *argv[],
+static int _vix_pipe(Vix *vix, File *file, Filerange range, const char* buf, const char *argv[],
 	void *stdout_context, ssize_t (*read_stdout)(void *stdout_context, char *data, size_t len),
 	void *stderr_context, ssize_t (*read_stderr)(void *stderr_context, char *data, size_t len),
 	bool fullscreen) {
@@ -1793,8 +1793,8 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 	 * through the external command. */
 	Text *text = file != NULL ? file->text : NULL;
 	int pin[2], pout[2], perr[2], status = -1;
-	bool interactive = buf == NULL && (range == NULL || !text_range_valid(range));
-	Filerange rout = (interactive  || buf != NULL) ? text_range_new(0, 0) : *range;
+	bool interactive = buf == NULL && !text_range_valid(range);
+	Filerange rout = (interactive  || buf != NULL) ? text_range_new(0, 0) : range;
 
 	if (pipe(pin) == -1) {
 		return -1;
@@ -1846,7 +1846,7 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 			 * closed. Some programs behave differently when used
 			 * in a pipeline.
 			 */
-			if (range && text_range_size(range) == 0) {
+			if (text_range_valid(range) && text_range_size(range) == 0) {
 				dup2(null, STDIN_FILENO);
 			} else {
 				dup2(pin[0], STDIN_FILENO);
@@ -1939,14 +1939,14 @@ static int _vix_pipe(Vix *vix, File *file, Filerange *range, const char* buf, co
 		if (pin[1] != -1 && FD_ISSET(pin[1], &wfds)) {
 			ssize_t written = 0;
 			Filerange junk = rout;
-			if (text_range_size(&rout)) {
+			if (text_range_size(rout)) {
 				if (junk.end > junk.start + PIPE_BUF) {
 					junk.end = junk.start + PIPE_BUF;
 				}
-				written = text_write_range(text, &junk, pin[1]);
+				written = text_write_range(text, junk, pin[1]);
 				if (written > 0) {
 					rout.start += written;
-					if (text_range_size(&rout) == 0) {
+					if (text_range_size(rout) == 0) {
 						close(pin[1]);
 						pin[1] = -1;
 					}
@@ -2050,7 +2050,7 @@ err:
 	return -1;
 }
 
-int vix_pipe(Vix *vix, File *file, Filerange *range, const char *argv[],
+int vix_pipe(Vix *vix, File *file, Filerange range, const char *argv[],
 	void *stdout_context, ssize_t (*read_stdout)(void *stdout_context, char *data, size_t len),
 	void *stderr_context, ssize_t (*read_stderr)(void *stderr_context, char *data, size_t len),
 	bool fullscreen) {
@@ -2061,10 +2061,10 @@ int vix_pipe_buf(Vix *vix, const char* buf, const char *argv[],
 	void *stdout_context, ssize_t (*read_stdout)(void *stdout_context, char *data, size_t len),
 	void *stderr_context, ssize_t (*read_stderr)(void *stderr_context, char *data, size_t len),
 	bool fullscreen) {
-	return _vix_pipe(vix, NULL, NULL, buf, argv, stdout_context, read_stdout, stderr_context, read_stderr, fullscreen);
+	return _vix_pipe(vix, NULL, text_range_empty(), buf, argv, stdout_context, read_stdout, stderr_context, read_stderr, fullscreen);
 }
 
-static int _vix_pipe_collect(Vix *vix, File *file, Filerange *range, const char* buf, const char *argv[], char **out, char **err, bool fullscreen) {
+static int _vix_pipe_collect(Vix *vix, File *file, Filerange range, const char* buf, const char *argv[], char **out, char **err, bool fullscreen) {
 	Buffer bufout = {0}, buferr = {0};
 	int status = _vix_pipe(vix, file, range, buf, argv,
 	                      &bufout, out ? read_into_buffer : NULL,
@@ -2077,12 +2077,12 @@ static int _vix_pipe_collect(Vix *vix, File *file, Filerange *range, const char*
 	return status;
 }
 
-int vix_pipe_collect(Vix *vix, File *file, Filerange *range, const char *argv[], char **out, char **err, bool fullscreen) {
+int vix_pipe_collect(Vix *vix, File *file, Filerange range, const char *argv[], char **out, char **err, bool fullscreen) {
 	return _vix_pipe_collect(vix, file, range, NULL, argv, out, err, fullscreen);
 }
 
 int vix_pipe_buf_collect(Vix *vix, const char* buf, const char *argv[], char **out, char **err, bool fullscreen) {
-	return _vix_pipe_collect(vix, NULL, NULL, buf, argv, out, err, fullscreen);
+	return _vix_pipe_collect(vix, NULL, text_range_empty(), buf, argv, out, err, fullscreen);
 }
 
 bool vix_cmd(Vix *vix, const char *cmdline) {

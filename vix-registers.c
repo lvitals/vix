@@ -52,7 +52,7 @@ const char *register_slot_get(Vix *vix, Register *reg, size_t slot, size_t *len)
 			}
 
 			b->len = 0;
-			int status = vix_pipe(vix, vix->win->file, &(Filerange){0}, cmd, b, read_into_buffer,
+			int status = vix_pipe(vix, vix->win->file, (Filerange){0}, cmd, b, read_into_buffer,
 			                      &buferr, read_into_buffer, false);
 
 			if (status != 0) {
@@ -96,7 +96,7 @@ bool register_put0(Vix *vix, Register *reg, const char *data)
 	return register_put(vix, reg, data, strlen(data)+1);
 }
 
-static bool register_slot_append_range(Vix *vix, Register *reg, size_t slot, Text *txt, Filerange *range)
+static bool register_slot_append_range(Vix *vix, Register *reg, size_t slot, Text *txt, Filerange range)
 {
 	switch (reg->type) {
 	case REGISTER_NORMAL:
@@ -109,7 +109,7 @@ static bool register_slot_append_range(Vix *vix, Register *reg, size_t slot, Tex
 		if (buf->len > 0 && buf->data[buf->len-1] == '\0') {
 			buf->len--;
 		}
-		buf->len += text_bytes_get(txt, range->start, len, buf->data + buf->len);
+		buf->len += text_bytes_get(txt, range.start, len, buf->data + buf->len);
 		return buffer_append(buf, "\0", 1);
 	}
 	default:
@@ -117,7 +117,7 @@ static bool register_slot_append_range(Vix *vix, Register *reg, size_t slot, Tex
 	}
 }
 
-bool register_slot_put_range(Vix *vix, Register *reg, size_t slot, Text *txt, Filerange *range)
+bool register_slot_put_range(Vix *vix, Register *reg, size_t slot, Text *txt, Filerange range)
 {
 	if (reg->append) {
 		return register_slot_append_range(vix, reg, slot, txt, range);
@@ -131,7 +131,7 @@ bool register_slot_put_range(Vix *vix, Register *reg, size_t slot, Text *txt, Fi
 		if (len == SIZE_MAX || !buffer_reserve(buf, len+1)) {
 			return false;
 		}
-		buf->len = text_bytes_get(txt, range->start, len, buf->data);
+		buf->len = text_bytes_get(txt, range.start, len, buf->data);
 		return buffer_append(buf, "\0", 1);
 	}
 	case REGISTER_CLIPBOARD:
@@ -162,7 +162,7 @@ bool register_slot_put_range(Vix *vix, Register *reg, size_t slot, Text *txt, Fi
 	}
 }
 
-bool register_put_range(Vix *vix, Register *reg, Text *txt, Filerange *range)
+bool register_put_range(Vix *vix, Register *reg, Text *txt, Filerange range)
 {
 	return register_slot_put_range(vix, reg, 0, txt, range) &&
 	       register_resize(reg, 1);

@@ -476,17 +476,17 @@ static void pushpos(lua_State *L, size_t pos) {
 	}
 }
 
-static void pushrange(lua_State *L, Filerange *r) {
-	if (!r || !text_range_valid(r)) {
+static void pushrange(lua_State *L, Filerange r) {
+	if (!text_range_valid(r)) {
 		lua_pushnil(L);
 		return;
 	}
 	lua_createtable(L, 0, 2);
 	lua_pushliteral(L, "start");
-	lua_pushinteger(L, r->start);
+	lua_pushinteger(L, r.start);
 	lua_settable(L, -3);
 	lua_pushliteral(L, "finish");
-	lua_pushinteger(L, r->end);
+	lua_pushinteger(L, r.end);
 	lua_settable(L, -3);
 }
 
@@ -1031,7 +1031,7 @@ static size_t operator_lua(Vix *vix, Text *text, OperatorContext *c) {
 	if (!file || !obj_ref_new(L, file, VIX_LUA_TYPE_FILE)) {
 		return EPOS;
 	}
-	pushrange(L, &c->range);
+	pushrange(L, c->range);
 	pushpos(L, c->pos);
 	if (pcall(vix, L, 3, 1) != 0) {
 		return EPOS;
@@ -1212,7 +1212,7 @@ static int option_unregister(lua_State *L) {
 	return 1;
 }
 
-static bool command_lua(Vix *vix, Win *win, void *data, bool force, const char *argv[], Selection *sel, Filerange *range) {
+static bool command_lua(Vix *vix, Win *win, void *data, bool force, const char *argv[], Selection *sel, Filerange range) {
 	lua_State *L = vix->lua;
 	if (!L || !func_ref_get(L, data)) {
 		return false;
@@ -1545,7 +1545,7 @@ static int pipe_func(lua_State *L) {
 	if (text) {
 		status = vix_pipe_buf_collect(vix, text, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
 	} else {
-		status = vix_pipe_collect(vix, file, &range, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
+		status = vix_pipe_collect(vix, file, range, (const char*[]){ cmd, NULL }, &out, &err, fullscreen);
 	}
 	lua_pushinteger(L, status);
 	if (out) {
@@ -2120,10 +2120,10 @@ static int window_index(lua_State *L) {
 
 			lua_createtable(L, 0, 4);
 			lua_pushliteral(L, "bytes");
-			pushrange(L, &b);
+			pushrange(L, b);
 			lua_settable(L, -3);
 			lua_pushliteral(L, "lines");
-			pushrange(L, &l);
+			pushrange(L, l);
 			lua_settable(L, -3);
 			lua_pushliteral(L, "width");
 			lua_pushinteger(L, win->view.width);
@@ -2738,7 +2738,7 @@ static int window_selection_index(lua_State *L) {
 
 		if (strcmp(key, "range") == 0) {
 			Filerange range = view_selections_get(sel);
-			pushrange(L, &range);
+			pushrange(L, range);
 			return 1;
 		}
 
@@ -2767,13 +2767,13 @@ static int window_selection_newindex(lua_State *L) {
 
 		if (strcmp(key, "range") == 0) {
 			Filerange range = getrange(L, 3);
-			if (text_range_valid(&range)) {
-				view_selections_set(sel, &range);
+			if (text_range_valid(range)) {
+				view_selections_set(sel, range);
 				sel->anchored = true;
 			} else {
 				view_selection_clear(sel);
 			}
-			return 0;
+			return 1;
 		}
 
 		if (strcmp(key, "anchored") == 0) {
@@ -2991,7 +2991,7 @@ static int file_insert(lua_State *L)
 static int file_delete(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	Filerange range = getrange(L, 2);
-	lua_pushboolean(L, text_delete_range(file->text, &range));
+	lua_pushboolean(L, text_delete_range(file->text, range));
 	return 1;
 }
 
@@ -3069,10 +3069,10 @@ static int file_lines_iterator_it(lua_State *L) {
 static int file_content(lua_State *L) {
 	File *file = obj_ref_check(L, 1, VIX_LUA_TYPE_FILE);
 	Filerange range = getrange(L, 2);
-	if (!text_range_valid(&range)) {
+	if (!text_range_valid(range)) {
 		goto err;
 	}
-	size_t len = text_range_size(&range);
+	size_t len = text_range_size(range);
 	char *data = lua_newuserdata(L, len);
 	if (!data) {
 		goto err;
@@ -3151,7 +3151,7 @@ static int file_text_object(lua_State *L) {
 			range = txtobj->txt(file->text, pos);
 		}
 	}
-	pushrange(L, &range);
+	pushrange(L, range);
 	return 1;
 }
 
@@ -3255,7 +3255,7 @@ static int window_marks_index(lua_State *L) {
 	FilerangeList ranges = vix_mark_get(vix, win, mark);
 	for (VixDACount i = 0; i < ranges.count; i++) {
 		lua_pushinteger(L, i+1);
-		pushrange(L, ranges.data + i);
+		pushrange(L, ranges.data[i]);
 		lua_settable(L, -3);
 	}
 	da_release(&ranges);
@@ -3283,7 +3283,7 @@ static int window_marks_newindex(lua_State *L) {
 		lua_pushnil(L);
 		while (lua_next(L, 3)) {
 			Filerange range = getrange(L, -1);
-			if (text_range_valid(&range)) {
+			if (text_range_valid(range)) {
 				*da_push(vix, &ranges) = range;
 			}
 			lua_pop(L, 1);

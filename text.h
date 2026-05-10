@@ -150,7 +150,7 @@ VIX_INTERNAL bool text_insert(Vix *vix, Text *txt, size_t pos, const char *data,
  * @return Whether the deletion succeeded.
  */
 VIX_INTERNAL bool text_delete(Text *txt, size_t pos, size_t len);
-VIX_INTERNAL bool text_delete_range(Text *txt, const Filerange*);
+VIX_INTERNAL bool text_delete_range(Text *txt, Filerange);
 VIX_INTERNAL bool text_appendf(Vix *vix, Text *txt, const char *format, ...);
 /**
  * @}
@@ -375,7 +375,7 @@ VIX_INTERNAL bool text_save_begin(TextSave*);
  * Write file range.
  * @return The number of bytes written or ``-1`` in case of an error.
  */
-VIX_INTERNAL ssize_t text_save_write_range(TextSave*, const Filerange*);
+VIX_INTERNAL ssize_t text_save_write_range(TextSave*, Filerange);
 /**
  * Commit changes to disk.
  * @return Whether changes have been saved.
@@ -398,7 +398,7 @@ VIX_INTERNAL void text_save_cancel(TextSave*);
  * Write file range to file descriptor.
  * @return The number of bytes written or ``-1`` in case of an error.
  */
-VIX_INTERNAL ssize_t text_write_range(const Text*, const Filerange*, int fd);
+VIX_INTERNAL ssize_t text_write_range(const Text*, Filerange, int fd);
 /**
  * @}
  * @defgroup misc Miscellaneous

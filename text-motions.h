@@ -55,8 +55,8 @@ VIX_INTERNAL size_t text_line_blank_prev(Text*, size_t pos);
 VIX_INTERNAL size_t text_line_up(Text*, size_t pos);
 VIX_INTERNAL size_t text_line_down(Text*, size_t pos);
 /* functions to iterate over all line beginnings in a given range */
-VIX_INTERNAL size_t text_range_line_first(Text*, Filerange*);
-VIX_INTERNAL size_t text_range_line_next(Text*, Filerange*, size_t pos);
+VIX_INTERNAL size_t text_range_line_first(Text*, Filerange);
+VIX_INTERNAL size_t text_range_line_next(Text*, Filerange, size_t pos);
 /*
  * A longword consists of a sequence of non-blank characters, separated with
  * white space. TODO?: An empty line is also considered to be a word.
@@ -107,10 +107,11 @@ VIX_INTERNAL size_t text_block_start(Vix*, Text*, size_t pos);
 VIX_INTERNAL size_t text_block_end(Vix*, Text*, size_t pos);
 VIX_INTERNAL size_t text_parenthesis_start(Vix*, Text*, size_t pos);
 VIX_INTERNAL size_t text_parenthesis_end(Vix*, Text*, size_t pos);
+#define text_range_unlimited (Filerange){.start = 0, .end = EPOS - 1}
 /* search corresponding '(', ')', '{', '}', '[', ']', '>', '<', '"', ''' */
-VIX_INTERNAL size_t text_bracket_match(Vix*, Text*, size_t pos, const Filerange *limits);
+VIX_INTERNAL size_t text_bracket_match(Vix*, Text*, size_t pos, Filerange limits);
 /* same as above but explicitly specify symbols to match */
-VIX_INTERNAL size_t text_bracket_match_symbol(Vix*, Text*, size_t pos, const char *symbols, const Filerange *limits);
+VIX_INTERNAL size_t text_bracket_match_symbol(Vix*, Text*, size_t pos, const char *symbols, Filerange limits);
 
 /* search the given regex pattern in either forward or backward direction,
  * starting from pos. Does wrap around if no match was found. */

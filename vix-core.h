@@ -330,8 +330,8 @@ VIX_INTERNAL bool register_put0(Vix*, Register*, const char *data);
 VIX_INTERNAL bool register_put(Vix*, Register*, const char *data, size_t len);
 VIX_INTERNAL bool register_slot_put(Vix*, Register*, size_t slot, const char *data, size_t len);
 
-VIX_INTERNAL bool register_put_range(Vix*, Register*, Text*, Filerange*);
-VIX_INTERNAL bool register_slot_put_range(Vix*, Register*, size_t slot, Text*, Filerange*);
+VIX_INTERNAL bool register_put_range(Vix*, Register*, Text*, Filerange);
+VIX_INTERNAL bool register_slot_put_range(Vix*, Register*, size_t slot, Text*, Filerange);
 
 VIX_INTERNAL size_t vix_register_count(Vix*, Register*);
 VIX_INTERNAL bool register_resize(Register*, size_t count);

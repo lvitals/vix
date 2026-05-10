@@ -32,9 +32,9 @@ static void prompt_hide(Win *win) {
 	}
 	/* remove empty entries */
 	Filerange line_range = text_object_line(txt, text_size(txt)-1);
-	char *line = text_bytes_alloc0(txt, line_range.start, text_range_size(&line_range));
+	char *line = text_bytes_alloc0(txt, line_range.start, text_range_size(line_range));
 	if (line && (line[0] == '\n' || ((strchr)(":/?", line[0]) && (line[1] == '\n' || line[1] == '\0')))) {
-		text_delete_range(txt, &line_range);
+		text_delete_range(txt, line_range);
 	}
 	free(line);
 	win->vix->prompt_state = PROMPTSTATE_NONE;
@@ -87,8 +87,8 @@ static const char *prompt_enter(Vix *vix, const char *keys, const Arg *arg) {
 		}
 		text_regex_free(regex);
 	}
-	if (text_range_valid(&range)) {
-		cmd = text_bytes_alloc0(txt, range.start, text_range_size(&range));
+	if (text_range_valid(range)) {
+		cmd = text_bytes_alloc0(txt, range.start, text_range_size(range));
 	}
 
 	if (!win || !cmd) {
@@ -118,7 +118,7 @@ static const char *prompt_enter(Vix *vix, const char *keys, const Arg *arg) {
 		/* hide cursor in case it was made visible */
 		fprintf(stderr, "\x1b[?25l");
 		if (!lastline) {
-			text_delete(txt, range.start, text_range_size(&range));
+			text_delete(txt, range.start, text_range_size(range));
 			text_appendf(vix, txt, "%s\n", cmd);
 		}
 	} else {

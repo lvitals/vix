@@ -117,7 +117,7 @@ Filerange text_object_word_find_next(Text *txt, size_t pos, const char *word) {
 		size_t match_pos = text_find_next(txt, pos, word);
 		if (match_pos != pos) {
 			Filerange match_word = text_object_word(txt, match_pos);
-			if (text_range_size(&match_word) == len) {
+			if (text_range_size(match_word) == len) {
 				return match_word;
 			}
 			pos = match_word.end;
@@ -133,7 +133,7 @@ Filerange text_object_word_find_prev(Text *txt, size_t pos, const char *word) {
 		size_t match_pos = text_find_prev(txt, pos, word);
 		if (match_pos != pos) {
 			Filerange match_word = text_object_word(txt, match_pos);
-			if (text_range_size(&match_word) == len) {
+			if (text_range_size(match_word) == len) {
 				return match_word;
 			}
 			pos = match_pos;
@@ -168,7 +168,7 @@ Filerange text_object_line(Text *txt, size_t pos) {
 
 Filerange text_object_line_inner(Text *txt, size_t pos) {
 	Filerange r = text_object_line(txt, pos);
-	return text_range_inner(txt, &r);
+	return text_range_inner(txt, r);
 }
 
 Filerange text_object_sentence(Text *txt, size_t pos) {
@@ -222,7 +222,7 @@ Filerange text_object_paragraph(Text *txt, size_t pos) {
 Filerange text_object_paragraph_outer(Text *txt, size_t pos) {
 	Filerange p1 = text_object_paragraph(txt, pos);
 	Filerange p2 = text_object_paragraph(txt, p1.end);
-	return text_range_union(&p1, &p2);
+	return text_range_union(p1, p2);
 }
 
 static Filerange text_object_bracket(Vix *vix, Text *txt, size_t pos, char type) {
@@ -244,7 +244,7 @@ static Filerange text_object_bracket(Vix *vix, Text *txt, size_t pos, char type)
 	Iterator it = text_iterator_get(txt, pos);
 
 	if (open == close && text_iterator_byte_get(&it, &c) && (c == '"' || c == '`' || c == '\'')) {
-		size_t match = text_bracket_match(vix, txt, pos, NULL);
+		size_t match = text_bracket_match(vix, txt, pos, text_range_unlimited);
 		r.start = MIN(pos, match) + 1;
 		r.end = MAX(pos, match);
 		return r;
@@ -271,7 +271,7 @@ static Filerange text_object_bracket(Vix *vix, Text *txt, size_t pos, char type)
 		text_iterator_byte_next(&it, NULL);
 	}
 
-	if (!text_range_valid(&r)) {
+	if (!text_range_valid(r)) {
 		return text_range_empty();
 	}
 	return r;
@@ -395,30 +395,30 @@ Filerange text_object_indentation(Text *txt, size_t pos) {
 	return text_range_new(start, end);
 }
 
-Filerange text_range_linewise(Text *txt, Filerange *rin) {
-	Filerange rout = *rin;
-	rout.start = text_line_begin(txt, rin->start);
-	if (rin->end != text_line_begin(txt, rin->end)) {
-		rout.end = text_line_next(txt, rin->end);
+Filerange text_range_linewise(Text *txt, Filerange r) {
+	Filerange result = r;
+	result.start = text_line_begin(txt, r.start);
+	if (r.end != text_line_begin(txt, r.end)) {
+		result.end = text_line_next(txt, r.end);
 	}
-	return rout;
+	return result;
 }
 
-bool text_range_is_linewise(Text *txt, Filerange *r) {
+bool text_range_is_linewise(Text *txt, Filerange r) {
 	return text_range_size(r) > 0 &&
-	       r->start == text_line_begin(txt, r->start) &&
-	       r->end == text_line_begin(txt, r->end);
+	       r.start == text_line_begin(txt, r.start) &&
+	       r.end == text_line_begin(txt, r.end);
 }
 
-Filerange text_range_inner(Text *txt, Filerange *rin) {
+Filerange text_range_inner(Text *txt, Filerange r) {
 	char c;
-	Filerange r = *rin;
-	Iterator it = text_iterator_get(txt, rin->start);
+	Filerange result = r;
+	Iterator it = text_iterator_get(txt, r.start);
 	while (text_iterator_byte_get(&it, &c) && space(c)) {
 		text_iterator_byte_next(&it, NULL);
 	}
-	r.start = it.pos;
-	it = text_iterator_get(txt, rin->end);
-	do { r.end = it.pos; } while (text_iterator_byte_prev(&it, &c) && space(c));
-	return r;
+	result.start = it.pos;
+	it = text_iterator_get(txt, r.end);
+	do { result.end = it.pos; } while (text_iterator_byte_prev(&it, &c) && space(c));
+	return result;
 }

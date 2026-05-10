@@ -1121,7 +1121,7 @@ VIX_EXPORT bool vix_cmd(Vix *vix, const char *cmd);
 
 /** Command handler function. */
 typedef bool (VixCommandFunction)(Vix*, Win*, void *data, bool force,
-	const char *argv[], Selection*, Filerange*);
+	const char *argv[], Selection*, Filerange);
 /**
  * Register new ``:``-command.
  * @param vix The editor instance.
@@ -1265,7 +1265,7 @@ VIX_EXPORT void vix_print_option_value(Vix *vix, const char *name, Buffer *buf);
  *
  * @return The exit status of the forked process.
  */
-VIX_EXPORT int vix_pipe(Vix *vix, File *file, Filerange *range, const char *argv[],
+VIX_EXPORT int vix_pipe(Vix *vix, File *file, Filerange range, const char *argv[],
 	void *stdout_context, ssize_t (*read_stdout)(void *stdout_context, char *data, size_t len),
 	void *stderr_context, ssize_t (*read_stderr)(void *stderr_context, char *data, size_t len),
 	bool fullscreen);
@@ -1285,7 +1285,7 @@ VIX_EXPORT int vix_pipe(Vix *vix, File *file, Filerange *range, const char *argv
  * by the caller.
  * @endrst
  */
-VIX_EXPORT int vix_pipe_collect(Vix *vix, File *file, Filerange *range, const char *argv[], char **out, char **err, bool fullscreen);
+VIX_EXPORT int vix_pipe_collect(Vix *vix, File *file, Filerange range, const char *argv[], char **out, char **err, bool fullscreen);
 
 /**
  * Pipe a buffer to an external process, return its exit status and capture

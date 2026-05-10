@@ -7,10 +7,10 @@
 static Regex *search_word(Vix *vix, Text *txt, size_t pos) {
 	char expr[512];
 	Filerange word = text_object_word(txt, pos);
-	if (!text_range_valid(&word)) {
+	if (!text_range_valid(word)) {
 		return NULL;
 	}
-	char *buf = text_bytes_alloc0(txt, word.start, text_range_size(&word));
+	char *buf = text_bytes_alloc0(txt, word.start, text_range_size(word));
 	if (!buf) {
 		return NULL;
 	}
@@ -227,7 +227,7 @@ static size_t window_nop(Vix *vix, Win *win, size_t pos) {
 }
 
 static size_t bracket_match(Vix *vix, Text *txt, size_t pos) {
-	size_t hit = text_bracket_match_symbol(vix, txt, pos, "(){}[]<>'\"`", NULL);
+	size_t hit = text_bracket_match_symbol(vix, txt, pos, "(){}[]<>'\"`", text_range_unlimited);
 	if (hit != pos) {
 		return hit;
 	}

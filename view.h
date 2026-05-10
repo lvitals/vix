@@ -232,7 +232,7 @@ VIX_INTERNAL Selection *view_selections_column_next(Selection *sel, int column);
 /** Get an inclusive range of the selection cover. */
 VIX_INTERNAL Filerange view_selections_get(Selection*);
 /** Set selection cover. Updates both cursor and anchor. */
-VIX_INTERNAL bool view_selections_set(Selection*, const Filerange*);
+VIX_INTERNAL bool view_selections_set(Selection*, Filerange);
 /**
  * Reduce selection to character currently covered by the cursor.
  * @rst
@@ -338,8 +338,8 @@ VIX_INTERNAL size_t view_cursor_get(View*);
  * @defgroup view_save Selection State
  * @{
  */
-VIX_INTERNAL Filerange view_regions_restore(View*, SelectionRegion*);
-VIX_INTERNAL bool view_regions_save(View*, Filerange*, SelectionRegion*);
+VIX_INTERNAL Filerange view_regions_restore(View*, SelectionRegion);
+VIX_INTERNAL bool view_regions_save(View*, Filerange, SelectionRegion*);
 /**
  * @}
  * @defgroup view_style View Styling
