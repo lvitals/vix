@@ -97,7 +97,6 @@ static int luaL_fileresult(lua_State *L, int stat, const char *fname) {
 
 #if !CONFIG_LUA
 
-bool vix_lua_path_add(Vix *vix, const char *path) { return true; }
 bool vix_lua_paths_get(Vix *vix, char **lpath, char **cpath) { return false; }
 void vix_lua_process_response(Vix *vix, const char *name,
                               char *buffer, size_t len, ResponseType rtype) { }
@@ -3490,21 +3489,20 @@ static bool vix_lua_path_strip(Vix *vix) {
 	return true;
 }
 
-bool vix_lua_path_add(Vix *vix, const char *path) {
-	if (!path) {
-		return false;
+VIX_INTERNAL void
+vix_lua_path_add(lua_State *L, str8 path)
+{
+	if (path.length > 0) {
+		lua_getglobal(L, "package");
+		lua_pushlstring(L, (char *)path.data, path.length);
+		lua_pushliteral(L, "/?.lua;");
+		lua_pushlstring(L, (char *)path.data, path.length);
+		lua_pushliteral(L, "/?/init.lua;");
+		lua_getfield(L, -5, "path");
+		lua_concat(L, 5);
+		lua_setfield(L, -2, "path");
+		lua_pop(L, 1); /* package */
 	}
-	lua_State *L = vix->lua;
-	lua_getglobal(L, "package");
-	lua_pushstring(L, path);
-	lua_pushstring(L, "/?.lua;");
-	lua_pushstring(L, path);
-	lua_pushstring(L, "/?/init.lua;");
-	lua_getfield(L, -5, "path");
-	lua_concat(L, 5);
-	lua_setfield(L, -2, "path");
-	lua_pop(L, 1); /* package */
-	return true;
 }
 
 bool vix_lua_cpath_add(Vix *vix, const char *path) {
@@ -3611,10 +3609,6 @@ static void vix_lua_init(Vix *vix) {
 	 * - /usr/(local/)?share/vix (or whatever is specified during ./configure)
 	 * - package.path (standard lua search path)
 	 */
-	char path[PATH_MAX];
-
-	vix_lua_path_add(vix, VIX_PATH);
-
 	/* try to get users home directory */
 	const char *home = getenv("HOME");
 	if (!home || !*home) {
@@ -3624,47 +3618,35 @@ static void vix_lua_init(Vix *vix) {
 		}
 	}
 
-	vix_lua_path_add(vix, "/etc/vix");
+	char path_buffer[PATH_MAX];
+	str8 path = {.data = (uint8_t *)path_buffer};
 
-	/* add standard system paths for the current lua version */
-	snprintf(path, sizeof path, "/usr/local/lib/lua/%s", VIX_LUA_VERSION);
-	vix_lua_path_add(vix, path);
-	vix_lua_cpath_add(vix, path);
-	snprintf(path, sizeof path, "/usr/local/share/lua/%s", VIX_LUA_VERSION);
-	vix_lua_path_add(vix, path);
-	snprintf(path, sizeof path, "/usr/lib/lua/%s", VIX_LUA_VERSION);
-	vix_lua_path_add(vix, path);
-	vix_lua_cpath_add(vix, path);
-	snprintf(path, sizeof path, "/usr/share/lua/%s", VIX_LUA_VERSION);
-	vix_lua_path_add(vix, path);
-
-	if (home && *home) {
-		snprintf(path, sizeof path, "%s/.luarocks/share/lua/%s", home, VIX_LUA_VERSION);
-		vix_lua_path_add(vix, path);
-		snprintf(path, sizeof path, "%s/.luarocks/lib/lua/%s", home, VIX_LUA_VERSION);
-		vix_lua_cpath_add(vix, path);
-	}
+	vix_lua_path_add(L, str8(VIX_PATH));
+	vix_lua_path_add(L, str8("/etc/vix"));
 
 	const char *xdg_config = getenv("XDG_CONFIG_HOME");
 	if (xdg_config) {
-		snprintf(path, sizeof path, "%s/vix", xdg_config);
-		vix_lua_path_add(vix, path);
+		path.length = snprintf(path_buffer, sizeof(path_buffer), "%s/vix", xdg_config);
+		path.length = MIN(path.length, sizeof(path_buffer));
+		vix_lua_path_add(L, path);
 	} else if (home && *home) {
-		snprintf(path, sizeof path, "%s/.config/vix", home);
-		vix_lua_path_add(vix, path);
+		path.length = snprintf(path_buffer, sizeof(path_buffer), "%s/.config/vix", home);
+		path.length = MIN(path.length, sizeof(path_buffer));
+		vix_lua_path_add(L, path);
 	}
 
-	ssize_t len = readlink("/proc/self/exe", path, sizeof(path)-1);
+	ssize_t len = readlink("/proc/self/exe", path_buffer, sizeof(path_buffer)-1);
 	if (len > 0) {
 		str8 dir, tail = str8("/lua");
-		path_split((str8){.length = len, .data = (uint8_t *)path}, &dir, 0);
-		if (dir.length + tail.length + 1 < sizeof(path)) {
-			memcpy(path + dir.length, tail.data, tail.length + 1);
-			vix_lua_path_add(vix, path);
+		path_split((str8){.length = len, .data = path.data}, &dir, 0);
+		path.length = dir.length + tail.length;
+		if (path.length <= sizeof(path_buffer)) {
+			memcpy(path.data + dir.length, tail.data, tail.length);
+			vix_lua_path_add(L, path);
 		}
 	}
 
-	vix_lua_path_add(vix, getenv("VIX_PATH"));
+	vix_lua_path_add(L, str8_from_c_str(getenv("VIX_PATH")));
 
 	/* table in registry to lookup object type, stores metatable -> type mapping */
 	lua_newtable(L);
