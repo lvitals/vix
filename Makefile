@@ -36,33 +36,7 @@ LIBS      += ${TUI_LIBS}
 
 # Lua support
 ifeq ($(ENABLE_LUA), 1)
-ifdef LUA_VERSION
-    LUA_VERSION_MAJOR := $(shell echo $(LUA_VERSION) | cut -d'.' -f1)
-    LUA_VERSION_MINOR := $(shell echo $(LUA_VERSION) | cut -d'.' -f2)
-    LUA_PKG_VERSIONED := lua$(LUA_VERSION_MAJOR).$(LUA_VERSION_MINOR)
-    LUA_PKG_CHECK := $(shell $(PKG_CONFIG) --exists $(LUA_PKG_VERSIONED) && echo $(LUA_PKG_VERSIONED))
-    ifeq ($(strip $(LUA_PKG_CHECK)),)
-        # Fallback to existing logic if LUA_VERSIONED_PKG is not found
-        LUA_PKG ?= $(shell $(PKG_CONFIG) --exists lua5.4 && echo lua5.4 || echo lua)
-        ifeq ($(strip $(LUA_PKG)),)
-        LUA_PKG := lua
-        endif
-    else
-        LUA_PKG := $(LUA_PKG_CHECK)
-    endif
-else
-    # Automatic detection if LUA_VERSION is not defined
-    # Prioritize lua5.5, then lua5.4, then generic lua
-    LUA_PKG := $(shell \
-        $(PKG_CONFIG) --exists lua5.5 && echo lua5.5 || \
-        $(PKG_CONFIG) --exists lua5.4 && echo lua5.4 || \
-        $(PKG_CONFIG) --exists lua && echo lua \
-    )
-    # If LUA_PKG is still empty, default to 'lua'
-    ifeq ($(strip $(LUA_PKG)),)
-        LUA_PKG := lua
-    endif
-endif
+LUA_PKG ?= lua
 LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(LUA_PKG))
 LUA_LIBS   := $(shell $(PKG_CONFIG) --libs $(LUA_PKG))
 INCS      += ${LUA_CFLAGS}

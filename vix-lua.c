@@ -3424,15 +3424,22 @@ static void vix_lua_event_call(Vix *vix, const char *name) {
 	lua_pop(L, 1);
 }
 
-#if LUA_VERSION_NUM >= 502
-#define VIX_LUA_VERSION LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
-#else
-#define VIX_LUA_VERSION "5.1"
-#endif
-
 static bool vix_lua_path_strip(Vix *vix) {
 	lua_State *L = vix->lua;
+
+	lua_getglobal(L, "_VERSION");
+	const char *lua_ver = lua_tostring(L, -1);
+	if (lua_ver && strncmp(lua_ver, "Lua ", 4) == 0) {
+		lua_ver += 4;
+	} else {
+		lua_ver = NULL;
+	}
+
 	lua_getglobal(L, "package");
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 2);
+		return false;
+	}
 
 	for (const char **var = (const char*[]){ "path", "cpath", NULL }; *var; var++) {
 
@@ -3440,13 +3447,14 @@ static bool vix_lua_path_strip(Vix *vix) {
 		const char *path = lua_tostring(L, -1);
 		lua_pop(L, 1);
 		if (!path) {
-			return false;
+			continue;
 		}
 
 		char *copy = strdup(path), *stripped = calloc(1, strlen(path)+2);
 		if (!copy || !stripped) {
 			free(copy);
 			free(stripped);
+			lua_pop(L, 2);
 			return false;
 		}
 
@@ -3458,19 +3466,17 @@ static bool vix_lua_path_strip(Vix *vix) {
 				continue; /* skip relative path entries */
 			}
 
-			/* skip paths with mismatched lua version */
-			char *ver = (strstr)(elem, "/lua/");
-			if (ver) {
-				ver += 5; // skip "/lua/"
-				/* if it contains a version string, check if it matches ours.
-				 * we allow it if it starts with our version string (e.g. 5.1)
-				 * followed by a separator (/ or ;) or end of string.
-				 */
-				if (isdigit((unsigned char)ver[0])) {
-					size_t vlen = strlen(VIX_LUA_VERSION);
-					if (strncmp(ver, VIX_LUA_VERSION, vlen) != 0 ||
-					    (ver[vlen] != '\0' && ver[vlen] != '/' && ver[vlen] != ';')) {
-						continue;
+			if (lua_ver) {
+				/* skip paths with mismatched lua version */
+				char *ver = (strstr)(elem, "/lua/");
+				if (ver) {
+					ver += 5; // skip "/lua/"
+					if (isdigit((unsigned char)ver[0])) {
+						size_t vlen = strlen(lua_ver);
+						if (strncmp(ver, lua_ver, vlen) != 0 ||
+						    (ver[vlen] != '\0' && ver[vlen] != '/' && ver[vlen] != ';')) {
+							continue;
+						}
 					}
 				}
 			}
@@ -3485,7 +3491,7 @@ static bool vix_lua_path_strip(Vix *vix) {
 		free(stripped);
 	}
 
-	lua_pop(L, 1); /* package */
+	lua_pop(L, 2); /* package and _VERSION */
 	return true;
 }
 
@@ -3576,7 +3582,7 @@ static void *alloc_lua(void *ud, void *ptr, size_t osize, size_t nsize) {
 static void vix_lua_init(Vix *vix) {
 	lua_State *L;
 #if LUA_VERSION_NUM >= 505
-	L = lua_newstate(alloc_lua, vix, luaL_makeseed(0));
+	L = lua_newstate(alloc_lua, vix, 0);
 #else
 	L = lua_newstate(alloc_lua, vix);
 #endif
