@@ -1394,6 +1394,9 @@ static KEY_ACTION_FN(ka_openline)
 			vix_keys_feed(vix, "<vix-motion-line-begin>");
 		}
 		vix_keys_feed(vix, "<Enter><vix-motion-line-up>");
+		if (vix->autoindent) {
+			vix_keys_feed(vix, "<vix-motion-line-end>");
+		}
 	}
 	return keys;
 }
@@ -1525,9 +1528,55 @@ static const KeyAction vix_action[] = { KEY_ACTION_LIST(KEY_ACTION_STRUCT) };
 
 #include "config.h"
 
+static void prepend_executable_dir_to_path(const char *argv0)
+{
+	char exe[PATH_MAX];
+	ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+
+	if (len < 0 && argv0 && strchr(argv0, '/')) {
+		if (argv0[0] == '/') {
+			snprintf(exe, sizeof(exe), "%s", argv0);
+		} else {
+			char cwd[PATH_MAX];
+			if (!getcwd(cwd, sizeof(cwd))) {
+				return;
+			}
+			if (snprintf(exe, sizeof(exe), "%s/%s", cwd, argv0) >= (int)sizeof(exe)) {
+				return;
+			}
+		}
+	} else if (len >= 0) {
+		exe[len] = '\0';
+	} else {
+		return;
+	}
+
+	char *slash = strrchr(exe, '/');
+	if (!slash || slash == exe) {
+		return;
+	}
+	*slash = '\0';
+
+	const char *path = getenv("PATH");
+	size_t dirlen = strlen(exe);
+	size_t pathlen = path ? strlen(path) : 0;
+	char *newpath = malloc(dirlen + 1 + pathlen + 1);
+	if (!newpath) {
+		return;
+	}
+	if (pathlen) {
+		snprintf(newpath, dirlen + 1 + pathlen + 1, "%s:%s", exe, path);
+	} else {
+		snprintf(newpath, dirlen + 1 + pathlen + 1, "%s:", exe);
+	}
+	setenv("PATH", newpath, 1);
+	free(newpath);
+}
+
 int main(int argc, char *argv[])
 {
 	setlocale(LC_ALL, "");
+	prepend_executable_dir_to_path(argv[0]);
 	for (int i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
 			continue;

@@ -80,6 +80,7 @@ static File *file_new_text(Vix *vix, Text *text) {
 static File *file_new(Vix *vix, const char *name, bool internal) {
 	char *name_absolute = NULL;
 	bool cmp_names = 0;
+	bool missing = false;
 	struct stat new;
 
 	if (name) {
@@ -92,6 +93,7 @@ static File *file_new(Vix *vix, const char *name, bool internal) {
 				free(name_absolute);
 				return NULL;
 			}
+			missing = true;
 			cmp_names = 1;
 		}
 
@@ -113,10 +115,7 @@ static File *file_new(Vix *vix, const char *name, bool internal) {
 	}
 
 	File *file = NULL;
-	Text *text = text_load_method(vix, name, vix->load_method);
-	if (!text && name && errno == ENOENT) {
-		text = text_load(vix, 0);
-	}
+	Text *text = missing ? text_load(vix, 0) : text_load_method(vix, name, vix->load_method);
 	if (!text) {
 		goto err;
 	}
@@ -189,6 +188,20 @@ static void window_free(Win *win) {
 		}
 	}
 	ui_window_release(&vix->ui, win);
+	if (vix->windows == win) {
+		vix->windows = win->next;
+	}
+	if (win->next) {
+		win->next->prev = win->prev;
+	}
+	if (win->prev) {
+		win->prev->next = win->next;
+	}
+	if (vix->win == win) {
+		vix->win = win->next ? win->next : win->prev;
+	}
+	win->next = NULL;
+	win->prev = NULL;
 	view_free(&win->view);
 	for (size_t i = 0; i < LENGTH(win->modes); i++) {
 		map_free(win->modes[i].bindings);
@@ -635,7 +648,9 @@ void vix_window_close(Win *win) {
 
 bool vix_init(Vix *vix)
 {
+	bool headless = vix->headless;
 	zero_struct(vix);
+	vix->headless = headless;
 
 	if (setjmp(vix->oom_jmp_buf)) {
 		/* NOTE: if we run out of memory here we haven't opened any real
@@ -645,12 +660,10 @@ bool vix_init(Vix *vix)
 	}
 
 	vix->exit_status = -1;
-	if (!vix->headless) {
-		if (!ui_terminal_init(&vix->ui)) {
-			return false;
-		}
-		ui_init(&vix->ui, vix);
+	if (!ui_terminal_init(&vix->ui)) {
+		return false;
 	}
+	ui_init(&vix->ui, vix);
 	vix->change_colors = true;
 	for (size_t i = 0; i < LENGTH(vix->registers); i++) {
 		da_push(vix, vix->registers + i);
@@ -1283,6 +1296,13 @@ static void vix_keys_process(Vix *vix, size_t pos) {
 			}
 			if (!action && vix->mode->input) {
 				end = (char*)vix_keys_next(vix, start);
+				size_t len = end - start;
+				strcpy(vix->key_prev, vix->key_current);
+				if (len >= sizeof(vix->key_current)) {
+					len = sizeof(vix->key_current) - 1;
+				}
+				memcpy(vix->key_current, start, len);
+				vix->key_current[len] = '\0';
 				vix->mode->input(vix, start, end - start);
 			}
 			start = cur = end;
@@ -1721,6 +1741,13 @@ size_t vix_text_insert_nl(Vix *vix, Text *txt, size_t pos) {
 		}
 		indent_len = start >= begin ? start-begin : 0;
 		if (start == end) {
+			if (indent_len) {
+				indent = malloc(indent_len+1);
+				if (indent) {
+					indent_len = text_bytes_get(txt, begin, indent_len, indent);
+				}
+				text_delete(txt, begin, start - begin);
+			}
 			pos = begin;
 		} else {
 			indent = malloc(indent_len+1);

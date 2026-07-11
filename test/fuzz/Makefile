@@ -1,9 +1,8 @@
 ALL = text-fuzzer buffer-fuzzer
 CC ?= afl-gcc
 CFLAGS += -I. -I../.. -DBUFFER_SIZE=4 -DBLOCK_SIZE=4
-LDFLAGS += -ltermkey
 
-TEXT_SRC = 
+TEXT_SRC = ../../termkey.c
 
 test: $(ALL)
 
@@ -11,7 +10,7 @@ text-fuzzer: text-fuzzer.c fuzzer.h $(TEXT_SRC)
 	@echo Compiling $@ binary
 	@${CC} ${CFLAGS} ${CFLAGS_STD} ${CFLAGS_EXTRA} ${filter %.c, $^} ${LDFLAGS} -o $@
 
-text-libfuzzer: text-fuzzer.c fuzzer.h
+text-libfuzzer: text-fuzzer.c fuzzer.h $(TEXT_SRC)
 	@echo Compiling $@ binary
 	@${CC} ${CFLAGS} ${CFLAGS_STD} ${CFLAGS_EXTRA} -DLIBFUZZER ${filter %.c, $^} -fsanitize=fuzzer,address,undefined ${LDFLAGS} -o $@
 

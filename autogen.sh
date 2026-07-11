@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+autoreconf --force --install --verbose

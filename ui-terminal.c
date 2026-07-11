@@ -177,7 +177,7 @@ bool ui_style_define(Win *win, int id, const char *style) {
 }
 
 static void ui_draw_line(Ui *tui, int x, int y, char c, int win_id, enum UiStyle style_id) {
-	if (x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
+	if (!tui->cells || !tui->styles || x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
 		return;
 	}
 	CellStyle style = tui->styles[win_id * UI_STYLE_MAX + style_id];
@@ -427,7 +427,7 @@ void ui_arrange(Ui *tui, enum UiLayout layout) {
 			ui_window_move(win, x, y);
 			x += size;
 
-			if (windows_left > 0 && x >= 0 && x < tui->width) {
+			if (tui->cells && tui->styles && windows_left > 0 && x >= 0 && x < tui->width) {
 				for (int i = y; i < y + max_height; i++) {
 					if (i >= 0 && i < tui->height) {
 						int idx = i * tui->width + x;
@@ -987,6 +987,18 @@ void ui_terminal_restore(Ui *tui) {
 	ui_term_backend_restore(tui);
 }
 
+static bool ui_tabpage_init(Ui *tui)
+{
+	TabPage *tab = calloc(1, sizeof(TabPage));
+	if (!tab) {
+		return false;
+	}
+	tab->layout = UI_LAYOUT_HORIZONTAL;
+	tui->tabpages = tui->seltab = tui->tab_view_offset = tab;
+	tui->win_view_offset = NULL;
+	return true;
+}
+
 bool ui_init(Ui *tui, Vix *vix) {
 	tui->vix = vix;
 
@@ -1018,7 +1030,7 @@ bool ui_init(Ui *tui, Vix *vix) {
 	if (vix->headless) {
 		tui->width = 80;
 		tui->height = 24;
-		return true;
+		return ui_tabpage_init(tui);
 	}
 
 	if (!ui_term_backend_init(tui, term)) {
@@ -1026,14 +1038,7 @@ bool ui_init(Ui *tui, Vix *vix) {
 	}
 	ui_resize(tui);
 
-	/* Initialize the first tab page */
-	TabPage *tab = calloc(1, sizeof(TabPage));
-	if (!tab) goto err;
-	tab->layout = UI_LAYOUT_HORIZONTAL;
-	tui->tabpages = tui->seltab = tui->tab_view_offset = tab;
-	tui->win_view_offset = NULL;
-	
-	return true;
+	return ui_tabpage_init(tui);
 err:
 	ui_die_msg(tui, "Failed to start curses interface: %s\n", errno != 0 ? strerror(errno) : "");
 	return false;

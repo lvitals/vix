@@ -932,7 +932,10 @@ size_t view_screenline_begin(Selection *sel) {
 	View *view = sel->view;
 	Win *win = (Win *)((char *)view - offsetof(Win, view));
 	if (win->vix->headless) {
-		return text_line_begin(view->text, view_cursors_pos(sel));
+		if (view->selection_count > 1) {
+			return text_line_begin(view->text, view_cursors_pos(sel));
+		}
+		return view_cursors_pos(sel);
 	}
 	if (!sel->line) {
 		view_draw(view);

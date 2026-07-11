@@ -460,6 +460,10 @@ static bool is_file_pattern(const char *pattern) {
 }
 
 static const char *file_open_dialog(Vix *vix, const char *pattern) {
+	if (vix->headless || !pattern || !strpbrk(pattern, "*?[{")) {
+		return pattern;
+	}
+
 	static char name[PATH_MAX];
 	name[0] = '\0';
 
