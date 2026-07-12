@@ -29,7 +29,7 @@ external_dependencies = {
 }
 build = {
    type = "command",
-   build_command = "./autogen.sh && ./configure --prefix=$(PREFIX) && make",
+   build_command = "./autogen.sh && ./configure --prefix=$(PREFIX) CFLAGS=\"$(CFLAGS)\" LDFLAGS=\"$(LDFLAGS)\" && make",
    install_command = [[
       make install && \
       mkdir -p "$HOME/.luarocks/share/man/man1" && \

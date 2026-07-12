@@ -147,6 +147,9 @@ static bool cmd_user(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 }
 
 void vix_shell_set(Vix *vix, const char *new_shell) {
+	if (!new_shell) {
+		return;
+	}
 	char *shell =  strdup(new_shell);
 	if (!shell) {
 		vix_info_show(vix, "Failed to change shell");

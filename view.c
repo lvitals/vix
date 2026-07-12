@@ -93,12 +93,12 @@ void window_status_update(Vix *vix, Win *win) {
 		snprintf(right_parts[right_count++], sizeof(right_parts[0]), "%d", count);
 	}
 
-	int sel_count = view->selection_count;
+	size_t sel_count = view->selection_count;
 	if (sel_count > 1) {
 		Selection *s = view_selections_primary_get(view);
-		int sel_number = view_selections_number(s) + 1;
+		size_t sel_number = view_selections_number(s) + 1;
 		snprintf(right_parts[right_count++], sizeof(right_parts[0]),
-		         "%d/%d", sel_number, sel_count);
+		         "%zu/%zu", sel_number, sel_count);
 	}
 
 	size_t size = text_size(txt);
@@ -1005,6 +1005,9 @@ void win_options_set(Win *win, enum UiOption options) {
 }
 
 bool view_breakat_set(View *view, const char *breakat) {
+	if (!breakat) {
+		return false;
+	}
 	char *copy = strdup(breakat);
 	if (!copy) {
 		return false;
@@ -1101,7 +1104,7 @@ Selection *view_selections_new_force(View *view, size_t pos) {
 	return selections_new(view, pos, true);
 }
 
-int view_selections_number(Selection *sel) {
+size_t view_selections_number(Selection *sel) {
 	return sel->number;
 }
 

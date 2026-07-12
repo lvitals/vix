@@ -251,6 +251,9 @@ static bool func_ref_get(lua_State *L, const void *addr) {
  */
 static void obj_type_new(lua_State *L, str8 type)
 {
+	if (!type.data) {
+		return;
+	}
 	luaL_newmetatable(L, (char *)type.data);
 	lua_getglobal(L, "vix");
 	if (!lua_isnil(L, -1)) {
@@ -276,12 +279,15 @@ const char *obj_type_get(lua_State *L) {
 		return "nil";
 	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.types");
-	lua_getmetatable(L, -2);
-	lua_gettable(L, -2);
-	// XXX: in theory string might become invalid when popped from stack
-	const char *type = lua_tostring(L, -1);
-	lua_pop(L, 2);
-	return type;
+	if (lua_getmetatable(L, -2)) {
+		lua_gettable(L, -2);
+		// XXX: in theory string might become invalid when popped from stack
+		const char *type = lua_tostring(L, -1);
+		lua_pop(L, 2);
+		return type ? type : "";
+	}
+	lua_pop(L, 1);
+	return "";
 }
 
 static void *obj_new(lua_State *L, size_t size, const char *type) {
@@ -295,6 +301,9 @@ static void *obj_new(lua_State *L, size_t size, const char *type) {
 
 /* returns registry["vix.objects"][addr] if it is of correct type */
 static void *obj_ref_get(lua_State *L, void *addr, const char *type) {
+	if (!addr) {
+		return NULL;
+	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.objects");
 	lua_pushlightuserdata(L, addr);
 	lua_gettable(L, -2);
@@ -2016,7 +2025,9 @@ static int registers_index(lua_State *L) {
 	for (VixDACount i = 0; i < strings.count; i++) {
 		str8 string = strings.data[i];
 		lua_pushinteger(L, i+1);
-		lua_pushlstring(L, (char *)string.data, string.length);
+		lua_pushlstring(L,
+		                string.data ? (char *)string.data : "",
+		                string.data ? string.length : 0);
 		lua_settable(L, -3);
 	}
 	da_release(&strings);
