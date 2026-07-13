@@ -65,9 +65,7 @@ EXTRA_DIST = \
 	docs \
 	lua \
 	man \
-	test \
-	vix-0.1-6.rockspec \
-	vix-dev-1.rockspec
+	test
 
 install-data-local:
 	$(MKDIR_P) "$(DESTDIR)$(vixdatadir)"
