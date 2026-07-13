@@ -45,6 +45,7 @@ end
 
 
 local msg = ""
+local executed = {}
 function describe(s, fn)
 	group = {
 		before_each = function()
@@ -112,6 +113,13 @@ vix.events.subscribe(vix.events.WIN_OPEN, function(win)
 
 	-- use the corresponding test.lua file
 	lua_file = string.gsub(in_file, '%.in$', '.lua')
+	if lua_file == in_file then
+		return
+	end
+	if executed[lua_file] then
+		return
+	end
+	executed[lua_file] = true
 
 	local ok, err = pcall(dofile, lua_file)
 	if not ok then

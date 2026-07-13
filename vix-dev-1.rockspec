@@ -18,10 +18,6 @@ dependencies = {
    "lpeg"
 }
 external_dependencies = {
-   TERMKEY = {
-      header = "termkey.h",
-      library = "termkey"
-   },
    NCURSESW = {
       header = "curses.h",
       library = "ncursesw"
@@ -33,9 +29,9 @@ external_dependencies = {
 }
 build = {
    type = "command",
-   build_command = "make clean && make PREFIX=$(PREFIX) VIX_PATH=$(LUADIR)",
+   build_command = "./autogen.sh && ./configure --prefix=$(PREFIX) CFLAGS=\"$(CFLAGS)\" LDFLAGS=\"$(LDFLAGS)\" && make",
    install_command = [[
-      make install PREFIX=$(PREFIX) VIX_PATH=$(LUADIR) MANPREFIX=$(PREFIX)/doc/man && \
+      make install && \
       mkdir -p "$HOME/.luarocks/share/man/man1" && \
       cp man/*.1 "$HOME/.luarocks/share/man/man1/"
    ]],

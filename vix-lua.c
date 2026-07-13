@@ -251,6 +251,9 @@ static bool func_ref_get(lua_State *L, const void *addr) {
  */
 static void obj_type_new(lua_State *L, str8 type)
 {
+	if (!type.data) {
+		return;
+	}
 	luaL_newmetatable(L, (char *)type.data);
 	lua_getglobal(L, "vix");
 	if (!lua_isnil(L, -1)) {
@@ -276,12 +279,15 @@ const char *obj_type_get(lua_State *L) {
 		return "nil";
 	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.types");
-	lua_getmetatable(L, -2);
-	lua_gettable(L, -2);
-	// XXX: in theory string might become invalid when popped from stack
-	const char *type = lua_tostring(L, -1);
-	lua_pop(L, 2);
-	return type;
+	if (lua_getmetatable(L, -2)) {
+		lua_gettable(L, -2);
+		// XXX: in theory string might become invalid when popped from stack
+		const char *type = lua_tostring(L, -1);
+		lua_pop(L, 2);
+		return type ? type : "";
+	}
+	lua_pop(L, 1);
+	return "";
 }
 
 static void *obj_new(lua_State *L, size_t size, const char *type) {
@@ -295,6 +301,9 @@ static void *obj_new(lua_State *L, size_t size, const char *type) {
 
 /* returns registry["vix.objects"][addr] if it is of correct type */
 static void *obj_ref_get(lua_State *L, void *addr, const char *type) {
+	if (!addr) {
+		return NULL;
+	}
 	lua_getfield(L, LUA_REGISTRYINDEX, "vix.objects");
 	lua_pushlightuserdata(L, addr);
 	lua_gettable(L, -2);
@@ -2016,7 +2025,9 @@ static int registers_index(lua_State *L) {
 	for (VixDACount i = 0; i < strings.count; i++) {
 		str8 string = strings.data[i];
 		lua_pushinteger(L, i+1);
-		lua_pushlstring(L, (char *)string.data, string.length);
+		lua_pushlstring(L,
+		                string.data ? (char *)string.data : "",
+		                string.data ? string.length : 0);
 		lua_settable(L, -3);
 	}
 	da_release(&strings);
@@ -3424,15 +3435,22 @@ static void vix_lua_event_call(Vix *vix, const char *name) {
 	lua_pop(L, 1);
 }
 
-#if LUA_VERSION_NUM >= 502
-#define VIX_LUA_VERSION LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
-#else
-#define VIX_LUA_VERSION "5.1"
-#endif
-
 static bool vix_lua_path_strip(Vix *vix) {
 	lua_State *L = vix->lua;
+
+	lua_getglobal(L, "_VERSION");
+	const char *lua_ver = lua_tostring(L, -1);
+	if (lua_ver && strncmp(lua_ver, "Lua ", 4) == 0) {
+		lua_ver += 4;
+	} else {
+		lua_ver = NULL;
+	}
+
 	lua_getglobal(L, "package");
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 2);
+		return false;
+	}
 
 	for (const char **var = (const char*[]){ "path", "cpath", NULL }; *var; var++) {
 
@@ -3440,13 +3458,14 @@ static bool vix_lua_path_strip(Vix *vix) {
 		const char *path = lua_tostring(L, -1);
 		lua_pop(L, 1);
 		if (!path) {
-			return false;
+			continue;
 		}
 
 		char *copy = strdup(path), *stripped = calloc(1, strlen(path)+2);
 		if (!copy || !stripped) {
 			free(copy);
 			free(stripped);
+			lua_pop(L, 2);
 			return false;
 		}
 
@@ -3458,19 +3477,17 @@ static bool vix_lua_path_strip(Vix *vix) {
 				continue; /* skip relative path entries */
 			}
 
-			/* skip paths with mismatched lua version */
-			char *ver = (strstr)(elem, "/lua/");
-			if (ver) {
-				ver += 5; // skip "/lua/"
-				/* if it contains a version string, check if it matches ours.
-				 * we allow it if it starts with our version string (e.g. 5.1)
-				 * followed by a separator (/ or ;) or end of string.
-				 */
-				if (isdigit((unsigned char)ver[0])) {
-					size_t vlen = strlen(VIX_LUA_VERSION);
-					if (strncmp(ver, VIX_LUA_VERSION, vlen) != 0 ||
-					    (ver[vlen] != '\0' && ver[vlen] != '/' && ver[vlen] != ';')) {
-						continue;
+			if (lua_ver) {
+				/* skip paths with mismatched lua version */
+				char *ver = (strstr)(elem, "/lua/");
+				if (ver) {
+					ver += 5; // skip "/lua/"
+					if (isdigit((unsigned char)ver[0])) {
+						size_t vlen = strlen(lua_ver);
+						if (strncmp(ver, lua_ver, vlen) != 0 ||
+						    (ver[vlen] != '\0' && ver[vlen] != '/' && ver[vlen] != ';')) {
+							continue;
+						}
 					}
 				}
 			}
@@ -3485,7 +3502,7 @@ static bool vix_lua_path_strip(Vix *vix) {
 		free(stripped);
 	}
 
-	lua_pop(L, 1); /* package */
+	lua_pop(L, 2); /* package and _VERSION */
 	return true;
 }
 
@@ -3576,7 +3593,7 @@ static void *alloc_lua(void *ud, void *ptr, size_t osize, size_t nsize) {
 static void vix_lua_init(Vix *vix) {
 	lua_State *L;
 #if LUA_VERSION_NUM >= 505
-	L = lua_newstate(alloc_lua, vix, luaL_makeseed(0));
+	L = lua_newstate(alloc_lua, vix, 0);
 #else
 	L = lua_newstate(alloc_lua, vix);
 #endif

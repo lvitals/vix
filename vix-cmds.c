@@ -147,6 +147,9 @@ static bool cmd_user(Vix *vix, Win *win, Command *cmd, const char *argv[], Selec
 }
 
 void vix_shell_set(Vix *vix, const char *new_shell) {
+	if (!new_shell) {
+		return;
+	}
 	char *shell =  strdup(new_shell);
 	if (!shell) {
 		vix_info_show(vix, "Failed to change shell");
@@ -460,6 +463,10 @@ static bool is_file_pattern(const char *pattern) {
 }
 
 static const char *file_open_dialog(Vix *vix, const char *pattern) {
+	if (vix->headless || !pattern || !strpbrk(pattern, "*?[{")) {
+		return pattern;
+	}
+
 	static char name[PATH_MAX];
 	name[0] = '\0';
 

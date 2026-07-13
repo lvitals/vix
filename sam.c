@@ -1099,8 +1099,8 @@ static Filerange address_evaluate(Vix *vix, Address *addr, File *file, Selection
 		{
 			size_t pos = EPOS;
 			SelectionRegionList *marks = file->marks + addr->number;
-			VixDACount idx = sel ? view_selections_number(sel) : 0;
-			if (idx < marks->count) {
+			size_t idx = sel ? view_selections_number(sel) : 0;
+			if (idx < (size_t)marks->count) {
 				pos = text_mark_get(file->text, marks->data[idx].cursor);
 			}
 			ret = text_range_new(pos, pos);

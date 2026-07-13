@@ -43,7 +43,7 @@ typedef struct Selection {
 	int lastcol;            /* remembered column used when moving across lines */
 	Line *line;             /* screen line on which cursor currently resides */
 	int generation;         /* used to filter out newly created cursors during iteration */
-	int number;             /* how many cursors are located before this one */
+	size_t number;          /* how many cursors are located before this one */
 	struct View *view;      /* associated view to which this cursor belongs */
 	struct Selection *prev, *next; /* previous/next cursors ordered by location at creation time */
 } Selection;
@@ -63,7 +63,7 @@ typedef struct View {
 	Selection *selection;    /* primary selection, always placed within the visible viewport */
 	Selection *selection_latest; /* most recently created cursor */
 	Selection *selection_dead;   /* primary cursor which was disposed, will be removed when another cursor is created */
-	int selection_count;   /* how many cursors do currently exist */
+	size_t selection_count;      /* how many cursors do currently exist */
 	Line *line;         /* used while drawing view content, line where next char will be drawn */
 	int col;            /* used while drawing view content, column where next char will be drawn */
 	const char *symbols[SYNTAX_SYMBOL_LAST]; /* symbols to use for white spaces etc */
@@ -209,7 +209,7 @@ VIX_INTERNAL Selection *view_selections_next(Selection*);
  *             to remain the same.
  * @endrst
  */
-VIX_INTERNAL int view_selections_number(Selection*);
+VIX_INTERNAL size_t view_selections_number(Selection*);
 /** Get maximal number of selections on a single line. */
 VIX_INTERNAL int view_selections_column_count(View*);
 /**
