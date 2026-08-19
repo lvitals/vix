@@ -13,7 +13,7 @@ AC_ARG_ENABLE([lua],
 	[], [enable_lua=yes])
 AC_ARG_WITH([lua-pkg],
 	AS_HELP_STRING([--with-lua-pkg=NAME], [pkg-config module to use for Lua]),
-	[lua_pkg=$withval], [lua_pkg=lua])
+	[lua_pkg=$withval], [lua_pkg=auto])
 
 AC_ARG_ENABLE([tre],
 	AS_HELP_STRING([--disable-tre], [disable TRE regular expression support]),
@@ -48,12 +48,82 @@ AS_IF([test "x$enable_curses" = xyes], [
 CONFIG_LUA=0
 CONFIG_LPEG=0
 AS_IF([test "x$enable_lua" = xyes], [
+	AS_IF([test "x$lua_pkg" = xauto], [
+		AC_PATH_PROGS([LUA_ACTIVE_INT], [lua lua5.5 lua5.4 lua5.3 lua5.2 lua5.1])
+		AS_IF([test -n "$LUA_ACTIVE_INT"], [
+			active_int_ver=`$LUA_ACTIVE_INT -e 'print(_VERSION:match("%d+%.%d+"))' 2>/dev/null`
+			AS_IF([test -n "$active_int_ver"], [
+				for cand_pkg in "lua-$active_int_ver" "lua$active_int_ver" "lua`echo $active_int_ver | tr -d .`"; do
+					AS_IF([$PKG_CONFIG --exists "$cand_pkg" 2>/dev/null], [
+						lua_pkg="$cand_pkg"
+						break
+					])
+				done
+				AS_IF([test "x$lua_pkg" = xauto && $PKG_CONFIG --exists lua 2>/dev/null], [
+					sys_lua_ver=`$PKG_CONFIG --modversion lua 2>/dev/null | grep -o '^[[0-9]]\+\.[[0-9]]\+'`
+					AS_IF([test "x$sys_lua_ver" = "x$active_int_ver"], [
+						lua_pkg=lua
+					])
+				])
+			])
+		])
+		AS_IF([test "x$lua_pkg" = xauto], [
+			for cand_pkg in lua lua5.5 lua-5.5 lua55 lua5.4 lua-5.4 lua54 lua5.3 lua-5.3 lua53 lua5.2 lua-5.2 lua52 lua5.1 lua-5.1 lua51 luajit; do
+				AS_IF([$PKG_CONFIG --exists "$cand_pkg" 2>/dev/null], [
+					lua_pkg="$cand_pkg"
+					break
+				])
+			done
+		])
+		AS_IF([test "x$lua_pkg" = xauto], [
+			AC_MSG_ERROR([Could not find a Lua pkg-config module.
+Install Lua development package or rerun configure with --disable-lua or --with-lua-pkg=NAME.])
+		])
+	])
+
 	PKG_CHECK_MODULES([LUA], [$lua_pkg])
-	AC_PATH_PROGS([LUA_INTERPRETER], [lua lua5.5 lua5.4 lua5.3 lua5.2 lua5.1])
+
+	vix_save_CPPFLAGS=$CPPFLAGS
+	CPPFLAGS="$LUA_CFLAGS $CPPFLAGS"
+	AC_COMPUTE_INT([LUA_VER_NUM], [LUA_VERSION_NUM], [#include <lua.h>], [LUA_VER_NUM=0])
+	CPPFLAGS=$vix_save_CPPFLAGS
+
+	AS_CASE([$LUA_VER_NUM],
+		[505], [LUA_TARGET_VER="5.5"],
+		[504], [LUA_TARGET_VER="5.4"],
+		[503], [LUA_TARGET_VER="5.3"],
+		[502], [LUA_TARGET_VER="5.2"],
+		[501], [LUA_TARGET_VER="5.1"],
+		[LUA_TARGET_VER=]
+	)
+
+	LUA_INTERPRETER=
+	AS_IF([test -n "$LUA_TARGET_VER"], [
+		for cand_int in "lua$LUA_TARGET_VER" "lua-$LUA_TARGET_VER" "lua`echo $LUA_TARGET_VER | tr -d .`" "lua"; do
+			cand_path=`which "$cand_int" 2>/dev/null`
+			AS_IF([test -n "$cand_path" && test -x "$cand_path"], [
+				cand_ver=`$cand_path -e 'print(_VERSION:match("%d+%.%d+"))' 2>/dev/null`
+				AS_IF([test "x$cand_ver" = "x$LUA_TARGET_VER"], [
+					LUA_INTERPRETER="$cand_path"
+					break
+				])
+			])
+		done
+	])
+	AS_IF([test "x$LUA_INTERPRETER" = x], [
+		AC_PATH_PROGS([LUA_INTERPRETER], [lua lua5.5 lua5.4 lua5.3 lua5.2 lua5.1])
+	])
 	AS_IF([test "x$LUA_INTERPRETER" = x], [
 		AC_MSG_ERROR([Lua support requires a Lua interpreter for configure-time module checks.
 Install the Lua interpreter package matching the Lua development package, or rerun configure with --disable-lua.])
 	])
+
+	int_ver=`$LUA_INTERPRETER -e 'print(_VERSION:match("%d+%.%d+"))' 2>/dev/null`
+	AS_IF([test -n "$LUA_TARGET_VER" && test "x$int_ver" != "x$LUA_TARGET_VER"], [
+		AC_MSG_ERROR([Lua library version ($LUA_TARGET_VER) does not match Lua interpreter version ($int_ver).
+Install lua$LUA_TARGET_VER or specify matching --with-lua-pkg.])
+	])
+
 	AC_MSG_CHECKING([for Lua module lpeg])
 	AS_IF([$LUA_INTERPRETER -e 'require("lpeg")' >/dev/null 2>&1], [
 		AC_MSG_RESULT([yes])
@@ -91,6 +161,37 @@ Install LPeg development/link files for the selected Lua version, or rerun confi
 					AC_MSG_ERROR([The LPeg module was found, but the build could not link luaopen_lpeg from it.
 Install LPeg development/link files for the selected Lua version, or rerun configure with --disable-lua.])
 				])
+			AC_MSG_CHECKING([whether LPeg is binary-compatible with Lua library])
+			vix_save_CFLAGS=$CFLAGS
+			CFLAGS="$LUA_CFLAGS $CFLAGS"
+			AC_RUN_IFELSE(
+				[AC_LANG_PROGRAM([[
+					#include <lua.h>
+					#include <lualib.h>
+					#include <lauxlib.h>
+					extern int luaopen_lpeg(lua_State *);
+				]], [[
+					lua_State *L;
+					#if LUA_VERSION_NUM >= 505
+					L = lua_newstate(NULL, NULL, 0);
+					#else
+					L = luaL_newstate();
+					#endif
+					if (!L) return 1;
+					luaL_openlibs(L);
+					lua_pushcfunction(L, luaopen_lpeg);
+					int res = lua_pcall(L, 0, 1, 0);
+					lua_close(L);
+					return res == 0 ? 0 : 1;
+				]])],
+				[AC_MSG_RESULT([yes])],
+				[
+					AC_MSG_RESULT([no])
+					AC_MSG_ERROR([LPeg shared object is binary-incompatible with the selected Lua library (ABI mismatch / segfault).
+Make sure LPeg was compiled against the same Lua version as the Lua library used by vix.])
+				],
+				[AC_MSG_RESULT([cross-compiling; assumed yes])])
+			CFLAGS=$vix_save_CFLAGS
 		])
 	LIBS=$vix_save_LIBS
 	CONFIG_LUA=1

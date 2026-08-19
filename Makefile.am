@@ -27,7 +27,11 @@ AM_CFLAGS = \
 
 AM_LDFLAGS = $(ASAN_LDFLAGS)
 
-LDADD = \
+bin_PROGRAMS = vix vix-menu vix-digraph
+dist_bin_SCRIPTS = vix-clipboard vix-complete vix-open
+
+vix_SOURCES = main.c termkey.c termkey.h
+vix_LDADD = \
 	$(NCURSESW_LIBS) \
 	$(LUA_LIBS) \
 	$(LPEG_LIBS) \
@@ -36,12 +40,11 @@ LDADD = \
 	$(SELINUX_LIBS) \
 	-lm
 
-bin_PROGRAMS = vix vix-menu vix-digraph
-dist_bin_SCRIPTS = vix-clipboard vix-complete vix-open
-
-vix_SOURCES = main.c termkey.c termkey.h
 vix_menu_SOURCES = vix-menu.c
+vix_menu_LDADD =
+
 vix_digraph_SOURCES = vix-digraph.c
+vix_digraph_LDADD =
 
 BUILT_SOURCES = config.h
 CLEANFILES = config.h
