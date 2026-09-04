@@ -708,23 +708,19 @@ void view_redraw_top(View *view) {
 }
 
 void view_redraw_center(View *view) {
-	int center = view->height / 2;
 	size_t pos = view->selection->pos;
-	for (int i = 0; i < 2; i++) {
-		int linenr = 0;
-		Line *line = view->selection->line;
-		for (Line *cur = view->topline; cur && cur != line; cur = cur->next) {
-			linenr++;
+	/* view->lines is a flat array of view->height fixed-stride lines, so the
+	 * line number can be computed directly instead of walking a linked list */
+	size_t line_size = sizeof(Line) + view->width*sizeof(Cell);
+	int linenr = ((char *)view->selection->line - (char *)view->lines) / line_size;
+	int center = view->height / 2;
+	if (linenr < center) {
+		view_slide_down(view, center - linenr);
+	} else {
+		for (int i = 0; i < linenr - center; i++) {
+			Line *l = (Line *)((char *)view->lines + line_size * i);
+			view->start += l->len;
 		}
-		if (linenr < center) {
-			view_slide_down(view, center - linenr);
-			continue;
-		}
-		for (Line *cur = view->topline; cur && cur != line && linenr > center; cur = cur->next) {
-			view->start += cur->len;
-			linenr--;
-		}
-		break;
 	}
 	view_draw(view);
 	view_cursors_to(view->selection, pos);
