@@ -499,6 +499,16 @@ void view_draw(View *view) {
 		bool eof = view->end == text_size(view->text);
 		if (view->line->len == 0 && eof && view->line->prev) {
 			view->lastline = view->line->prev;
+		} else if (eof && view->line->len == view->width && view->line->next) {
+			// TODO: HACK: this doesn't belong here. we shouldn't allow
+			// the selection to sit off the edge of the terminal but stopping
+			// that requires major changes elsewhere. only take this path
+			// when a next line actually exists (e.g. not for a height==1
+			// window): view->lastline->next is dereferenced unguarded
+			// elsewhere, so leaving lastline NULL here would trade an
+			// invisible cursor for a crash.
+			view->lastline = view->line->next;
+			view_wrap_line(view);
 		} else {
 			view->lastline = view->line;
 		}
