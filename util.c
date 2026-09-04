@@ -137,8 +137,9 @@ str8_split_at(str8 s, str8 *left, str8 *right, ptrdiff_t n)
 static void
 path_split(str8 path, str8 *directory, str8 *basename)
 {
-	str8_split_at(path, directory, basename,
-	              (uint8_t *)memory_scan_reverse(path.data, '/', path.length) - path.data);
+	uint8_t *slash = memory_scan_reverse(path.data, '/', path.length);
+	ptrdiff_t at = slash ? slash - path.data : -1;
+	str8_split_at(path, directory, basename, at);
 	if (directory && directory->length == 0) {
 		*directory = str8(".");
 	}
