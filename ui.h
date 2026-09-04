@@ -50,21 +50,59 @@ enum UiStyle {
 	UI_STYLE_MAX,
 };
 
-#if CONFIG_CURSES
-typedef uint64_t CellAttr;
-typedef short CellColor;
-#else
+/* Portable per-cell attribute bits, shared by both backends. Curses converts
+ * these to its native attr_t at render time instead of storing attr_t
+ * directly, so a single CellStyle format can be shared by both backends. */
 typedef uint8_t CellAttr;
-typedef struct {
-	uint8_t r, g, b;
-	uint8_t index;
-} CellColor;
-#endif
+#define CELL_ATTR_NORMAL    0
+#define CELL_ATTR_UNDERLINE (1 << 0)
+#define CELL_ATTR_REVERSE   (1 << 1)
+#define CELL_ATTR_BLINK     (1 << 2)
+#define CELL_ATTR_BOLD      (1 << 3)
+#define CELL_ATTR_ITALIC    (1 << 4)
+#define CELL_ATTR_DIM       (1 << 5)
 
+/* CellStyle.properties: whether fg/bg were explicitly specified by this
+ * style (vs. should be inherited from whatever the cell already has), and
+ * how to interpret the fg/bg fields when they were. Styles are commonly
+ * partial by design -- e.g. a selection style only sets bg, leaving fg (and
+ * thus any syntax highlighting color) untouched. */
+enum {
+	CELL_STYLE_FG_SET     = 1 << 0, /* fg fields below are meaningful */
+	CELL_STYLE_BG_SET     = 1 << 1, /* bg fields below are meaningful */
+	CELL_STYLE_FG_DEFAULT = 1 << 2, /* force the terminal's default fg (fg fields unused) */
+	CELL_STYLE_BG_DEFAULT = 1 << 3, /* force the terminal's default bg (bg fields unused) */
+	CELL_STYLE_FG_INDEXED = 1 << 4, /* fg_r/fg_g hold a 16-bit palette index, not RGB */
+	CELL_STYLE_BG_INDEXED = 1 << 5, /* bg_r/bg_g hold a 16-bit palette index, not RGB */
+	CELL_STYLE_KEEP_ATTR  = 1 << 6, /* OR attr with the cell's existing attr instead of replacing it */
+};
+
+/* Packed to exactly 8 bytes: 1 (attr) + 3 (fg) + 3 (bg) + 1 (properties).
+ * Both backends share this single representation; each backend maps
+ * fg/bg/properties to whatever it needs (color pairs for curses, SGR escape
+ * sequences for vt100) at render time. */
 typedef struct {
 	CellAttr attr;
-	CellColor fg, bg;
+	uint8_t  fg_r, fg_g, fg_b; /* RGB, or a 16-bit index (see CellStyleFGIndex*) when FG_INDEXED */
+	uint8_t  bg_r, bg_g, bg_b; /* RGB, or a 16-bit index (see CellStyleBGIndex*) when BG_INDEXED */
+	uint8_t  properties;       /* CELL_STYLE_* flags above */
 } CellStyle;
+
+#define CellStyleFGIndexGet(s) ((uint16_t)(((s)->fg_r << 8) | (s)->fg_g))
+#define CellStyleFGIndexSet(s, index) ((s)->fg_r = (((index) >> 8u) & 0xFFu), (s)->fg_g = (index) & 0xFFu)
+#define CellStyleBGIndexGet(s) ((uint16_t)(((s)->bg_r << 8) | (s)->bg_g))
+#define CellStyleBGIndexSet(s, index) ((s)->bg_r = (((index) >> 8u) & 0xFFu), (s)->bg_g = (index) & 0xFFu)
+
+/* An as-yet-unassigned color, as parsed from a theme string (e.g. "fore:...").
+ * Not stored on a Cell/CellStyle directly -- see CellStyleFGIndexSet et al
+ * for how this gets packed into one once the fg/bg slot it applies to is
+ * known. */
+typedef struct {
+	bool is_default; /* explicit "default": force the terminal's default color */
+	bool indexed;    /* palette index (rgb unused) vs. RGB (index unused) */
+	uint16_t index;
+	uint8_t r, g, b;
+} CellColorSpec;
 
 typedef struct {
 	char data[6];       /* utf8 encoded character displayed in this cell. a single Unicode

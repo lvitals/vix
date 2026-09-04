@@ -3,26 +3,20 @@
 
 #define UI_TERMKEY_FLAGS (TERMKEY_FLAG_UTF8|TERMKEY_FLAG_NOTERMIOS)
 
-#define CELL_COLOR_BLACK   COLOR_BLACK
-#define CELL_COLOR_RED     COLOR_RED
-#define CELL_COLOR_GREEN   COLOR_GREEN
-#define CELL_COLOR_YELLOW  COLOR_YELLOW
-#define CELL_COLOR_BLUE    COLOR_BLUE
-#define CELL_COLOR_MAGENTA COLOR_MAGENTA
-#define CELL_COLOR_CYAN    COLOR_CYAN
-#define CELL_COLOR_WHITE   COLOR_WHITE
-#define CELL_COLOR_DEFAULT (-1)
-
 #ifndef A_ITALIC
 #define A_ITALIC A_NORMAL
 #endif
-#define CELL_ATTR_NORMAL    A_NORMAL
-#define CELL_ATTR_UNDERLINE A_UNDERLINE
-#define CELL_ATTR_REVERSE   A_REVERSE
-#define CELL_ATTR_BLINK     A_BLINK
-#define CELL_ATTR_BOLD      A_BOLD
-#define CELL_ATTR_ITALIC    A_ITALIC
-#define CELL_ATTR_DIM       A_DIM
+
+/* ncurses' own sentinel color value meaning "the terminal's default",
+ * usable once use_default_colors() has been called (see ui_term_backend_init) */
+#define CURSES_COLOR_DEFAULT (-1)
+
+static CellStyle ui_backend_style_default(Ui *ui) {
+	CellStyle result = {0};
+	result.properties |= CELL_STYLE_FG_SET|CELL_STYLE_FG_DEFAULT;
+	result.properties |= CELL_STYLE_BG_SET|CELL_STYLE_BG_DEFAULT;
+	return result;
+}
 
 #ifdef NCURSES_VERSION
 # ifndef NCURSES_EXT_COLORS
@@ -45,10 +39,6 @@ typedef struct {
 	short default_fg;
 	short default_bg;
 } CursesData;
-
-static inline bool cell_color_equal(CellColor c1, CellColor c2) {
-	return c1 == c2;
-}
 
 /* Calculate r,g,b components of one of the standard upper 240 colors */
 static void get_6cube_rgb(unsigned int n, int *r, int *g, int *b)
@@ -78,15 +68,16 @@ static void undo_palette(void)
 static short color_clobber_idx = 0;
 static uint32_t clobbering_colors[MAX_COLOR_CLOBBER];
 
-/* Work out the nearest color from the 256 color set, or perhaps exactly. */
-static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
+/* Work out the nearest curses palette index for an RGB triple, or perhaps
+ * exactly (via color clobbering, when the terminal supports it). */
+static short curses_color_from_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 {
 	CursesData *data = ui->backend_data;
 
 	if (!data) {
 		data = calloc(1, sizeof(CursesData));
 		if (!data) {
-			return CELL_COLOR_DEFAULT;
+			return CURSES_COLOR_DEFAULT;
 		}
 		ui->backend_data = data;
 		data->change_colors = -1;
@@ -169,15 +160,11 @@ static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b)
 	return i;
 }
 
-static CellColor color_terminal(Ui *ui, uint8_t index) {
-	return index;
-}
-
 static inline unsigned int color_pair_hash(short fg, short bg) {
-	if (fg == CELL_COLOR_DEFAULT) {
+	if (fg == CURSES_COLOR_DEFAULT) {
 		fg = COLORS;
 	}
-	if (bg == CELL_COLOR_DEFAULT) {
+	if (bg == CURSES_COLOR_DEFAULT) {
 		bg = COLORS + 1;
 	}
 	return fg * (COLORS + 2) + bg;
@@ -209,10 +196,10 @@ static short color_pair_get(Ui *ui, short fg, short bg) {
 	}
 
 	if (!has_default_colors) {
-		if (fg == -1) {
+		if (fg == CURSES_COLOR_DEFAULT) {
 			fg = data->default_fg;
 		}
-		if (bg == -1) {
+		if (bg == CURSES_COLOR_DEFAULT) {
 			bg = data->default_bg;
 		}
 	}
@@ -239,8 +226,39 @@ static short color_pair_get(Ui *ui, short fg, short bg) {
 	return data->color2palette[index];
 }
 
+static short cell_style_fg_curses_index(Ui *ui, CellStyle *style) {
+	if (style->properties & CELL_STYLE_FG_DEFAULT) {
+		return CURSES_COLOR_DEFAULT;
+	} else if (style->properties & CELL_STYLE_FG_INDEXED) {
+		return (short)CellStyleFGIndexGet(style);
+	}
+	return curses_color_from_rgb(ui, style->fg_r, style->fg_g, style->fg_b);
+}
+
+static short cell_style_bg_curses_index(Ui *ui, CellStyle *style) {
+	if (style->properties & CELL_STYLE_BG_DEFAULT) {
+		return CURSES_COLOR_DEFAULT;
+	} else if (style->properties & CELL_STYLE_BG_INDEXED) {
+		return (short)CellStyleBGIndexGet(style);
+	}
+	return curses_color_from_rgb(ui, style->bg_r, style->bg_g, style->bg_b);
+}
+
+static attr_t curses_attr_from_cellattr(CellAttr attr) {
+	attr_t result = A_NORMAL;
+	result |= (attr & CELL_ATTR_UNDERLINE) ? A_UNDERLINE : 0;
+	result |= (attr & CELL_ATTR_REVERSE)   ? A_REVERSE   : 0;
+	result |= (attr & CELL_ATTR_BLINK)     ? A_BLINK     : 0;
+	result |= (attr & CELL_ATTR_BOLD)      ? A_BOLD      : 0;
+	result |= (attr & CELL_ATTR_ITALIC)    ? A_ITALIC    : 0;
+	result |= (attr & CELL_ATTR_DIM)       ? A_DIM       : 0;
+	return result;
+}
+
 static inline attr_t style_to_attr(Ui *ui, CellStyle *style) {
-	return style->attr | COLOR_PAIR(color_pair_get(ui, style->fg, style->bg));
+	short fg = cell_style_fg_curses_index(ui, style);
+	short bg = cell_style_bg_curses_index(ui, style);
+	return curses_attr_from_cellattr(style->attr) | COLOR_PAIR(color_pair_get(ui, fg, bg));
 }
 
 static void ui_term_backend_blit(Ui *tui) {
@@ -388,8 +406,4 @@ static void ui_term_backend_free(Ui *term) {
 		delscreen(term->ctx);
 		term->ctx = NULL;
 	}
-}
-
-static bool is_default_color(CellColor c) {
-	return c == CELL_COLOR_DEFAULT;
 }

@@ -29,9 +29,11 @@
  *    - CSI 24 m                    Not underlined
  *    - CSI 25 m                    Not blinking
  *    - CSI 27 m                    Not inverse
- *    - CSI 30-37,39                Set foreground color
+ *    - CSI 39                      Set default foreground color
+ *    - CSI 38 ; 5 ; I m            Set indexed foreground color
  *    - CSI 38 ; 2 ; R ; G ; B m    Set RGB foreground color
- *    - CSI 40-47,49                Set background color
+ *    - CSI 49                      Set default background color
+ *    - CSI 48 ; 5 ; I m            Set indexed background color
  *    - CSI 48 ; 2 ; R ; G ; B m    Set RGB background color
  *
  * See http://invisible-island.net/xterm/ctlseqs/ctlseqs.txt
@@ -41,37 +43,11 @@
 
 #define UI_TERMKEY_FLAGS TERMKEY_FLAG_UTF8
 
-#define CELL_COLOR_BLACK   { .index = 0 }
-#define CELL_COLOR_RED     { .index = 1 }
-#define CELL_COLOR_GREEN   { .index = 2 }
-#define CELL_COLOR_YELLOW  { .index = 3 }
-#define CELL_COLOR_BLUE    { .index = 4 }
-#define CELL_COLOR_MAGENTA { .index = 5 }
-#define CELL_COLOR_CYAN    { .index = 6 }
-#define CELL_COLOR_WHITE   { .index = 7 }
-#define CELL_COLOR_DEFAULT { .index = 9 }
-
-#define CELL_ATTR_NORMAL    0
-#define CELL_ATTR_UNDERLINE (1 << 0)
-#define CELL_ATTR_REVERSE   (1 << 1)
-#define CELL_ATTR_BLINK     (1 << 2)
-#define CELL_ATTR_BOLD      (1 << 3)
-#define CELL_ATTR_ITALIC    (1 << 4)
-#define CELL_ATTR_DIM       (1 << 5)
-
-static inline bool cell_color_equal(CellColor c1, CellColor c2) {
-	if (c1.index != (uint8_t)-1 || c2.index != (uint8_t)-1) {
-		return c1.index == c2.index;
-	}
-	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b;
-}
-
-static CellColor color_rgb(Ui *ui, uint8_t r, uint8_t g, uint8_t b) {
-	return (CellColor){ .r = r, .g = g, .b = b, .index = (uint8_t)-1 };
-}
-
-static CellColor color_terminal(Ui *ui, uint8_t index) {
-	return (CellColor){ .r = 0, .g = 0, .b = 0, .index = index };
+static CellStyle ui_backend_style_default(Ui *ui) {
+	CellStyle result = {0};
+	result.properties |= CELL_STYLE_FG_SET|CELL_STYLE_FG_DEFAULT;
+	result.properties |= CELL_STYLE_BG_SET|CELL_STYLE_BG_DEFAULT;
+	return result;
 }
 
 /* vt100 backend private state, stored as Ui.ctx */
@@ -131,7 +107,7 @@ static void ui_term_backend_blit(Ui *tui) {
 	Buffer *buf = &vt->output;
 	buf->len    = 0;
 	CellAttr attr = CELL_ATTR_NORMAL;
-	CellColor fg = CELL_COLOR_DEFAULT, bg = CELL_COLOR_DEFAULT;
+	CellStyle style_prev = ui_backend_style_default(tui);
 	int w = tui->width, h = tui->height;
 	Cell *cell = tui->cells;
 	Cell *front = vt->front;
@@ -186,24 +162,28 @@ static void ui_term_backend_blit(Ui *tui) {
 				attr = style->attr;
 			}
 
-			if (!cell_color_equal(fg, style->fg)) {
-				fg = style->fg;
-				if (fg.index != (uint8_t)-1) {
-					buffer_appendf(buf, "\x1b[%dm", 30 + fg.index);
+			if (!cell_style_fg_equal(style_prev, *style)) {
+				if (style->properties & CELL_STYLE_FG_DEFAULT) {
+					buffer_append0(buf, "\x1b[39m");
+				} else if (style->properties & CELL_STYLE_FG_INDEXED) {
+					buffer_appendf(buf, "\x1b[38;5;%um", (unsigned)CellStyleFGIndexGet(style));
 				} else {
 					buffer_appendf(buf, "\x1b[38;2;%d;%d;%dm",
-					               fg.r, fg.g, fg.b);
+					               style->fg_r, style->fg_g, style->fg_b);
 				}
+				cell_style_copy_fg(&style_prev, *style);
 			}
 
-			if (!cell_color_equal(bg, style->bg)) {
-				bg = style->bg;
-				if (bg.index != (uint8_t)-1) {
-					buffer_appendf(buf, "\x1b[%dm", 40 + bg.index);
+			if (!cell_style_bg_equal(style_prev, *style)) {
+				if (style->properties & CELL_STYLE_BG_DEFAULT) {
+					buffer_append0(buf, "\x1b[49m");
+				} else if (style->properties & CELL_STYLE_BG_INDEXED) {
+					buffer_appendf(buf, "\x1b[48;5;%um", (unsigned)CellStyleBGIndexGet(style));
 				} else {
 					buffer_appendf(buf, "\x1b[48;2;%d;%d;%dm",
-					               bg.r, bg.g, bg.b);
+					               style->bg_r, style->bg_g, style->bg_b);
 				}
+				cell_style_copy_bg(&style_prev, *style);
 			}
 
 			buffer_append0(buf, cell->data);
@@ -315,8 +295,4 @@ static void ui_term_backend_free(Ui *tui) {
 	buffer_release(&vt->output);
 	free(vt->front);
 	free(vt);
-}
-
-static bool is_default_color(CellColor c) {
-	return c.index == ((CellColor) CELL_COLOR_DEFAULT).index;
 }

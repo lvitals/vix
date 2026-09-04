@@ -65,11 +65,11 @@ lexers.STYLE_IDENTIFIER = 'fore:'..colors.fg
 
 lexers.STYLE_LINENUMBER = 'fore:'..colors.line_number..',back:'..colors.bg
 lexers.STYLE_LINENUMBER_CURSOR = 'fore:'..colors.line_number_active..',back:'..colors.bg
-lexers.STYLE_CURSOR = 'reverse'
-lexers.STYLE_CURSOR_PRIMARY = 'reverse'
-lexers.STYLE_CURSOR_LINE = 'back:'..colors.line_highlight
+lexers.STYLE_CURSOR = 'reverse,keep_attribute'
+lexers.STYLE_CURSOR_PRIMARY = 'reverse,keep_attribute'
+lexers.STYLE_CURSOR_LINE = 'back:'..colors.line_highlight..',keep_attribute'
 lexers.STYLE_COLOR_COLUMN = 'back:'..colors.line_highlight
-lexers.STYLE_SELECTION = 'back:'..colors.selection
+lexers.STYLE_SELECTION = 'back:'..colors.selection..',keep_attribute'
 lexers.STYLE_STATUS = 'fore:'..colors.status_inactive_fg..',back:'..colors.status_inactive_bg
 lexers.STYLE_STATUS_FOCUSED = 'fore:'..colors.status_fg..',back:'..colors.status_bg
 lexers.STYLE_TAB = 'fore:'..colors.status_inactive_fg..',back:'..colors.status_inactive_bg

@@ -14,24 +14,43 @@
 #define debug(...) do { } while (0)
 #endif
 
+/* helper macro for handling UiTerm.cells */
+#define CELL_AT_POS(UI, X, Y) (((UI)->cells) + (X) + ((Y) * (UI)->width));
+
+#define CELL_STYLE_FG_MASK (CELL_STYLE_FG_SET|CELL_STYLE_FG_DEFAULT|CELL_STYLE_FG_INDEXED)
+#define CELL_STYLE_BG_MASK (CELL_STYLE_BG_SET|CELL_STYLE_BG_DEFAULT|CELL_STYLE_BG_INDEXED)
+
+/* Used by both backends (ui-terminal-curses.c / ui-terminal-vt100.c, included
+ * below), so must be defined before that include. */
+static void cell_style_copy_fg(CellStyle *dst, CellStyle src) {
+	dst->fg_r = src.fg_r;
+	dst->fg_g = src.fg_g;
+	dst->fg_b = src.fg_b;
+	dst->properties = (dst->properties & ~CELL_STYLE_FG_MASK) | (src.properties & CELL_STYLE_FG_MASK);
+}
+
+static void cell_style_copy_bg(CellStyle *dst, CellStyle src) {
+	dst->bg_r = src.bg_r;
+	dst->bg_g = src.bg_g;
+	dst->bg_b = src.bg_b;
+	dst->properties = (dst->properties & ~CELL_STYLE_BG_MASK) | (src.properties & CELL_STYLE_BG_MASK);
+}
+
+static bool cell_style_fg_equal(CellStyle a, CellStyle b) {
+	return (a.properties & CELL_STYLE_FG_MASK) == (b.properties & CELL_STYLE_FG_MASK) &&
+	       a.fg_r == b.fg_r && a.fg_g == b.fg_g && a.fg_b == b.fg_b;
+}
+
+static bool cell_style_bg_equal(CellStyle a, CellStyle b) {
+	return (a.properties & CELL_STYLE_BG_MASK) == (b.properties & CELL_STYLE_BG_MASK) &&
+	       a.bg_r == b.bg_r && a.bg_g == b.bg_g && a.bg_b == b.bg_b;
+}
+
 #if CONFIG_CURSES
 #include "ui-terminal-curses.c"
 #else
 #include "ui-terminal-vt100.c"
 #endif
-
-/* helper macro for handling UiTerm.cells */
-#define CELL_AT_POS(UI, X, Y) (((UI)->cells) + (X) + ((Y) * (UI)->width));
-
-#define CELL_STYLE_DEFAULT (CellStyle){.fg = CELL_COLOR_DEFAULT, .bg = CELL_COLOR_DEFAULT, .attr = CELL_ATTR_NORMAL}
-
-static bool is_default_fg(CellColor c) {
-	return is_default_color(c);
-}
-
-static bool is_default_bg(CellColor c) {
-	return is_default_color(c);
-}
 
 /* Decode the character at the start of `text` (`rem` bytes available, not
  * necessarily NUL terminated beyond `rem`). `mbstate` carries multibyte
@@ -106,11 +125,12 @@ static void ui_window_move(Win *win, int x, int y) {
 	win->y = y;
 }
 
-static bool color_fromstring(Ui *ui, CellColor *color, const char *s)
+static bool color_fromstring(CellColorSpec *color, const char *s)
 {
 	if (!s) {
 		return false;
 	}
+	*color = (CellColorSpec){0};
 	if (*s == '#' && strlen(s) == 7) {
 		const char *cp;
 		unsigned char r, g, b;
@@ -122,40 +142,76 @@ static bool color_fromstring(Ui *ui, CellColor *color, const char *s)
 		if (n != 3) {
 			return false;
 		}
-		*color = color_rgb(ui, r, g, b);
+		color->r = r;
+		color->g = g;
+		color->b = b;
 		return true;
 	} else if ('0' <= *s && *s <= '9') {
 		int index = atoi(s);
-		if (index <= 0 || index > 255) {
+		if (index < 0 || index > 255) {
 			return false;
 		}
-		*color = color_terminal(ui, index);
+		color->indexed = true;
+		color->index = index;
+		return true;
+	} else if (!strcasecmp(s, "default")) {
+		color->is_default = true;
 		return true;
 	}
 
 	static const struct {
 		const char *name;
-		CellColor color;
+		uint16_t index;
 	} color_names[] = {
-		{ "black",   CELL_COLOR_BLACK   },
-		{ "red",     CELL_COLOR_RED     },
-		{ "green",   CELL_COLOR_GREEN   },
-		{ "yellow",  CELL_COLOR_YELLOW  },
-		{ "blue",    CELL_COLOR_BLUE    },
-		{ "magenta", CELL_COLOR_MAGENTA },
-		{ "cyan",    CELL_COLOR_CYAN    },
-		{ "white",   CELL_COLOR_WHITE   },
-		{ "default", CELL_COLOR_DEFAULT },
+		{ "black",   0 },
+		{ "red",     1 },
+		{ "green",   2 },
+		{ "yellow",  3 },
+		{ "blue",    4 },
+		{ "magenta", 5 },
+		{ "cyan",    6 },
+		{ "white",   7 },
 	};
 
 	for (size_t i = 0; i < LENGTH(color_names); i++) {
 		if (strcasecmp(color_names[i].name, s) == 0) {
-			*color = color_names[i].color;
+			color->indexed = true;
+			color->index = color_names[i].index;
 			return true;
 		}
 	}
 
 	return false;
+}
+
+static void cell_style_set_fg(CellStyle *style, CellColorSpec spec) {
+	style->properties &= ~CELL_STYLE_FG_MASK;
+	style->properties |= CELL_STYLE_FG_SET;
+	if (spec.is_default) {
+		style->properties |= CELL_STYLE_FG_DEFAULT;
+	} else if (spec.indexed) {
+		style->properties |= CELL_STYLE_FG_INDEXED;
+		CellStyleFGIndexSet(style, spec.index);
+	} else {
+		style->fg_r = spec.r;
+		style->fg_g = spec.g;
+		style->fg_b = spec.b;
+	}
+}
+
+static void cell_style_set_bg(CellStyle *style, CellColorSpec spec) {
+	style->properties &= ~CELL_STYLE_BG_MASK;
+	style->properties |= CELL_STYLE_BG_SET;
+	if (spec.is_default) {
+		style->properties |= CELL_STYLE_BG_DEFAULT;
+	} else if (spec.indexed) {
+		style->properties |= CELL_STYLE_BG_INDEXED;
+		CellStyleBGIndexSet(style, spec.index);
+	} else {
+		style->bg_r = spec.r;
+		style->bg_g = spec.g;
+		style->bg_b = spec.b;
+	}
 }
 
 bool ui_style_define(Win *win, int id, const char *style) {
@@ -167,7 +223,9 @@ bool ui_style_define(Win *win, int id, const char *style) {
 		return true;
 	}
 
-	CellStyle cell_style = CELL_STYLE_DEFAULT;
+	/* UI_STYLE_DEFAULT must always resolve to a concrete color: it is what
+	 * every other (typically partial) style inherits unset fg/bg from. */
+	CellStyle cell_style = (id == UI_STYLE_DEFAULT) ? ui_backend_style_default(tui) : (CellStyle){0};
 	char *style_copy = strdup(style), *option = style_copy;
 	while (option) {
 		while (*option == ' ') {
@@ -181,6 +239,7 @@ bool ui_style_define(Win *win, int id, const char *style) {
 		if (value) {
 			for (*value++ = '\0'; *value == ' '; value++);
 		}
+		CellColorSpec spec;
 		if (!strcasecmp(option, "reverse")) {
 			cell_style.attr |= CELL_ATTR_REVERSE;
 		} else if (!strcasecmp(option, "notreverse")) {
@@ -205,10 +264,16 @@ bool ui_style_define(Win *win, int id, const char *style) {
 			cell_style.attr |= CELL_ATTR_BLINK;
 		} else if (!strcasecmp(option, "notblink")) {
 			cell_style.attr &= ~CELL_ATTR_BLINK;
+		} else if (!strcasecmp(option, "keep_attribute")) {
+			cell_style.properties |= CELL_STYLE_KEEP_ATTR;
 		} else if (!strcasecmp(option, "fore")) {
-			color_fromstring(&win->vix->ui, &cell_style.fg, value);
+			if (color_fromstring(&spec, value)) {
+				cell_style_set_fg(&cell_style, spec);
+			}
 		} else if (!strcasecmp(option, "back")) {
-			color_fromstring(&win->vix->ui, &cell_style.bg, value);
+			if (color_fromstring(&spec, value)) {
+				cell_style_set_bg(&cell_style, spec);
+			}
 		}
 		option = next;
 	}
@@ -394,20 +459,33 @@ void ui_window_style_set(Ui *tui, int win_id, Cell *cell, enum UiStyle id, bool 
 		return;
 	}
 	CellStyle set = tui->styles[win_id * UI_STYLE_MAX + id];
+	CellStyle cell_style = cell->style;
 
-	if (id != UI_STYLE_DEFAULT) {
-		if (keep_non_default) {
-			CellStyle default_style = tui->styles[win_id * UI_STYLE_MAX + UI_STYLE_DEFAULT];
-			if (!cell_color_equal(cell->style.fg, default_style.fg)) {
-				set.fg = cell->style.fg;
-			}
-			if (!cell_color_equal(cell->style.bg, default_style.bg)) {
-				set.bg = cell->style.bg;
-			}
+	if (keep_non_default) {
+		/* legacy compat (see win:style()'s keep_non_default parameter):
+		 * prefer whatever color is already on the cell over this style's
+		 * own, but only when that color differs from this window's plain
+		 * default -- i.e. don't let this style clobber e.g. syntax
+		 * highlighting colors that are already sitting on the cell. */
+		CellStyle default_style = tui->styles[win_id * UI_STYLE_MAX + UI_STYLE_DEFAULT];
+		if (!cell_style_fg_equal(cell_style, default_style)) {
+			cell_style_copy_fg(&set, cell_style);
 		}
-		set.fg = is_default_fg(set.fg)? cell->style.fg : set.fg;
-		set.bg = is_default_bg(set.bg)? cell->style.bg : set.bg;
-		set.attr = cell->style.attr | set.attr;
+		if (!cell_style_bg_equal(cell_style, default_style)) {
+			cell_style_copy_bg(&set, cell_style);
+		}
+	}
+
+	/* a style is commonly partial by design (e.g. selection only sets bg):
+	 * whatever it left unset is inherited from the cell's current style */
+	if (!(set.properties & CELL_STYLE_FG_SET)) {
+		cell_style_copy_fg(&set, cell_style);
+	}
+	if (!(set.properties & CELL_STYLE_BG_SET)) {
+		cell_style_copy_bg(&set, cell_style);
+	}
+	if (set.properties & CELL_STYLE_KEEP_ATTR) {
+		set.attr |= cell_style.attr;
 	}
 
 	cell->style = set;
@@ -975,12 +1053,19 @@ bool ui_window_init(Ui *tui, Win *w, enum UiOption options) {
 
 	CellStyle *styles = &tui->styles[w->id * UI_STYLE_MAX];
 	for (int i = 0; i < UI_STYLE_MAX; i++) {
-		styles[i] = CELL_STYLE_DEFAULT;
+		styles[i] = (CellStyle){0};
 	}
+	styles[UI_STYLE_DEFAULT] = ui_backend_style_default(tui);
 
+	/* fallback styling used before/without a Lua theme; keep_attribute so
+	 * these still show whatever attributes syntax highlighting already
+	 * put on the cell (bold, italic, ...) instead of stripping them */
 	styles[UI_STYLE_CURSOR].attr |= CELL_ATTR_REVERSE;
+	styles[UI_STYLE_CURSOR].properties |= CELL_STYLE_KEEP_ATTR;
 	styles[UI_STYLE_CURSOR_PRIMARY].attr |= CELL_ATTR_REVERSE|CELL_ATTR_BLINK;
+	styles[UI_STYLE_CURSOR_PRIMARY].properties |= CELL_STYLE_KEEP_ATTR;
 	styles[UI_STYLE_SELECTION].attr |= CELL_ATTR_REVERSE;
+	styles[UI_STYLE_SELECTION].properties |= CELL_STYLE_KEEP_ATTR;
 	styles[UI_STYLE_COLOR_COLUMN].attr |= CELL_ATTR_REVERSE;
 	styles[UI_STYLE_STATUS].attr |= CELL_ATTR_REVERSE;
 	styles[UI_STYLE_STATUS_FOCUSED].attr |= CELL_ATTR_REVERSE|CELL_ATTR_BOLD;
