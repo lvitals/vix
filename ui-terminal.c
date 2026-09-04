@@ -316,7 +316,6 @@ static void ui_window_draw(Win *win) {
 	}
 	Ui *ui = &win->vix->ui;
 	View *view = &win->view;
-	const Line *line = win->view.topline;
 
 	bool status  = win->options & UI_OPTION_STATUSBAR;
 	bool nu      = win->options & UI_OPTION_LINE_NUMBERS_ABSOLUTE;
@@ -324,7 +323,7 @@ static void ui_window_draw(Win *win) {
 	bool sidebar = nu || rnu;
 
 	int width = win->width, height = win->height;
-	int sidebar_width = sidebar ? snprintf(NULL, 0, "%zd ", line->lineno + height - 2) : 0;
+	int sidebar_width = sidebar ? snprintf(NULL, 0, "%zd ", win->view.topline->lineno + height - 2) : 0;
 	if (sidebar_width != win->sidebar_width) {
 		view_resize(view, width - sidebar_width, status ? height - 1 : height);
 		win->sidebar_width = sidebar_width;
@@ -347,7 +346,7 @@ static void ui_window_draw(Win *win) {
 		max_y--;
 	}
 
-	for (const Line *l = line; l && y < max_y; l = l->next, y++) {
+	for (const Line *l = win->view.topline; l && y < max_y; l = l->next, y++) {
 		if (y < 0 || y >= ui->height) continue;
 		
 		if (sidebar) {
