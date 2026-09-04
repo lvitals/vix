@@ -1332,18 +1332,22 @@ static void macro_replay_internal(Vix *vix, const Macro *macro)
 {
 	size_t pos = buffer_length0(&vix->input_queue);
 	for (char *key = macro->data, *next; key; key = next) {
-		char tmp;
 		next = (char*)vix_keys_next(vix, key);
-		if (next) {
-			tmp = *next;
-			*next = '\0';
-		}
+		size_t len = next ? (size_t)(next - key) : strlen(key);
 
-		vix_keys_push(vix, key, pos, false);
-
-		if (next) {
-			*next = tmp;
+		/* copy into a bounded local buffer instead of temporarily NUL
+		 * terminating in place: macro may be a register being replayed
+		 * reentrantly (e.g. a self-referencing macro), and mutating its
+		 * storage mid-iteration would corrupt whichever nested replay
+		 * is concurrently walking the same buffer */
+		char keybuf[VIX_KEY_LENGTH_MAX];
+		if (len >= sizeof(keybuf)) {
+			len = sizeof(keybuf) - 1;
 		}
+		memcpy(keybuf, key, len);
+		keybuf[len] = '\0';
+
+		vix_keys_push(vix, keybuf, pos, false);
 	}
 }
 
