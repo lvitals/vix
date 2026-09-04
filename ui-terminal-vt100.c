@@ -5,8 +5,9 @@
  * This is useful for debugging and fuzzing purposes as well as for environments
  * with no curses support.
  *
- * Currently no attempt is made to optimize terminal output. The amount of
- * flickering will depend on the smartness of your terminal emulator.
+ * A front/back buffer scheme is used to avoid re-emitting the whole screen
+ * on every draw: only cells which actually changed since the last blit are
+ * written out.
  *
  * The following terminal escape sequences are used:
  *
@@ -73,6 +74,14 @@ static CellColor color_terminal(Ui *ui, uint8_t index) {
 	return (CellColor){ .r = 0, .g = 0, .b = 0, .index = index };
 }
 
+/* vt100 backend private state, stored as Ui.ctx */
+typedef struct {
+	Buffer output;        /* escape-sequence staging buffer, reused across blits */
+	Cell *front;          /* front buffer: cell contents as last actually written to the terminal */
+	size_t front_size;    /* #bytes allocated for front (grows only, mirrors Ui.cells_size) */
+	bool flush_terminal;  /* force a full redraw, e.g. because the terminal content may have
+	                          changed externally (resume from suspend, explicit redraw request) */
+} Vt100Ctx;
 
 static void output(const char *data, size_t len) {
 	if (write(STDERR_FILENO, data, len) == -1) {
@@ -92,18 +101,62 @@ static void cursor_visible(bool visible) {
 	output_literal(visible ? "\x1b[?25h" : "\x1b[?25l");
 }
 
+static bool cell_equal(const Cell *a, const Cell *b) {
+	return memcmp(a, b, sizeof(*a)) == 0;
+}
+
+/* grow (never shrink) vt->front to hold width*height cells, mirroring
+ * ui_resize()'s handling of Ui.cells. Called from both blit() and resize()
+ * so the front buffer is guaranteed valid before blit() ever dereferences
+ * it, regardless of whether resize() has run yet. */
+static bool vt100_front_ensure(Vt100Ctx *vt, int width, int height) {
+	size_t size = (size_t)width * (size_t)height * sizeof(Cell);
+	if (size > vt->front_size) {
+		Cell *front = realloc(vt->front, size);
+		if (!front) {
+			return false;
+		}
+		memset((char *)front + vt->front_size, 0, size - vt->front_size);
+		vt->front_size = size;
+		vt->front = front;
+	}
+	return true;
+}
+
 static void ui_term_backend_blit(Ui *tui) {
-	Buffer *buf = tui->ctx;
+	Vt100Ctx *vt = tui->ctx;
+	if (!vt100_front_ensure(vt, tui->width, tui->height)) {
+		return;
+	}
+	Buffer *buf = &vt->output;
 	buf->len    = 0;
 	CellAttr attr = CELL_ATTR_NORMAL;
 	CellColor fg = CELL_COLOR_DEFAULT, bg = CELL_COLOR_DEFAULT;
 	int w = tui->width, h = tui->height;
 	Cell *cell = tui->cells;
+	Cell *front = vt->front;
+	int cursor_x = 0, cursor_y = 0;
 	/* reposition cursor, reset attributes */
 	buffer_append0(buf, "\x1b[H" "\x1b[0m");
 	for (int y = 0; y < h; y++) {
-		buffer_appendf(buf, "\x1b[%d;1H", y + 1);
-		for (int x = 0; x < w; x++) {
+		for (int x = 0; x < w; x++, cell++, front++) {
+			if (y == h - 1 && x == w - 1) {
+				/* never write to the bottom right cell: doing so can
+				 * trigger an unwanted scroll/auto-wrap on some terminals.
+				 * still record it in front so front keeps meaning "last
+				 * cell buffer we processed" rather than silently going
+				 * stale at this one position. */
+				*front = *cell;
+				continue;
+			}
+			if (!vt->flush_terminal && cell_equal(cell, front)) {
+				continue;
+			}
+
+			if (cursor_x != x || cursor_y != y) {
+				buffer_appendf(buf, "\x1b[%d;%dH", y + 1, x + 1);
+			}
+
 			CellStyle *style = &cell->style;
 			if (style->attr != attr) {
 
@@ -153,22 +206,55 @@ static void ui_term_backend_blit(Ui *tui) {
 				}
 			}
 
-			if (y == h - 1 && x == w - 1) {
-				cell++;
-				continue;
-			}
 			buffer_append0(buf, cell->data);
-			cell++;
+			*front = *cell;
+
+			if (cell->data[0]) {
+				/* we printed a real glyph: the terminal's own cursor
+				 * advances by its column width, so our tracking can
+				 * trust that without another explicit reposition */
+				cursor_x = x + (cell->width > 0 ? cell->width : 1);
+				cursor_y = y;
+				if (cursor_x >= w) {
+					cursor_x = 0;
+					cursor_y++;
+				}
+			} else {
+				/* nothing was actually printed (e.g. a wide character's
+				 * continuation cell going blank): the real cursor did not
+				 * move, but we don't know where that leaves it relative
+				 * to what we'd otherwise assume, so invalidate our guess
+				 * and force the next write to reposition explicitly */
+				cursor_x = -1;
+				cursor_y = -1;
+			}
 		}
 	}
+	vt->flush_terminal = false;
 	/* move cursor */
 	buffer_appendf(buf, "\x1b[%d;%dH", tui->cur_row + 1, tui->cur_col + 1);
 	output(buf->data, buffer_length0(buf));
 }
 
-static void ui_term_backend_clear(Ui *tui) { }
+static void ui_term_backend_clear(Ui *tui) {
+	Vt100Ctx *vt = tui->ctx;
+	if (vt) {
+		vt->flush_terminal = true;
+	}
+}
 
 static bool ui_term_backend_resize(Ui *tui, int width, int height) {
+	Vt100Ctx *vt = tui->ctx;
+	if (!vt100_front_ensure(vt, width, height)) {
+		return false;
+	}
+	/* the terminal itself may have reflowed, cleared, or repositioned
+	 * content on its own in response to the physical resize (SIGWINCH),
+	 * so the front buffer can no longer be trusted to match reality */
+	vt->flush_terminal = true;
+	/* home the cursor, then erase from there to end of screen: clears any
+	 * leftover content beyond the new dimensions, e.g. when shrinking */
+	output_literal("\x1b[H" "\x1b[J");
 	return true;
 }
 
@@ -176,6 +262,13 @@ static void ui_term_backend_save(Ui *tui, bool fscr) {
 }
 
 static void ui_term_backend_restore(Ui *tui) {
+	/* the terminal contents may have changed while we weren't drawing
+	 * (e.g. another program ran while we were suspended), so the front
+	 * buffer can no longer be trusted: force a full redraw */
+	Vt100Ctx *vt = tui->ctx;
+	if (vt) {
+		vt->flush_terminal = true;
+	}
 }
 
 int ui_terminal_colors(void) {
@@ -208,19 +301,20 @@ static bool ui_term_backend_init(Ui *tui, char *term) {
 }
 
 static bool ui_backend_init(Ui *ui) {
-	Buffer *buf = calloc(1, sizeof(Buffer));
-	if (!buf) {
+	Vt100Ctx *vt = calloc(1, sizeof(Vt100Ctx));
+	if (!vt) {
 		return false;
 	}
-	ui->ctx = buf;
+	ui->ctx = vt;
 	return true;
 }
 
 static void ui_term_backend_free(Ui *tui) {
-	Buffer *buf = tui->ctx;
+	Vt100Ctx *vt = tui->ctx;
 	ui_term_backend_suspend(tui);
-	buffer_release(buf);
-	free(buf);
+	buffer_release(&vt->output);
+	free(vt->front);
+	free(vt);
 }
 
 static bool is_default_color(CellColor c) {
