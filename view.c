@@ -452,18 +452,7 @@ void view_draw(View *view) {
 
 	while (rem > 0) {
 
-		/* current 'parsed' character' */
-		wchar_t wchar;
-
-		size_t len = mbrtowc(&wchar, cur, rem, &mbstate);
-		if (len == (size_t)-1 && errno == EILSEQ) {
-			/* ok, we encountered an invalid multibyte sequence,
-			 * replace it with the Unicode Replacement Character
-			 * (FFFD) and skip until the start of the next utf8 char */
-			mbstate = (mbstate_t){0};
-			for (len = 1; rem > len && !ISUTF8(cur[len]); len++);
-			cell = (Cell){ .data = "\xEF\xBF\xBD", .len = len, .width = 1 };
-		} else if (len == (size_t)-2) {
+		if (!cell_decode_utf8(&cell, cur, rem, &mbstate)) {
 			/* not enough bytes available to convert to a
 			 * wide character. Advance file position and read
 			 * another junk into buffer.
@@ -480,22 +469,6 @@ void view_draw(View *view) {
 				break;
 			} else {
 				continue;
-			}
-		} else if (len == 0) {
-			/* NUL byte encountered, store it and continue */
-			cell = (Cell){ .data = "\x00", .len = 1, .width = 2 };
-		} else {
-			if (len >= sizeof(cell.data)) {
-				len = sizeof(cell.data)-1;
-			}
-			for (size_t i = 0; i < len; i++) {
-				cell.data[i] = cur[i];
-			}
-			cell.data[len] = '\0';
-			cell.len = len;
-			cell.width = wcwidth(wchar);
-			if (cell.width == -1) {
-				cell.width = 1;
 			}
 		}
 

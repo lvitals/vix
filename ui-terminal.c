@@ -33,6 +33,50 @@ static bool is_default_bg(CellColor c) {
 	return is_default_color(c);
 }
 
+/* Decode the character at the start of `text` (`rem` bytes available, not
+ * necessarily NUL terminated beyond `rem`). `mbstate` carries multibyte
+ * decoding state between calls on the same underlying byte stream.
+ *
+ * On success fills in `cell` (data/len/width, style left untouched) and
+ * returns true. Returns false if `rem` bytes are not enough to complete
+ * the character -- the caller should fetch more input, if any is coming,
+ * and retry with the same `mbstate`.
+ *
+ * Invalid byte sequences are replaced with the Unicode Replacement
+ * Character. Shared between view.c (streaming decode of file contents)
+ * and the info line (decode of a fixed, already fully buffered string). */
+static bool cell_decode_utf8(Cell *cell, const char *text, size_t rem, mbstate_t *mbstate) {
+	wchar_t wchar;
+	size_t len = mbrtowc(&wchar, text, rem, mbstate);
+
+	if (len == (size_t)-1 && errno == EILSEQ) {
+		/* invalid multibyte sequence: emit U+FFFD and skip until the
+		 * start of the next utf8 character */
+		*mbstate = (mbstate_t){0};
+		for (len = 1; rem > len && !ISUTF8(text[len]); len++);
+		*cell = (Cell){ .data = "\xEF\xBF\xBD", .len = len, .width = 1 };
+	} else if (len == (size_t)-2) {
+		return false;
+	} else if (len == 0) {
+		/* embedded NUL byte */
+		*cell = (Cell){ .data = "\x00", .len = 1, .width = 2 };
+	} else {
+		if (len >= sizeof(cell->data)) {
+			len = sizeof(cell->data)-1;
+		}
+		for (size_t i = 0; i < len; i++) {
+			cell->data[i] = text[i];
+		}
+		cell->data[len] = '\0';
+		cell->len = len;
+		cell->width = wcwidth(wchar);
+		if (cell->width == -1) {
+			cell->width = 1;
+		}
+	}
+	return true;
+}
+
 void ui_die(Ui *tui, const char *msg, va_list ap) {
 	ui_terminal_free(tui);
 	vfprintf(stderr, msg, ap);
@@ -223,6 +267,46 @@ static void ui_draw_string(Ui *tui, int x, int y, int max_x, const char *str, in
 		}
 		cells[x].style = default_style;
 		ui_window_style_set(tui, win_id, cells + x++, style_id, false);
+	}
+}
+
+/* Draw the info line, replacing non-printable characters (e.g. a stray
+ * newline embedded in a message) with their `^X` representation instead of
+ * writing them into the cell buffer as-is, and correctly accounting for
+ * double-width characters so they don't overlap the following cell. */
+static void ui_draw_info_line(Ui *tui) {
+	ui_draw_line(tui, 0, tui->height-1, ' ', 0, UI_STYLE_INFO);
+
+	CellStyle style = tui->styles[UI_STYLE_INFO];
+	Cell *cells = tui->cells + (tui->height - 1) * tui->width;
+	const char *text = tui->info;
+	size_t rem = strlen(text);
+	mbstate_t mbstate = {0};
+	int column = 0;
+
+	while (rem > 0 && column < tui->width) {
+		Cell cell = {0};
+		if (!cell_decode_utf8(&cell, text, rem, &mbstate)) {
+			break;
+		}
+
+		if (cell.len == 1 && ((unsigned char)cell.data[0] < 0x20 || (unsigned char)cell.data[0] == 0x7f)) {
+			unsigned char ctrl = (unsigned char)cell.data[0];
+			cell = (Cell){ .data = { '^', ctrl == 0x7f ? '?' : (char)(ctrl + 0x40) },
+			               .len = cell.len, .width = 2 };
+		}
+
+		if (column + cell.width <= tui->width) {
+			cell.style = style;
+			cells[column] = cell;
+			for (int i = 1; i < cell.width; i++) {
+				cells[column + i] = (Cell){0};
+			}
+		}
+		column += cell.width;
+
+		rem -= cell.len;
+		text += cell.len;
 	}
 }
 
@@ -719,8 +803,7 @@ void ui_draw(Ui *tui) {
 	}
 
 	if (tui->info[0]) {
-		ui_draw_line(tui, 0, tui->height-1, ' ', 0, UI_STYLE_INFO);
-		ui_draw_string(tui, 0, tui->height-1, tui->width, tui->info, 0, UI_STYLE_INFO);
+		ui_draw_info_line(tui);
 	}
 	vix_event_emit(tui->vix, VIX_EVENT_UI_DRAW);
 	ui_term_backend_blit(tui);
