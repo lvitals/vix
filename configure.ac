@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([vix], [0.1], [https://github.com/vix-editor/vix/issues])
+AC_INIT([vix], [0.1], [https://github.com/lvitals/vix])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_SRCDIR([main.c])
 AC_CONFIG_FILES([Makefile])
