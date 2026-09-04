@@ -673,7 +673,9 @@ Text *text_loadat_method(Vix *vix, int dirfd, const char *filename, enum TextLoa
 		if (!block && errno) {
 			goto out;
 		}
-		*da_push(vix, txt) = block;
+		if (block) {
+			*da_push(vix, txt) = block;
+		}
 	}
 
 	if (!block) {
