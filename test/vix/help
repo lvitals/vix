@@ -1,0 +1,37 @@
+ Lua paths used to load runtime files (? will be replaced by filename):
+
+  ../../lua/?.lua
+  ./?.lua
+  ./?/init.lua
+  /home/leandro/workspaces/vix/lua/?.lua
+  /home/leandro/workspaces/vix/lua/?/init.lua
+  /home/leandro/.config/vix/?.lua
+  /home/leandro/.config/vix/?/init.lua
+  /etc/vix/?.lua
+  /etc/vix/?/init.lua
+  /usr/share/vix/?.lua
+  /usr/share/vix/?/init.lua
+  /usr/local/share/lua/5.5/?.lua
+  /usr/local/share/lua/5.5/?/init.lua
+  /usr/share/lua/5.5/?.lua
+  /usr/share/lua/5.5/?/init.lua
+  /usr/local/lib/lua/5.5/?.lua
+  /usr/local/lib/lua/5.5/?/init.lua
+  /usr/lib/lua/5.5/?.lua
+  /usr/lib/lua/5.5/?/init.lua
+
+ Lua paths used to load C libraries (? will be replaced by filename):
+
+  /usr/local/lib/lua/5.5/?.so
+  /usr/lib/lua/5.5/?.so
+  /usr/local/lib/lua/5.5/loadall.so
+  /usr/lib/lua/5.5/loadall.so
+
+ Compile time configuration
+
+  Curses support:                 	no
+  Lua support:                    	yes
+  Lua LPeg statically built-in:   	yes
+  TRE based regex support:        	yes
+  POSIX ACL support:              	no
+  SELinux support:                	no

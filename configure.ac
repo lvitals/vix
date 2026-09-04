@@ -171,12 +171,7 @@ Install LPeg development/link files for the selected Lua version, or rerun confi
 					#include <lauxlib.h>
 					extern int luaopen_lpeg(lua_State *);
 				]], [[
-					lua_State *L;
-					#if LUA_VERSION_NUM >= 505
-					L = lua_newstate(NULL, NULL, 0);
-					#else
-					L = luaL_newstate();
-					#endif
+					lua_State *L = luaL_newstate();
 					if (!L) return 1;
 					luaL_openlibs(L);
 					lua_pushcfunction(L, luaopen_lpeg);
