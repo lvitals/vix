@@ -77,6 +77,13 @@ static void cursor_visible(bool visible) {
 	output_literal(visible ? "\x1b[?25h" : "\x1b[?25l");
 }
 
+/* ask the terminal to wrap pasted text in CSI 200~/201~ markers instead of
+ * emulating keystrokes indistinguishably from typing; see vix_paste_begin()
+ * in vix.c for how those markers are consumed. */
+static void paste_mode(bool enable) {
+	output_literal(enable ? "\x1b[?2004h" : "\x1b[?2004l");
+}
+
 static bool cell_equal(const Cell *a, const Cell *b) {
 	return memcmp(a, b, sizeof(*a)) == 0;
 }
@@ -262,6 +269,7 @@ static void ui_term_backend_suspend(Ui *tui) {
 	}
 	termkey_stop(tui->termkey);
 	if (tui->is_tty) {
+		paste_mode(false);
 		cursor_visible(true);
 		screen_alternate(false);
 	}
@@ -271,6 +279,7 @@ void ui_terminal_resume(Ui *tui) {
 	if (tui->is_tty) {
 		screen_alternate(true);
 		cursor_visible(false);
+		paste_mode(true);
 	}
 	termkey_start(tui->termkey);
 }

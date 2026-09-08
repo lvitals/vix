@@ -754,6 +754,7 @@ void vix_cleanup(Vix *vix)
 	map_free(vix->actions);
 	map_free(vix->keymap);
 	buffer_release(&vix->input_queue);
+	buffer_release(&vix->paste_buffer);
 	for (int i = 0; i < VIX_MODE_INVALID; i++) {
 		map_free(vix_modes[i].bindings);
 	}
@@ -1372,6 +1373,62 @@ void vix_keys_feed(Vix *vix, const char *input) {
 	macro_release(&macro);
 }
 
+/* A terminal bracketed paste delivers its content as ordinary key events
+ * (there is no way to tell it apart from typing at the byte level), so we
+ * only get to react at its start/end markers. In between, literal text is
+ * gathered in vix->paste_buffer instead of being run through the normal
+ * per-key pipeline: this both
+ *  - avoids one text_insert()+redraw per pasted character/line, which is
+ *    what makes pasting into insert mode feel slow, and
+ *  - suspends settings that are meant to react to interactively typed
+ *    keystrokes, most notably autoindent: without this every embedded
+ *    newline in the pasted text would trigger a fresh copy of the
+ *    (growing) previous line's indentation, producing runaway "staircase"
+ *    indentation on paste.
+ */
+static void vix_paste_flush(Vix *vix) {
+	if (vix->paste_buffer.len > 0) {
+		/* record the pasted text into an in-progress macro exactly like
+		 * vix_keys_push() would for individually typed keys */
+		if (vix->recording) {
+			buffer_append(vix->recording, vix->paste_buffer.data, vix->paste_buffer.len);
+		}
+		if (vix->macro_operator) {
+			buffer_append(vix->macro_operator, vix->paste_buffer.data, vix->paste_buffer.len);
+		}
+		vix_insert_key(vix, vix->paste_buffer.data, vix->paste_buffer.len);
+	}
+	vix->paste_buffer.len = 0;
+}
+
+static void vix_paste_begin(Vix *vix) {
+	if (vix->pasting) {
+		return;
+	}
+	vix->pasting = true;
+	vix->paste_buffer.len = 0;
+	vix->paste_saved_autoindent = vix->autoindent;
+	vix->autoindent = false;
+	vix->paste_win = vix->win;
+	if (vix->win) {
+		vix->paste_saved_expandtab = vix->win->expandtab;
+		vix->win->expandtab = false;
+	}
+}
+
+static void vix_paste_end(Vix *vix) {
+	if (!vix->pasting) {
+		return;
+	}
+	vix_paste_flush(vix);
+	vix->pasting = false;
+	vix->autoindent = vix->paste_saved_autoindent;
+	if (vix->paste_win && vix->paste_win == vix->win) {
+		vix->win->expandtab = vix->paste_saved_expandtab;
+	}
+	vix->paste_win = NULL;
+}
+
 static const char *getkey(Vix *vix) {
 	TermKeyKey key = { 0 };
 	if (!ui_getkey(&vix->ui, &key)) {
@@ -1394,6 +1451,14 @@ static const char *getkey(Vix *vix) {
 
 	TermKey *termkey = vix->ui.termkey;
 	if (key.type == TERMKEY_TYPE_UNKNOWN_CSI) {
+		if (!strcmp(key.csi, "200~")) {
+			vix_paste_begin(vix);
+			return getkey(vix);
+		}
+		if (!strcmp(key.csi, "201~")) {
+			vix_paste_end(vix);
+			return getkey(vix);
+		}
 		long args[18];
 		size_t nargs;
 		unsigned long cmd;
@@ -1404,6 +1469,36 @@ static const char *getkey(Vix *vix) {
 		}
 		return getkey(vix);
 	}
+
+	if (vix->pasting) {
+		char litbuf[1];
+		const char *lit = NULL;
+		size_t litlen = 0;
+		if (key.type == TERMKEY_TYPE_UNICODE && key.modifiers == 0) {
+			lit = key.utf8;
+			litlen = strlen(key.utf8);
+		} else if (key.type == TERMKEY_TYPE_KEYSYM && key.modifiers == 0 &&
+		           key.code.sym == TERMKEY_SYM_ENTER) {
+			litbuf[0] = '\n';
+			lit = litbuf;
+			litlen = 1;
+		} else if (key.type == TERMKEY_TYPE_KEYSYM && key.modifiers == 0 &&
+		           key.code.sym == TERMKEY_SYM_TAB) {
+			litbuf[0] = '\t';
+			lit = litbuf;
+			litlen = 1;
+		}
+		if (lit) {
+			buffer_append(&vix->paste_buffer, lit, litlen);
+			return getkey(vix);
+		}
+		/* something unexpected showed up inside the bracketed region (e.g.
+		 * an unusual control key): insert the literal text gathered so far
+		 * as-is, then let this one key run through the normal pipeline
+		 * below instead of silently dropping or misinterpreting it. */
+		vix_paste_flush(vix);
+	}
+
 	termkey_strfkey(termkey, vix->key, sizeof(vix->key), &key, TERMKEY_FORMAT_VIM);
 	return vix->key;
 }

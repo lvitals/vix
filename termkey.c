@@ -344,12 +344,22 @@ static int read_byte(TermKey *tk, unsigned char *byte, int timeout)
 	if (pret < 0) {
 		return -1;
 	}
-	ssize_t n = read(tk->fd, byte, 1);
+	/* read as much as is immediately available (e.g. an entire paste) in
+	 * one syscall instead of one read(2) per byte; read(2) on a tty/pipe
+	 * returns as soon as at least one byte is ready, so this does not
+	 * delay delivery of a single interactively typed key. */
+	ssize_t n = read(tk->fd, tk->buf, sizeof tk->buf);
 	if (n == 0) {
 		return -2;
 	}
 	if (n < 0) {
 		return -1;
+	}
+	tk->len = (size_t)n;
+	tk->pos = 0;
+	*byte = tk->buf[tk->pos++];
+	if (tk->pos == tk->len) {
+		tk->pos = tk->len = 0;
 	}
 	return 1;
 }

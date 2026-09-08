@@ -204,6 +204,11 @@ struct Vix {
 	enum TextLoadMethod load_method;     /* how existing files should be loaded */
 	enum PromptState prompt_state;       /* needed for determining primary cursor's position */
 	bool autoindent;                     /* whether indentation should be copied from previous line on newline */
+	bool pasting;                        /* inside a terminal bracketed paste (between CSI 200~ and 201~) */
+	bool paste_saved_autoindent;         /* autoindent value to restore once the bracketed paste ends */
+	bool paste_saved_expandtab;          /* win->expandtab value to restore once the bracketed paste ends */
+	Win *paste_win;                      /* window whose expandtab was suspended for the paste, if any */
+	Buffer paste_buffer;                 /* literal text gathered during a bracketed paste, inserted in one go */
 	bool opentab;                        /* whether to open new files in a new tab */
 	bool change_colors;                  /* whether to adjust 256 color palette for true colors */
 	bool ignorecase;                     /* whether to ignore case when searching */
