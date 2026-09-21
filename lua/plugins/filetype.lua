@@ -157,6 +157,7 @@ local fnames = {
 	h = "c",
 	i = "c",
 	i3 = "modula3",
+	l = "alef",
 	ig = "modula3",
 	ily = "lilypond",
 	jsx = "javascript",
