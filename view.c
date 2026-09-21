@@ -610,7 +610,7 @@ bool view_init(Win *win, Text *text) {
 
 	view->text = text;
 	view->win = win;
-	view->tabwidth = 8;
+	view->tabwidth = 4;
 	view->breakat = strdup("");
 	view->wrapcolumn = 0;
 	win_options_set(win, 0);

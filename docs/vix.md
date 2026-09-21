@@ -1591,7 +1591,7 @@ The part in square brackets is the default value of the option.
 	<**Escape**>
 	key.
 
-**tabwidth**, **tw** [*8*]
+**tabwidth**, **tw** [*4*]
 
 	Display width of a tab and number of spaces to use if
 	**expandtab**
