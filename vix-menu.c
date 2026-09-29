@@ -678,6 +678,9 @@ main(int argc, char **argv) {
 	}
 
 	readstdin();
+	if (!items || !items[0].text) {
+		return 1; /* nothing to choose from: don't wait for a key */
+	}
 	setup();
 	int status = run();
 	cleanup();

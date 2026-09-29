@@ -203,8 +203,13 @@ static void ui_term_backend_blit(Ui *tui) {
 				cursor_x = x + (cell->width > 0 ? cell->width : 1);
 				cursor_y = y;
 				if (cursor_x >= w) {
-					cursor_x = 0;
-					cursor_y++;
+					/* at the right margin terminals disagree (pending
+					 * wrap or not, the Linux console included), and a
+					 * glyph the terminal draws wider or narrower than
+					 * wcwidth() says shifts everything after it: don't
+					 * rely on auto-wrap, reposition explicitly */
+					cursor_x = -1;
+					cursor_y = -1;
 				}
 			} else {
 				/* nothing was actually printed (e.g. a wide character's

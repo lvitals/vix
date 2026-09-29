@@ -246,9 +246,14 @@ void vix_prompt_show(Vix *vix, const char *title) {
 		return;
 	}
 	Text *txt = prompt->file->text;
-	text_appendf(vix, txt, "%s\n", title);
+	/* Keep the active prompt as an unterminated last line.  Positioning the
+	 * cursor on a trailing newline can make a one-line view scroll to the
+	 * following empty line, leaving the command prompt invisible and with no
+	 * usable insertion position (notably on the VT100/Linux-console backend).
+	 * prompt_hide() terminates the line before storing it in the history. */
+	text_appendf(vix, txt, "%s", title);
 	Selection *sel = view_selections_primary_get(&prompt->view);
-	view_cursors_scroll_to(sel, text_size(txt)-1);
+	view_cursors_scroll_to(sel, text_size(txt));
 	prompt->parent = active;
 	prompt->parent_mode = vix->mode;
 	vix_window_focus(prompt);

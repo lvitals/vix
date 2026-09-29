@@ -1278,6 +1278,22 @@ static int command_register(lua_State *L) {
 	return 1;
 }
 
+/* Let the user pick one of the candidates in buf with vix-menu. With no
+ * candidate there is nothing to pick: report it instead of opening an
+ * empty menu that waits for a key. */
+static int complete_menu(Vix *vix, Buffer *buf, const char *what, const char *prefix,
+                         char **out, char **err) {
+	if (buffer_length0(buf) == 0) {
+		Buffer msg = {0};
+		buffer_appendf(&msg, "No %s matching `%s'", what, prefix);
+		*err = strdup(buffer_content0(&msg));
+		buffer_release(&msg);
+		return 1;
+	}
+	return vix_pipe_buf_collect(vix, buffer_content0(buf), (const char*[]){"vix-menu", "-b", 0},
+	                            out, err, false);
+}
+
 /***
  * Let user pick a command matching the given prefix.
  *
@@ -1296,8 +1312,7 @@ static int complete_command(lua_State *L) {
 
 	Buffer buf = {0};
 	vix_print_cmds(vix, &buf, prefix);
-	int status = vix_pipe_buf_collect(vix, buffer_content0(&buf), (const char*[]){"vix-menu", "-b", 0},
-	                                  &out, &err, false);
+	int status = complete_menu(vix, &buf, "command", prefix, &out, &err);
 
 	lua_pushinteger(L, status);
 	if (out) {
@@ -1335,8 +1350,7 @@ static int complete_option(lua_State *L) {
 
 	Buffer buf = {0};
 	vix_print_options(vix, &buf, prefix);
-	int status = vix_pipe_buf_collect(vix, buffer_content0(&buf), (const char*[]){"vix-menu", "-b", 0},
-	                                  &out, &err, false);
+	int status = complete_menu(vix, &buf, "option", prefix, &out, &err);
 
 	lua_pushinteger(L, status);
 	if (out) {

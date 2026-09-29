@@ -285,11 +285,26 @@ bool ui_style_define(Win *win, int id, const char *style) {
 	return true;
 }
 
+/* A style is commonly partial (the default theme's STYLE_INFO is just
+ * "bold"): complete the colors it leaves unset with the terminal's
+ * defaults, or they are drawn as rgb(0,0,0), black on black. */
+static CellStyle ui_style_resolved(Ui *tui, int win_id, enum UiStyle style_id) {
+	CellStyle style = tui->styles[win_id * UI_STYLE_MAX + style_id];
+	CellStyle def = ui_backend_style_default(tui);
+	if (!(style.properties & CELL_STYLE_FG_SET)) {
+		cell_style_copy_fg(&style, def);
+	}
+	if (!(style.properties & CELL_STYLE_BG_SET)) {
+		cell_style_copy_bg(&style, def);
+	}
+	return style;
+}
+
 static void ui_draw_line(Ui *tui, int x, int y, char c, int win_id, enum UiStyle style_id) {
 	if (!tui->cells || !tui->styles || x < 0 || x >= tui->width || y < 0 || y >= tui->height) {
 		return;
 	}
-	CellStyle style = tui->styles[win_id * UI_STYLE_MAX + style_id];
+	CellStyle style = ui_style_resolved(tui, win_id, style_id);
 	Cell *cells = tui->cells + y * tui->width;
 	while (x < tui->width) {
 		cells[x].data[0] = c;
@@ -342,7 +357,7 @@ static void ui_draw_string(Ui *tui, int x, int y, int max_x, const char *str, in
 static void ui_draw_info_line(Ui *tui) {
 	ui_draw_line(tui, 0, tui->height-1, ' ', 0, UI_STYLE_INFO);
 
-	CellStyle style = tui->styles[UI_STYLE_INFO];
+	CellStyle style = ui_style_resolved(tui, 0, UI_STYLE_INFO);
 	Cell *cells = tui->cells + (tui->height - 1) * tui->width;
 	const char *text = tui->info;
 	size_t rem = strlen(text);
